@@ -110,11 +110,11 @@ export default function VideoGenerate({ apiKey, errorMsg, onError, onLoadingChan
     }
   }, [])
 
-  const startPolling = useCallback((taskId: string) => {
+  const startPolling = useCallback((videoId: string) => {
     stopPolling()
     pollTimerRef.current = setInterval(() => {
-      if (!taskId) return
-      requestRef.current = queryVideoTask(apiKey.trim(), taskId)
+      if (!videoId) return
+      requestRef.current = queryVideoTask(apiKey.trim(), videoId)
       requestRef.current.promise
         .then((res) => {
           if (res.statusCode === 200) {
@@ -220,11 +220,11 @@ export default function VideoGenerate({ apiKey, errorMsg, onError, onLoadingChan
       .then((res) => {
         if (res.statusCode === 200 || res.statusCode === 201) {
           const data = res.data as Record<string, unknown>
-          const taskId = (data.video_id || data.id || data.task_id || '') as string
-          if (taskId) {
-            setVideoTaskId(taskId)
+          const videoId = (data.video_id || data.id || data.task_id || '') as string
+          if (videoId) {
+            setVideoTaskId(videoId)
             setVideoStatus('任务已提交，等待处理...')
-            startPolling(taskId)
+            startPolling(videoId)
           } else {
             setIsLoading(false)
             onError('未获取到任务 ID')

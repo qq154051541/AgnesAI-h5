@@ -180,9 +180,9 @@ export function createVideoTask(
  * 查询视频任务状态
  * 使用 GET /agnesapi?video_id=xxx&model_name=xxx 接口
  */
-export function queryVideoTask(apiKey: string, taskId: string): RequestResult<ApiResponse> {
+export function queryVideoTask(apiKey: string, videoId: string): RequestResult<ApiResponse> {
   return fetchWithAbort(
-    `${API_BASE_URL}${API_PATHS.VIDEO_QUERY}?video_id=${encodeURIComponent(taskId)}&model_name=${encodeURIComponent(VIDEO_MODEL)}&_t=${Date.now()}`,
+    `${API_BASE_URL}${API_PATHS.VIDEO_QUERY}?video_id=${encodeURIComponent(videoId)}&model_name=${encodeURIComponent(VIDEO_MODEL)}&_t=${Date.now()}`,
     {
       method: 'GET',
       headers: {
