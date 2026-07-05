@@ -12,6 +12,7 @@ export interface ImageGenerateHandle {
 
 interface ImageGenerateProps {
   apiKey: string
+  errorMsg: string
   onError: (msg: string) => void
   onLoadingChange: (loading: boolean) => void
 }
@@ -19,7 +20,7 @@ interface ImageGenerateProps {
 const PAGE_SIZE = 10
 
 const ImageGenerate = forwardRef<ImageGenerateHandle, ImageGenerateProps>(
-  ({ apiKey, onError, onLoadingChange }, ref) => {
+  ({ apiKey, errorMsg, onError, onLoadingChange }, ref) => {
     const [modelIndex, setModelIndex] = useState(0)
     const [sizeIndex, setSizeIndex] = useState(0)
     const [countIndex, setCountIndex] = useState(0)
@@ -540,6 +541,11 @@ const ImageGenerate = forwardRef<ImageGenerateHandle, ImageGenerateProps>(
             {isLoading ? '生成中...' : `✦ 生成图片${imageCount > 1 ? ' ×' + imageCount : ''}`}
           </Button>
         </div>
+
+        {/* 错误提示 */}
+        {errorMsg && (
+          <div className="agnes-error-box">{errorMsg}</div>
+        )}
 
         {/* 加载状态 */}
         {isLoading && (

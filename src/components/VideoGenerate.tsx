@@ -8,13 +8,14 @@ import { getStorage, setStorage, copyToClipboard, downloadFile, formatTime, trun
 
 interface VideoGenerateProps {
   apiKey: string
+  errorMsg: string
   onError: (msg: string) => void
   onLoadingChange: (loading: boolean) => void
 }
 
 const PAGE_SIZE = 10
 
-export default function VideoGenerate({ apiKey, onError, onLoadingChange }: VideoGenerateProps) {
+export default function VideoGenerate({ apiKey, errorMsg, onError, onLoadingChange }: VideoGenerateProps) {
   const [sizeIndex, setSizeIndex] = useState(0)
   const [durationIndex, setDurationIndex] = useState(0)
   const [prompt, setPrompt] = useState('')
@@ -493,6 +494,11 @@ export default function VideoGenerate({ apiKey, onError, onLoadingChange }: Vide
           {isLoading ? '生成中...' : '✦ 生成视频'}
         </Button>
       </div>
+
+      {/* 错误提示 */}
+      {errorMsg && (
+        <div className="agnes-error-box">{errorMsg}</div>
+      )}
 
       {/* 加载状态 */}
       {isLoading && (

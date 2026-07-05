@@ -8,6 +8,7 @@ import { getStorage, setStorage, copyToClipboard, formatTime, truncateText } fro
 
 interface Img2PromptProps {
   apiKey: string
+  errorMsg: string
   onError: (msg: string) => void
   onLoadingChange: (loading: boolean) => void
   onUsePrompt: (prompt: string) => void
@@ -15,7 +16,7 @@ interface Img2PromptProps {
 
 const PAGE_SIZE = 10
 
-export default function Img2Prompt({ apiKey, onError, onLoadingChange, onUsePrompt }: Img2PromptProps) {
+export default function Img2Prompt({ apiKey, errorMsg, onError, onLoadingChange, onUsePrompt }: Img2PromptProps) {
   const [imageUrl, setImageUrl] = useState('')
   const [imageInput, setImageInput] = useState('')
   const [lang, setLang] = useState<'en' | 'zh'>('en')
@@ -299,6 +300,11 @@ export default function Img2Prompt({ apiKey, onError, onLoadingChange, onUseProm
           {isLoading ? '分析中...' : '✦ 生成提示词'}
         </Button>
       </div>
+
+      {/* 错误提示 */}
+      {errorMsg && (
+        <div className="agnes-error-box">{errorMsg}</div>
+      )}
 
       {/* 加载状态 */}
       {isLoading && (

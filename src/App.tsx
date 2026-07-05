@@ -31,8 +31,6 @@ export default function App() {
     }
   }, [])
 
-  const currentError = errorMsgs[activeTab] || ''
-
   const onError = useCallback((tab: TabKey, msg: string) => {
     setErrorMsgs((prev) => ({ ...prev, [tab]: msg }))
   }, [])
@@ -73,6 +71,7 @@ export default function App() {
         <ImageGenerate
           ref={imageGenerateRef}
           apiKey={apiKey}
+          errorMsg={errorMsgs.image}
           onError={(msg) => onError('image', msg)}
           onLoadingChange={setImageLoading}
         />
@@ -89,6 +88,7 @@ export default function App() {
       children: (
         <VideoGenerate
           apiKey={apiKey}
+          errorMsg={errorMsgs.video}
           onError={(msg) => onError('video', msg)}
           onLoadingChange={setVideoLoading}
         />
@@ -105,6 +105,7 @@ export default function App() {
       children: (
         <Img2Prompt
           apiKey={apiKey}
+          errorMsg={errorMsgs.img2prompt}
           onError={(msg) => onError('img2prompt', msg)}
           onLoadingChange={setImg2promptLoading}
           onUsePrompt={handleUsePrompt}
@@ -182,11 +183,6 @@ export default function App() {
               onChange={(key) => setActiveTab(key as TabKey)}
             />
           </div>
-
-          {/* 错误提示 */}
-          {currentError && (
-            <div className="agnes-error-box">{currentError}</div>
-          )}
         </div>
 
         {/* 底部 */}
