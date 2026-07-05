@@ -5,6 +5,7 @@ import { createVideoTask, queryVideoTask, uploadToImgbb } from '../services/api'
 import type { RequestResult, ApiResponse } from '../types'
 import type { VideoHistoryItem } from '../types'
 import { getStorage, setStorage, copyToClipboard, downloadFile, formatTime, truncateText, formatResponseData } from '../utils/helpers'
+import ImagePreview from './ImagePreview'
 
 interface VideoGenerateProps {
   apiKey: string
@@ -31,6 +32,7 @@ export default function VideoGenerate({ apiKey, errorMsg, onError, onLoadingChan
   const [historyPage, setHistoryPage] = useState(1)
   const [historyJumpPage, setHistoryJumpPage] = useState('')
   const [detailItem, setDetailItem] = useState<VideoHistoryItem | null>(null)
+  const [previewSrc, setPreviewSrc] = useState('')
 
   const requestRef = useRef<RequestResult<ApiResponse> | null>(null)
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -466,7 +468,7 @@ export default function VideoGenerate({ apiKey, errorMsg, onError, onLoadingChan
                     className="agnes-ref-preview-image"
                     src={url}
                     alt={`ref-${index}`}
-                    onClick={() => window.open(url, '_blank')}
+                    onClick={() => setPreviewSrc(url)}
                   />
                   <div
                     className="agnes-ref-preview-delete"
@@ -627,7 +629,12 @@ export default function VideoGenerate({ apiKey, errorMsg, onError, onLoadingChan
       {/* 详情弹窗 */}
       <Modal
         open={!!detailItem}
-        title="视频记录详情"
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+            <span>视频记录详情</span>
+            <button className="agnes-modal-close-btn" onClick={() => setDetailItem(null)}>✕</button>
+          </div>
+        }
         onClose={() => setDetailItem(null)}
         typewriter={false}
         footer={null}
@@ -673,7 +680,7 @@ export default function VideoGenerate({ apiKey, errorMsg, onError, onLoadingChan
                       className="agnes-detail-ref-image"
                       src={url}
                       alt={`ref-${idx}`}
-                      onClick={() => window.open(url, '_blank')}
+                      onClick={() => setPreviewSrc(url)}
                     />
                   ))}
                 </div>
@@ -702,6 +709,7 @@ export default function VideoGenerate({ apiKey, errorMsg, onError, onLoadingChan
           </div>
         )}
       </Modal>
+      <ImagePreview src={previewSrc} onClose={() => setPreviewSrc('')} />
     </div>
   )
 }

@@ -5,6 +5,7 @@ import { generateImage, uploadToImgbb } from '../services/api'
 import type { RequestResult } from '../types'
 import type { ImageHistoryItem } from '../types'
 import { getStorage, setStorage, copyToClipboard, downloadFile, formatTime, truncateText, formatResponseData } from '../utils/helpers'
+import ImagePreview from './ImagePreview'
 
 export interface ImageGenerateHandle {
   setPrompt: (text: string) => void
@@ -39,6 +40,7 @@ const ImageGenerate = forwardRef<ImageGenerateHandle, ImageGenerateProps>(
     const [isDetailSelectMode, setIsDetailSelectMode] = useState(false)
     const [completedCount, setCompletedCount] = useState(0)
     const [totalCount, setTotalCount] = useState(0)
+    const [previewSrc, setPreviewSrc] = useState('')
 
     const requestsRef = useRef<RequestResult[]>([])
     const fileInputRef = useRef<HTMLInputElement>(null)
@@ -231,7 +233,7 @@ const ImageGenerate = forwardRef<ImageGenerateHandle, ImageGenerateProps>(
             prev.includes(idx) ? prev.filter((i) => i !== idx) : [...prev, idx]
           )
         } else {
-          window.open(imageUrls[idx], '_blank')
+          setPreviewSrc(imageUrls[idx])
         }
       },
       [isSelectMode, imageUrls]
@@ -371,7 +373,7 @@ const ImageGenerate = forwardRef<ImageGenerateHandle, ImageGenerateProps>(
           )
         } else if (detailItem) {
           const urls = detailItem.urls || [detailItem.url]
-          window.open(urls[idx], '_blank')
+          setPreviewSrc(urls[idx])
         }
       },
       [isDetailSelectMode, detailItem]
@@ -514,7 +516,7 @@ const ImageGenerate = forwardRef<ImageGenerateHandle, ImageGenerateProps>(
                     className="agnes-ref-preview-image"
                     src={url}
                     alt={`ref-${index}`}
-                    onClick={() => window.open(url, '_blank')}
+                    onClick={() => setPreviewSrc(url)}
                   />
                   <div
                     className="agnes-ref-preview-delete"
@@ -581,7 +583,7 @@ const ImageGenerate = forwardRef<ImageGenerateHandle, ImageGenerateProps>(
                 className="agnes-result-image"
                 src={imageUrls[0]}
                 alt="result"
-                onClick={() => window.open(imageUrls[0], '_blank')}
+                onClick={() => setPreviewSrc(imageUrls[0])}
               />
             ) : (
               <div className="agnes-result-grid">
@@ -715,7 +717,12 @@ const ImageGenerate = forwardRef<ImageGenerateHandle, ImageGenerateProps>(
         {/* 详情弹窗 */}
         <Modal
           open={!!detailItem}
-          title="图片记录详情"
+          title={
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+              <span>图片记录详情</span>
+              <button className="agnes-modal-close-btn" onClick={() => setDetailItem(null)}>✕</button>
+            </div>
+          }
           onClose={() => setDetailItem(null)}
           typewriter={false}
           footer={null}
@@ -772,7 +779,7 @@ const ImageGenerate = forwardRef<ImageGenerateHandle, ImageGenerateProps>(
                         className="agnes-detail-ref-image"
                         src={url}
                         alt={`ref-${idx}`}
-                        onClick={() => window.open(url, '_blank')}
+                        onClick={() => setPreviewSrc(url)}
                       />
                     ))}
                   </div>
@@ -821,6 +828,8 @@ const ImageGenerate = forwardRef<ImageGenerateHandle, ImageGenerateProps>(
             </div>
           )}
         </Modal>
+
+      <ImagePreview src={previewSrc} onClose={() => setPreviewSrc('')} />
       </div>
     )
   }

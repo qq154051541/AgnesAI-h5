@@ -5,6 +5,7 @@ import { imageToPrompt, uploadToImgbb } from '../services/api'
 import type { RequestResult, ApiResponse } from '../types'
 import type { Img2PromptHistoryItem } from '../types'
 import { getStorage, setStorage, copyToClipboard, formatTime, truncateText } from '../utils/helpers'
+import ImagePreview from './ImagePreview'
 
 interface Img2PromptProps {
   apiKey: string
@@ -26,6 +27,7 @@ export default function Img2Prompt({ apiKey, errorMsg, onError, onLoadingChange,
   const [historyPage, setHistoryPage] = useState(1)
   const [historyJumpPage, setHistoryJumpPage] = useState('')
   const [detailItem, setDetailItem] = useState<Img2PromptHistoryItem | null>(null)
+  const [previewSrc, setPreviewSrc] = useState('')
 
   const requestRef = useRef<RequestResult<ApiResponse> | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -253,7 +255,7 @@ export default function Img2Prompt({ apiKey, errorMsg, onError, onLoadingChange,
               className="agnes-img2prompt-preview"
               src={imageUrl}
               alt="preview"
-              onClick={() => window.open(imageUrl, '_blank')}
+              onClick={() => setPreviewSrc(imageUrl)}
             />
             <div
               className="agnes-ref-preview-delete"
@@ -444,7 +446,12 @@ export default function Img2Prompt({ apiKey, errorMsg, onError, onLoadingChange,
       {/* 详情弹窗 */}
       <Modal
         open={!!detailItem}
-        title="提示词记录详情"
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+            <span>提示词记录详情</span>
+            <button className="agnes-modal-close-btn" onClick={() => setDetailItem(null)}>✕</button>
+          </div>
+        }
         onClose={() => setDetailItem(null)}
         typewriter={false}
         footer={null}
@@ -457,7 +464,7 @@ export default function Img2Prompt({ apiKey, errorMsg, onError, onLoadingChange,
                 className="agnes-detail-image"
                 src={detailItem.imageUrl}
                 alt="detail"
-                onClick={() => window.open(detailItem.imageUrl, '_blank')}
+                onClick={() => setPreviewSrc(detailItem.imageUrl)}
               />
             )}
 
@@ -486,6 +493,7 @@ export default function Img2Prompt({ apiKey, errorMsg, onError, onLoadingChange,
           </div>
         )}
       </Modal>
+      <ImagePreview src={previewSrc} onClose={() => setPreviewSrc('')} />
     </div>
   )
 }

@@ -1115,6 +1115,77 @@ body {
   color: var(--agnes-text-muted);
 }
 
+/* ===== 图片预览弹窗 ===== */
+.agnes-image-preview-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.75);
+  animation: agnes-preview-fade-in 0.2s ease;
+}
+
+.agnes-image-preview-img {
+  max-width: 90vw;
+  max-height: 85vh;
+  border-radius: var(--agnes-radius-base);
+  object-fit: contain;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.agnes-image-preview-close {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  font-size: 18px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all var(--agnes-transition);
+  z-index: 10001;
+}
+
+.agnes-image-preview-close:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: rotate(90deg);
+}
+
+@keyframes agnes-preview-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ===== Modal 关闭按钮 ===== */
+.agnes-modal-close-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  font-size: 18px;
+  color: var(--agnes-text-secondary);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all var(--agnes-transition);
+  flex-shrink: 0;
+}
+
+.agnes-modal-close-btn:hover {
+  background: var(--agnes-error-bg);
+  color: var(--agnes-error);
+}
+
 /* ===== 响应式 ===== */
 @media (max-width: 480px) {
   .agnes-header {
