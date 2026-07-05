@@ -67,12 +67,13 @@ export const VIDEO_SIZES = [
   { value: '720x1280', label: '720×1280 竖屏（9:16）' }
 ] as const
 
-/** 视频时长配置（num_frames 满足 8n+1，frame_rate 固定 24） */
+/** 视频时长配置（num_frames 满足 8n+1，frame_rate 固定 24）
+ * 注意：720p 分辨率下 num_frames 最大 409 */
 export const VIDEO_DURATIONS = [
   { value: 81, label: '约 3 秒', frameRate: 24 },
   { value: 121, label: '约 5 秒', frameRate: 24 },
   { value: 241, label: '约 10 秒', frameRate: 24 },
-  { value: 441, label: '约 18 秒', frameRate: 24 }
+  { value: 409, label: '约 17 秒', frameRate: 24 }
 ] as const
 
 /** 视频生成模型 */
