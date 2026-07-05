@@ -120,7 +120,7 @@ export default function App() {
         <header className="agnes-header">
           <div className="agnes-header-inner">
             <div className="agnes-logo-wrap">
-              <img className="agnes-logo" src="/logo.webp" alt="logo" />
+              <img className="agnes-logo" src={`${import.meta.env.BASE_URL}logo.webp`} alt="logo" />
             </div>
             <div className="agnes-header-info">
               <div className="agnes-title-row">
