@@ -147,11 +147,22 @@ export function createVideoTask(
   }
 
   if (refImageUrls && refImageUrls.length > 0) {
-    body.extra_body = {
-      image: refImageUrls.map((url) => cleanUrl(url)).filter((url) => url)
-    }
+    const cleanedUrls = refImageUrls.map((url) => cleanUrl(url)).filter((url) => url)
+
     if (isKeyframeMode) {
-      ;(body.extra_body as Record<string, unknown>).mode = 'keyframes'
+      // 关键帧模式：使用 extra_body.image（数组）+ extra_body.mode
+      body.extra_body = {
+        image: cleanedUrls,
+        mode: 'keyframes'
+      }
+    } else if (cleanedUrls.length === 1) {
+      // 单张参考图（图生视频）：使用顶层 image 字段
+      body.image = cleanedUrls[0]
+    } else {
+      // 多张参考图（多图视频）：使用 extra_body.image（数组）
+      body.extra_body = {
+        image: cleanedUrls
+      }
     }
   }
 
@@ -167,10 +178,11 @@ export function createVideoTask(
 
 /**
  * 查询视频任务状态
+ * 使用 GET /agnesapi?video_id=xxx&model_name=xxx 接口
  */
 export function queryVideoTask(apiKey: string, taskId: string): RequestResult<ApiResponse> {
   return fetchWithAbort(
-    `${API_BASE_URL}${API_PATHS.VIDEO_QUERY}?video_id=${taskId}&_t=${Date.now()}`,
+    `${API_BASE_URL}${API_PATHS.VIDEO_QUERY}?video_id=${encodeURIComponent(taskId)}&model_name=${encodeURIComponent(VIDEO_MODEL)}&_t=${Date.now()}`,
     {
       method: 'GET',
       headers: {

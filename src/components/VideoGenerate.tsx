@@ -110,28 +110,32 @@ export default function VideoGenerate({ apiKey, errorMsg, onError, onLoadingChan
     }
   }, [])
 
-  const startPolling = useCallback(() => {
+  const startPolling = useCallback((taskId: string) => {
     stopPolling()
     pollTimerRef.current = setInterval(() => {
-      if (!videoTaskId) return
-      requestRef.current = queryVideoTask(apiKey.trim(), videoTaskId)
+      if (!taskId) return
+      requestRef.current = queryVideoTask(apiKey.trim(), taskId)
       requestRef.current.promise
         .then((res) => {
           if (res.statusCode === 200) {
             const data = res.data as Record<string, unknown>
-            const status = (data.status as string) || ''
-            setVideoProgress((data.progress as number) || 0)
+            // 优先使用 status，回退到 internal_status
+            const status = (data.status as string) || (data.internal_status as string) || ''
+            // 优先使用 progress，回退到 internal_progress
+            const progress =
+              (data.progress as number) ?? (data.internal_progress as number) ?? 0
+            setVideoProgress(progress)
 
             if (status === 'completed') {
               stopPolling()
               setIsLoading(false)
-              const rawUrl = String(
-                data.remixed_from_video_id || data.video_url || data.url || ''
-              ).trim()
+              // 新接口返回的 url 字段直接是视频地址
+              const rawUrl = String(data.url || '').trim()
               const cleanUrl = rawUrl.replace(/^[\s`]+|[\s`]+$/g, '')
               if (cleanUrl) {
                 setVideoUrl(cleanUrl)
                 setVideoStatus('生成完成')
+                setVideoProgress(100)
                 Notification.success('视频生成完成')
                 const sizeVal = VIDEO_SIZES[sizeIndex].value
                 const durationLabel = VIDEO_DURATIONS[durationIndex].label
@@ -152,12 +156,16 @@ export default function VideoGenerate({ apiKey, errorMsg, onError, onLoadingChan
             } else if (status === 'failed') {
               stopPolling()
               setIsLoading(false)
-              onError('视频生成失败: ' + (data.error || '未知错误'))
-            } else if (status === 'in_progress') {
-              setVideoStatus('生成中 ' + (videoProgress > 0 ? videoProgress + '%' : ''))
-            } else if (status === 'queued') {
+              const errMsg =
+                (data.error as string) ||
+                (data.error as { message?: string })?.message ||
+                '未知错误'
+              onError('视频生成失败: ' + errMsg)
+            } else if (status === 'in_progress' || status === 'processing') {
+              setVideoStatus(progress > 0 ? `生成中 ${progress}%` : '生成中...')
+            } else if (status === 'queued' || status === 'pending') {
               setVideoStatus('排队中...')
-            } else {
+            } else if (status) {
               setVideoStatus(status)
             }
           }
@@ -166,7 +174,7 @@ export default function VideoGenerate({ apiKey, errorMsg, onError, onLoadingChan
           // 轮询失败不中断，继续尝试
         })
     }, 10000)
-  }, [apiKey, videoTaskId, stopPolling, sizeIndex, durationIndex, prompt, refImageUrls, isKeyframeMode, videoProgress, addToHistory, onError])
+  }, [apiKey, stopPolling, sizeIndex, durationIndex, prompt, refImageUrls, isKeyframeMode, addToHistory, onError])
 
   const handleGenerate = useCallback(() => {
     if (isLoading) return
@@ -176,6 +184,12 @@ export default function VideoGenerate({ apiKey, errorMsg, onError, onLoadingChan
     }
     if (!prompt.trim()) {
       onError('请输入视频描述')
+      return
+    }
+
+    // 关键帧模式需要至少 2 张参考图
+    if (isKeyframeMode && refImageUrls.length < 2) {
+      onError('关键帧模式需要至少添加 2 张参考图作为关键帧')
       return
     }
 
@@ -210,8 +224,7 @@ export default function VideoGenerate({ apiKey, errorMsg, onError, onLoadingChan
           if (taskId) {
             setVideoTaskId(taskId)
             setVideoStatus('任务已提交，等待处理...')
-            // 使用 setTimeout 确保 taskId 已设置后再开始轮询
-            setTimeout(() => startPolling(), 0)
+            startPolling(taskId)
           } else {
             setIsLoading(false)
             onError('未获取到任务 ID')
@@ -457,7 +470,9 @@ export default function VideoGenerate({ apiKey, errorMsg, onError, onLoadingChan
               </Button>
               {isKeyframeMode && (
                 <span className="agnes-ref-mode-tip">
-                  多张参考图将作为关键帧，AI 生成帧间过渡动画
+                  {refImageUrls.length < 2
+                    ? `⚠️ 关键帧模式需要至少 2 张图片（当前 ${refImageUrls.length} 张）`
+                    : `${refImageUrls.length} 张参考图将作为关键帧，AI 生成帧间过渡动画`}
                 </span>
               )}
             </div>
