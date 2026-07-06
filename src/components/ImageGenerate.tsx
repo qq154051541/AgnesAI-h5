@@ -41,6 +41,8 @@ const ImageGenerate = forwardRef<ImageGenerateHandle, ImageGenerateProps>(
     const [completedCount, setCompletedCount] = useState(0)
     const [totalCount, setTotalCount] = useState(0)
     const [previewSrc, setPreviewSrc] = useState('')
+    const [previewIndex, setPreviewIndex] = useState(0)
+    const [previewImages, setPreviewImages] = useState<string[] | undefined>(undefined)
 
     const requestsRef = useRef<RequestResult[]>([])
     const fileInputRef = useRef<HTMLInputElement>(null)
@@ -233,6 +235,8 @@ const ImageGenerate = forwardRef<ImageGenerateHandle, ImageGenerateProps>(
             prev.includes(idx) ? prev.filter((i) => i !== idx) : [...prev, idx]
           )
         } else {
+          setPreviewImages(imageUrls.length > 1 ? imageUrls : undefined)
+          setPreviewIndex(idx)
           setPreviewSrc(imageUrls[idx])
         }
       },
@@ -373,6 +377,8 @@ const ImageGenerate = forwardRef<ImageGenerateHandle, ImageGenerateProps>(
           )
         } else if (detailItem) {
           const urls = detailItem.urls || [detailItem.url]
+          setPreviewImages(urls.length > 1 ? urls : undefined)
+          setPreviewIndex(idx)
           setPreviewSrc(urls[idx])
         }
       },
@@ -583,7 +589,7 @@ const ImageGenerate = forwardRef<ImageGenerateHandle, ImageGenerateProps>(
                 className="agnes-result-image"
                 src={imageUrls[0]}
                 alt="result"
-                onClick={() => setPreviewSrc(imageUrls[0])}
+                onClick={() => { setPreviewImages(imageUrls.length > 1 ? imageUrls : undefined); setPreviewIndex(0); setPreviewSrc(imageUrls[0]) }}
               />
             ) : (
               <div className="agnes-result-grid">
@@ -829,7 +835,7 @@ const ImageGenerate = forwardRef<ImageGenerateHandle, ImageGenerateProps>(
           )}
         </Modal>
 
-      <ImagePreview src={previewSrc} onClose={() => setPreviewSrc('')} />
+      <ImagePreview src={previewSrc} images={previewImages} initialIndex={previewIndex} onClose={() => setPreviewSrc('')} />
       </div>
     )
   }

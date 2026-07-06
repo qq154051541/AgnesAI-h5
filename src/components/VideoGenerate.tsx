@@ -129,8 +129,8 @@ export default function VideoGenerate({ apiKey, errorMsg, onError, onLoadingChan
             if (status === 'completed') {
               stopPolling()
               setIsLoading(false)
-              // 新接口返回的 url 字段直接是视频地址
-              const rawUrl = String(data.url || '').trim()
+              // 视频地址在 remixed_from_video_id 字段
+              const rawUrl = String(data.remixed_from_video_id || data.url || '').trim()
               const cleanUrl = rawUrl.replace(/^[\s`]+|[\s`]+$/g, '')
               if (cleanUrl) {
                 setVideoUrl(cleanUrl)

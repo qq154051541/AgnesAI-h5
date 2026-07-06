@@ -53,8 +53,10 @@ export async function copyToClipboard(text: string): Promise<boolean> {
   }
 }
 
-/** 下载单个文件（图片或视频） */
-export function downloadFile(url: string, fileName: string): void {
+/** 下载单个文件（图片或视频），移动端优先保存到相册 */
+export async function downloadFile(url: string, fileName: string): Promise<void> {
+  // data: URL 转 blob
+  let blob: Blob
   if (url.startsWith('data:')) {
     const arr = url.split(',')
     const matchResult = arr[0].match(/:(.*?);/)
@@ -65,52 +67,63 @@ export function downloadFile(url: string, fileName: string): void {
     while (n--) {
       u8arr[n] = bstr.charCodeAt(n)
     }
-    const blob = new Blob([u8arr], { type: mime })
-    const blobUrl = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = blobUrl
-    a.download = fileName
-    a.click()
-    URL.revokeObjectURL(blobUrl)
-    return
+    blob = new Blob([u8arr], { type: mime })
+  } else {
+    // 通过代理下载，绕过跨域限制
+    const proxyUrl = url.replace(/^https?:\/\/platform-outputs\.agnes-ai\.space/, '/image-proxy')
+    try {
+      const res = await fetch(proxyUrl)
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      blob = await res.blob()
+    } catch {
+      try {
+        const res = await fetch(url)
+        blob = await res.blob()
+      } catch {
+        // 最终 fallback：直接打开链接
+        const a = document.createElement('a')
+        a.href = url
+        a.target = '_blank'
+        a.download = fileName
+        a.click()
+        return
+      }
+    }
   }
 
-  // 通过代理下载图片，绕过跨域限制
-  const proxyUrl = url.replace(/^https?:\/\/platform-outputs\.agnes-ai\.space/, '/image-proxy')
-  fetch(proxyUrl)
-    .then((res) => {
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      return res.blob()
-    })
-    .then((blob) => {
-      const blobUrl = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = blobUrl
-      a.download = fileName
-      a.click()
-      URL.revokeObjectURL(blobUrl)
-    })
-    .catch(() => {
-      // 代理失败时直接尝试
-      fetch(url)
-        .then((res) => res.blob())
-        .then((blob) => {
-          const blobUrl = URL.createObjectURL(blob)
-          const a = document.createElement('a')
-          a.href = blobUrl
-          a.download = fileName
-          a.click()
-          URL.revokeObjectURL(blobUrl)
+  // 尝试用 Navigator API 保存文件（部分移动端浏览器支持，会保存到相册/下载）
+  const ext = fileName.split('.').pop()?.toLowerCase() || ''
+  const isImage = ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp'].includes(ext)
+  const isVideo = ['mp4', 'webm', 'mov', 'avi', 'mkv'].includes(ext)
+
+  if (navigator.canShare && navigator.canShare({ files: [] })) {
+    try {
+      const file = new File([blob], fileName, {
+        type: isImage ? `image/${ext === 'jpg' ? 'jpeg' : ext}` : isVideo ? `video/${ext}` : blob.type
+      })
+      if (navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: '保存到相册',
+          text: fileName
         })
-        .catch(() => {
-          // 最终 fallback：直接打开链接
-          const a = document.createElement('a')
-          a.href = url
-          a.target = '_blank'
-          a.download = fileName
-          a.click()
-        })
-    })
+        return
+      }
+    } catch {
+      // 用户取消或不支持，继续走下载流程
+    }
+  }
+
+  // 通用下载：创建 blob URL 触发下载
+  const blobUrl = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = blobUrl
+  a.download = fileName
+  a.style.display = 'none'
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  setTimeout(() => URL.revokeObjectURL(blobUrl), 1000)
 }
 
 /** localStorage 读取 */
