@@ -240,6 +240,241 @@ body {
   font-weight: 600;
 }
 
+/* ===== 主页布局 ===== */
+.agnes-home-main {
+  padding-top: var(--animal-spacing-md, 12px);
+}
+
+.agnes-home-intro {
+  text-align: center;
+  margin-bottom: var(--animal-spacing-xl, 24px);
+}
+
+.agnes-home-title {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--agnes-text);
+  margin-bottom: 6px;
+}
+
+.agnes-home-desc {
+  font-size: var(--animal-font-size-sm, 12px);
+  color: var(--agnes-text-secondary);
+  line-height: 1.6;
+}
+
+.agnes-home-cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--animal-spacing-lg, 16px);
+  margin-bottom: var(--animal-spacing-xl, 24px);
+}
+
+/* 入口卡片 */
+.agnes-home-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--animal-spacing-md, 12px);
+  padding: var(--animal-spacing-lg, 16px);
+  background: #fff;
+  border: 2px solid var(--agnes-border);
+  border-radius: var(--agnes-radius-lg);
+  cursor: pointer;
+  transition: all var(--agnes-transition);
+  overflow: hidden;
+}
+
+.agnes-home-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 5px;
+  border-radius: 3px;
+  transition: width var(--agnes-transition);
+}
+
+.agnes-home-card-agnes::before {
+  background: linear-gradient(180deg, var(--agnes-primary), #4dd4c6);
+}
+
+.agnes-home-card-sensenova::before {
+  background: linear-gradient(180deg, #6c5ce7, #a29bfe);
+}
+
+.agnes-home-card:hover {
+  border-color: var(--agnes-border-hover);
+  box-shadow: var(--agnes-shadow-base);
+  transform: translateY(-2px);
+}
+
+.agnes-home-card:hover::before {
+  width: 8px;
+}
+
+.agnes-home-card:active {
+  transform: translateY(0);
+}
+
+.agnes-home-card-busy {
+  border-color: var(--agnes-primary);
+}
+
+.agnes-home-card-icon {
+  flex-shrink: 0;
+  width: 56px;
+  height: 56px;
+  border-radius: var(--agnes-radius-base);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  background: var(--agnes-bg-secondary);
+}
+
+.agnes-home-card-agnes .agnes-home-card-icon {
+  background: var(--agnes-primary-bg);
+}
+
+.agnes-home-card-sensenova .agnes-home-card-icon {
+  background: rgba(108, 92, 231, 0.1);
+}
+
+.agnes-home-card-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.agnes-home-card-title {
+  font-size: var(--animal-font-size-lg, 16px);
+  font-weight: 700;
+  color: var(--agnes-text);
+  margin-bottom: 4px;
+}
+
+.agnes-home-card-subtitle {
+  font-size: var(--animal-font-size-sm, 12px);
+  color: var(--agnes-text-secondary);
+  margin-bottom: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.agnes-home-card-tags {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.agnes-home-card-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  border-radius: 8px;
+  background: var(--agnes-bg-secondary);
+  color: var(--agnes-text-secondary);
+}
+
+.agnes-home-card-agnes .agnes-home-card-tag {
+  background: var(--agnes-primary-bg);
+  color: var(--agnes-primary);
+}
+
+.agnes-home-card-sensenova .agnes-home-card-tag {
+  background: rgba(108, 92, 231, 0.1);
+  color: #6c5ce7;
+}
+
+.agnes-home-card-arrow {
+  flex-shrink: 0;
+  font-size: 28px;
+  font-weight: 300;
+  color: var(--agnes-text-muted);
+  line-height: 1;
+  transition: transform var(--agnes-transition), color var(--agnes-transition);
+}
+
+.agnes-home-card:hover .agnes-home-card-arrow {
+  transform: translateX(4px);
+  color: var(--agnes-primary);
+}
+
+.agnes-home-card-dot {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--agnes-error);
+  animation: tab-dot-pulse 1.5s ease-in-out infinite;
+}
+
+/* 链接区域 */
+.agnes-home-links {
+  display: flex;
+  flex-direction: column;
+  gap: var(--animal-spacing-sm, 8px);
+}
+
+.agnes-home-link-item {
+  display: flex;
+  align-items: center;
+  gap: var(--animal-spacing-sm, 8px);
+  padding: var(--animal-spacing-md, 12px) var(--animal-spacing-lg, 16px);
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid var(--agnes-border);
+  border-radius: var(--agnes-radius-base);
+  cursor: pointer;
+  transition: all var(--agnes-transition);
+}
+
+.agnes-home-link-item:hover {
+  background: #fff;
+  border-color: var(--agnes-primary);
+}
+
+.agnes-home-link-icon {
+  font-size: 16px;
+}
+
+.agnes-home-link-text {
+  flex: 1;
+  font-size: var(--animal-font-size-sm, 12px);
+  color: var(--agnes-text-secondary);
+}
+
+.agnes-home-link-arrow {
+  font-size: 14px;
+  color: var(--agnes-text-muted);
+}
+
+/* ===== 抽屉样式 ===== */
+.agnes-drawer-title {
+  font-size: var(--animal-font-size-lg, 16px);
+  font-weight: 700;
+  color: var(--agnes-text);
+}
+
+/* 抽屉内容滚动 */
+.agnes-drawer [class*='animal-body'] {
+  padding: var(--animal-spacing-lg, 16px) !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+}
+
+.agnes-drawer [class*='animal-panel'] {
+  max-width: 720px !important;
+}
+
+.agnes-drawer-content {
+  padding-bottom: 40px;
+}
+
 /* ===== Tab 区域 ===== */
 .agnes-tabs-wrapper {
   margin-bottom: var(--animal-spacing-lg, 16px);
@@ -769,6 +1004,28 @@ body {
   flex-shrink: 0;
 }
 
+/* 多图历史缩略图九宫格 */
+.agnes-history-thumb-grid {
+  width: 96px;
+  height: 96px;
+  flex-shrink: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: 2px;
+  border-radius: var(--agnes-radius-sm);
+  overflow: hidden;
+  cursor: pointer;
+  border: 2px solid var(--agnes-border);
+}
+
+.agnes-history-thumb-grid-item {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
 .agnes-history-info {
   flex: 1;
   overflow: hidden;
@@ -918,25 +1175,27 @@ body {
 }
 
 .agnes-detail-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: var(--animal-spacing-lg, 16px);
+display: grid;
+grid-template-columns: repeat(3, 1fr);
+gap: 6px;
+margin-bottom: var(--animal-spacing-lg, 16px);
 }
 
 .agnes-detail-grid-item {
-  position: relative;
-  width: calc(33.333% - 4px);
-  border-radius: var(--animal-spacing-sm, 8px);
-  overflow: hidden;
-  cursor: pointer;
+position: relative;
+width: 100%;
+border-radius: var(--animal-spacing-sm, 8px);
+overflow: hidden;
+cursor: pointer;
 }
 
 .agnes-detail-grid-image {
-  width: 100%;
-  aspect-ratio: 1;
-  object-fit: cover;
-  border-radius: var(--animal-spacing-sm, 8px);
+width: 100%;
+aspect-ratio: 1;
+object-fit: cover;
+border-radius: var(--animal-spacing-sm, 8px);
+cursor: pointer;
+display: block;
 }
 
 .agnes-detail-grid-check {
@@ -1250,6 +1509,307 @@ body {
   color: var(--agnes-error);
 }
 
+/* ===== SenseNova 样式 ===== */
+
+/* 模型描述与标签 */
+.sensenova-model-desc {
+  font-size: var(--animal-font-size-sm, 12px);
+  color: var(--agnes-text-secondary);
+  margin-top: var(--animal-spacing-sm, 8px);
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.sensenova-model-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  background: var(--agnes-primary-bg);
+  color: var(--agnes-primary);
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* 推理力度按钮组 */
+.sensenova-reasoning-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.sensenova-reasoning-btn {
+  padding: 6px 16px;
+  border: 2px solid var(--agnes-border);
+  background: #fff;
+  border-radius: var(--agnes-radius-sm);
+  font-size: var(--animal-font-size-sm, 12px);
+  color: var(--agnes-text-secondary);
+  cursor: pointer;
+  transition: all var(--agnes-transition);
+  font-family: inherit;
+}
+
+.sensenova-reasoning-btn:hover {
+  border-color: var(--agnes-primary);
+  color: var(--agnes-primary);
+}
+
+.sensenova-reasoning-active {
+  background: var(--agnes-primary) !important;
+  border-color: var(--agnes-primary) !important;
+  color: #fff !important;
+}
+
+/* 聊天区域 */
+.sensenova-chat-container {
+  max-height: 500px;
+  overflow-y: auto;
+  padding: var(--animal-spacing-md, 12px);
+  background: rgba(255, 255, 255, 0.5);
+  border: 2px solid var(--agnes-border);
+  border-radius: var(--agnes-radius-lg);
+  margin-bottom: var(--animal-spacing-lg, 16px);
+  scroll-behavior: smooth;
+}
+
+.sensenova-chat-container::-webkit-scrollbar {
+  width: 4px;
+}
+
+.sensenova-chat-container::-webkit-scrollbar-thumb {
+  background: rgba(25, 200, 185, 0.3);
+  border-radius: 2px;
+}
+
+/* 聊天消息 */
+.sensenova-chat-msg {
+  display: flex;
+  gap: var(--animal-spacing-sm, 8px);
+  margin-bottom: var(--animal-spacing-md, 12px);
+}
+
+.sensenova-chat-msg:last-child {
+  margin-bottom: 0;
+}
+
+.sensenova-chat-avatar {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  background: var(--agnes-bg-secondary);
+  border: 2px solid var(--agnes-border);
+}
+
+.sensenova-chat-user .sensenova-chat-avatar {
+  background: var(--agnes-primary-bg);
+}
+
+.sensenova-chat-assistant .sensenova-chat-avatar {
+  background: linear-gradient(135deg, #e6f9f6, #f0e8d8);
+}
+
+.sensenova-chat-bubble {
+  flex: 1;
+  min-width: 0;
+  background: #fff;
+  border: 2px solid var(--agnes-border);
+  border-radius: var(--agnes-radius-base);
+  padding: var(--animal-spacing-md, 12px) var(--animal-spacing-lg, 16px);
+  overflow: hidden;
+}
+
+.sensenova-chat-user .sensenova-chat-bubble {
+  background: var(--agnes-primary-bg);
+  border-color: rgba(25, 200, 185, 0.2);
+}
+
+.sensenova-chat-msg-image {
+  width: 100%;
+  max-width: 200px;
+  border-radius: var(--agnes-radius-sm);
+  border: 2px solid var(--agnes-border);
+  margin-bottom: var(--animal-spacing-sm, 8px);
+  cursor: pointer;
+}
+
+.sensenova-chat-text {
+  font-size: var(--animal-font-size-base, 14px);
+  color: var(--agnes-text);
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* 思考过程 */
+.sensenova-chat-reasoning {
+  margin-bottom: var(--animal-spacing-sm, 8px);
+  padding: var(--animal-spacing-sm, 8px) var(--animal-spacing-md, 12px);
+  background: rgba(255, 245, 230, 0.6);
+  border-left: 3px solid #e8a948;
+  border-radius: var(--agnes-radius-sm);
+}
+
+.sensenova-chat-reasoning-header {
+  font-size: 11px;
+  font-weight: 600;
+  color: #c48820;
+  margin-bottom: 4px;
+}
+
+.sensenova-chat-reasoning-text {
+  font-size: 12px;
+  color: var(--agnes-text-secondary);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+/* 消息元信息 */
+.sensenova-chat-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--animal-spacing-sm, 8px);
+  margin-top: var(--animal-spacing-sm, 8px);
+  font-size: 11px;
+  color: var(--agnes-text-muted);
+  flex-wrap: wrap;
+}
+
+.sensenova-chat-copy-btn {
+  cursor: pointer;
+  color: var(--agnes-primary);
+  transition: opacity var(--agnes-transition);
+}
+
+.sensenova-chat-copy-btn:hover {
+  opacity: 0.7;
+}
+
+.sensenova-streaming-badge {
+  color: var(--agnes-primary);
+  font-weight: 600;
+}
+
+/* 加载动画（打字效果） */
+.sensenova-chat-loading {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.sensenova-chat-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--agnes-primary);
+  animation: sensenova-dot-bounce 1.4s infinite ease-in-out both;
+}
+
+.sensenova-chat-dot:nth-child(1) {
+  animation-delay: -0.32s;
+}
+
+.sensenova-chat-dot:nth-child(2) {
+  animation-delay: -0.16s;
+}
+
+@keyframes sensenova-dot-bounce {
+  0%, 80%, 100% {
+    transform: scale(0.6);
+    opacity: 0.4;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* 空状态 */
+.sensenova-chat-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px var(--animal-spacing-lg, 16px);
+  margin-bottom: var(--animal-spacing-lg, 16px);
+  background: rgba(255, 255, 255, 0.5);
+  border: 2px dashed var(--agnes-border);
+  border-radius: var(--agnes-radius-lg);
+  gap: var(--animal-spacing-sm, 8px);
+}
+
+.sensenova-chat-empty-icon {
+  font-size: 48px;
+}
+
+.sensenova-chat-empty-text {
+  font-size: var(--animal-font-size-lg, 16px);
+  font-weight: 700;
+  color: var(--agnes-text);
+}
+
+.sensenova-chat-empty-hint {
+  font-size: var(--animal-font-size-sm, 12px);
+  color: var(--agnes-text-secondary);
+  text-align: center;
+  max-width: 300px;
+}
+
+/* 聊天输入区 */
+.sensenova-chat-input-area {
+  display: flex;
+  flex-direction: column;
+  gap: var(--animal-spacing-sm, 8px);
+}
+
+.sensenova-chat-input {
+  min-height: 60px !important;
+  resize: none;
+}
+
+.sensenova-chat-input-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--animal-spacing-sm, 8px);
+  align-items: center;
+}
+
+/* 聊天图片预览 */
+.sensenova-chat-image-preview {
+  position: relative;
+  display: inline-block;
+  max-width: 200px;
+}
+
+.sensenova-chat-image-preview img {
+  width: 100%;
+  max-width: 200px;
+  border-radius: var(--agnes-radius-sm);
+  border: 2px solid var(--agnes-border);
+  cursor: pointer;
+}
+
+/* U1 Fast URL 警告 */
+.sensenova-url-warning {
+  margin-top: var(--animal-spacing-sm, 8px);
+  padding: var(--animal-spacing-sm, 8px) var(--animal-spacing-md, 12px);
+  background: rgba(232, 169, 72, 0.1);
+  border: 1px solid rgba(232, 169, 72, 0.3);
+  border-radius: var(--agnes-radius-sm);
+  font-size: 12px;
+  color: #c48820;
+  text-align: center;
+}
+
 /* ===== 响应式 ===== */
 @media (max-width: 480px) {
   .agnes-header {
@@ -1312,5 +1872,51 @@ body {
     width: 24px;
     height: 24px;
     font-size: 10px;
+  }
+
+  .sensenova-chat-container {
+    max-height: 400px;
+  }
+
+  .sensenova-chat-avatar {
+    width: 32px;
+    height: 32px;
+    font-size: 16px;
+  }
+
+  .sensenova-chat-empty {
+    padding: 40px var(--animal-spacing-md, 12px);
+  }
+
+  .sensenova-reasoning-btn {
+    padding: 4px 12px;
+    font-size: 11px;
+  }
+
+  .agnes-home-card {
+    padding: var(--animal-spacing-md, 12px);
+  }
+
+  .agnes-home-card-icon {
+    width: 48px;
+    height: 48px;
+    font-size: 24px;
+  }
+
+  .agnes-home-card-title {
+    font-size: var(--animal-font-size-base, 14px);
+  }
+
+  .agnes-home-card-subtitle {
+    font-size: 11px;
+  }
+
+  .agnes-home-card-tag {
+    font-size: 9px;
+    padding: 1px 6px;
+  }
+
+  .agnes-home-title {
+    font-size: 18px;
   }
 }

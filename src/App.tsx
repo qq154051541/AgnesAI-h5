@@ -1,13 +1,17 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { Cursor, Tabs, Button, Input, Card, Notification, Divider, Footer } from 'animal-island-ui'
+import { Cursor, Drawer, Tabs, Button, Input, Card, Notification, Divider, Footer } from 'animal-island-ui'
 import type { TabItem } from 'animal-island-ui'
 import ImageGenerate from './components/ImageGenerate'
 import VideoGenerate from './components/VideoGenerate'
 import Img2Prompt from './components/Img2Prompt'
+import SenseNovaChat from './components/SenseNovaChat'
+import SenseNovaImage from './components/SenseNovaImage'
 import { STORAGE_KEYS } from './config/api'
+import { SENSENOVA_STORAGE_KEYS, SENSENOVA_MODELS } from './config/sensenova'
 import { getStorage, setStorage } from './utils/helpers'
 
 type TabKey = 'image' | 'video' | 'img2prompt'
+type SenseNovaTabKey = 'flashlite' | 'deepseek' | 'u1image'
 
 export default function App() {
   const [apiKey, setApiKey] = useState('')
@@ -16,11 +20,24 @@ export default function App() {
   const [errorMsgs, setErrorMsgs] = useState<Record<string, string>>({
     image: '',
     video: '',
-    img2prompt: ''
+    img2prompt: '',
+    sensenova: ''
   })
   const [imageLoading, setImageLoading] = useState(false)
   const [videoLoading, setVideoLoading] = useState(false)
   const [img2promptLoading, setImg2promptLoading] = useState(false)
+  const [sensenovaFlashliteLoading, setSensenovaFlashliteLoading] = useState(false)
+  const [sensenovaDeepseekLoading, setSensenovaDeepseekLoading] = useState(false)
+  const [sensenovaImageLoading, setSensenovaImageLoading] = useState(false)
+
+  /* ===== SenseNova 状态 ===== */
+  const [sensenovaApiKey, setSensenovaApiKey] = useState('')
+  const [sensenovaShowKey, setSensenovaShowKey] = useState(false)
+  const [sensenovaActiveTab, setSensenovaActiveTab] = useState<SenseNovaTabKey>('flashlite')
+
+  /* 抽屉状态 */
+  const [agnesDrawerOpen, setAgnesDrawerOpen] = useState(false)
+  const [sensenovaDrawerOpen, setSensenovaDrawerOpen] = useState(false)
 
   const imageGenerateRef = useRef<{ setPrompt: (text: string) => void } | null>(null)
 
@@ -29,9 +46,13 @@ export default function App() {
     if (savedKey) {
       setApiKey(savedKey)
     }
+    const savedSensenovaKey = getStorage<string>(SENSENOVA_STORAGE_KEYS.API_KEY)
+    if (savedSensenovaKey) {
+      setSensenovaApiKey(savedSensenovaKey)
+    }
   }, [])
 
-  const onError = useCallback((tab: TabKey, msg: string) => {
+  const onError = useCallback((tab: TabKey | 'sensenova', msg: string) => {
     setErrorMsgs((prev) => ({ ...prev, [tab]: msg }))
   }, [])
 
@@ -57,6 +78,81 @@ export default function App() {
     },
     []
   )
+
+  const handleSaveSensenovaApiKey = useCallback(
+    (key: string) => {
+      const trimmed = key.trim()
+      if (trimmed) {
+        setStorage(SENSENOVA_STORAGE_KEYS.API_KEY, trimmed)
+      }
+    },
+    []
+  )
+
+  const sensenovaLoading = sensenovaFlashliteLoading || sensenovaDeepseekLoading || sensenovaImageLoading
+
+  const flashLiteModel = SENSENOVA_MODELS[0]
+  const deepSeekModel = SENSENOVA_MODELS[1]
+
+  const sensenovaTabItems: TabItem[] = [
+    {
+      key: 'flashlite',
+      label: (
+        <span>
+          ⚡ Flash-Lite
+          {sensenovaFlashliteLoading && <span className="agnes-tab-loading-dot" />}
+        </span>
+      ),
+      children: (
+        <SenseNovaChat
+          apiKey={sensenovaApiKey}
+          modelValue={flashLiteModel.value}
+          modelLabel={flashLiteModel.label}
+          modelDescription={flashLiteModel.description}
+          errorMsg={errorMsgs.sensenova}
+          onError={(msg) => onError('sensenova', msg)}
+          onLoadingChange={setSensenovaFlashliteLoading}
+        />
+      )
+    },
+    {
+      key: 'deepseek',
+      label: (
+        <span>
+          🧩 DeepSeek V4
+          {sensenovaDeepseekLoading && <span className="agnes-tab-loading-dot" />}
+        </span>
+      ),
+      children: (
+        <SenseNovaChat
+          apiKey={sensenovaApiKey}
+          modelValue={deepSeekModel.value}
+          modelLabel={deepSeekModel.label}
+          modelDescription={deepSeekModel.description}
+          errorMsg={errorMsgs.sensenova}
+          onError={(msg) => onError('sensenova', msg)}
+          onLoadingChange={setSensenovaDeepseekLoading}
+        />
+      )
+    },
+    {
+      key: 'u1image',
+      label: (
+        <span>
+          📊 U1 生图
+          {sensenovaImageLoading && <span className="agnes-tab-loading-dot" />}
+        </span>
+      ),
+      children: (
+        <SenseNovaImage
+          apiKey={sensenovaApiKey}
+          errorMsg={errorMsgs.sensenova}
+          onError={(msg) => onError('sensenova', msg)}
+          onLoadingChange={setSensenovaImageLoading}
+        />
+      )
+    }
+  ]
 
   const tabItems: TabItem[] = [
     {
@@ -146,7 +242,93 @@ export default function App() {
           <div className="agnes-header-deco" />
         </header>
 
-        <div className="agnes-main">
+        {/* 主内容区 - 双卡片入口 */}
+        <div className="agnes-main agnes-home-main">
+          <div className="agnes-home-intro">
+            <h2 className="agnes-home-title">选择创作平台</h2>
+            <p className="agnes-home-desc">两大 AI 平台，覆盖图像、视频、对话与信息图生成</p>
+          </div>
+
+          <div className="agnes-home-cards">
+            {/* Agnes AI 卡片 */}
+            <div
+              className={`agnes-home-card agnes-home-card-agnes ${imageLoading || videoLoading || img2promptLoading ? 'agnes-home-card-busy' : ''}`}
+              onClick={() => setAgnesDrawerOpen(true)}
+            >
+              <div className="agnes-home-card-icon">🎨</div>
+              <div className="agnes-home-card-body">
+                <div className="agnes-home-card-title">Agnes AI 创作工坊</div>
+                <div className="agnes-home-card-subtitle">图片生成 · 视频生成 · 图转提示词</div>
+                <div className="agnes-home-card-tags">
+                  <span className="agnes-home-card-tag">🖼️ 图片生成</span>
+                  <span className="agnes-home-card-tag">🎬 视频生成</span>
+                  <span className="agnes-home-card-tag">🔍 图转提示词</span>
+                </div>
+              </div>
+              <div className="agnes-home-card-arrow">›</div>
+              {(imageLoading || videoLoading || img2promptLoading) && (
+                <span className="agnes-home-card-dot" />
+              )}
+            </div>
+
+            {/* SenseNova 卡片 */}
+            <div
+              className={`agnes-home-card agnes-home-card-sensenova ${sensenovaLoading ? 'agnes-home-card-busy' : ''}`}
+              onClick={() => setSensenovaDrawerOpen(true)}
+            >
+              <div className="agnes-home-card-icon">🧠</div>
+              <div className="agnes-home-card-body">
+                <div className="agnes-home-card-title">SenseNova 实验室</div>
+                <div className="agnes-home-card-subtitle">多模态对话 · 深度思考 · 信息图生成</div>
+                <div className="agnes-home-card-tags">
+                  <span className="agnes-home-card-tag">⚡ Flash-Lite</span>
+                  <span className="agnes-home-card-tag">🧩 DeepSeek V4</span>
+                  <span className="agnes-home-card-tag">📊 U1 生图</span>
+                </div>
+              </div>
+              <div className="agnes-home-card-arrow">›</div>
+              {sensenovaLoading && (
+                <span className="agnes-home-card-dot" />
+              )}
+            </div>
+          </div>
+
+          <Divider type="wave-yellow" />
+
+          <div className="agnes-home-links">
+            <div
+              className="agnes-home-link-item"
+              onClick={() => window.open('https://platform.agnes-ai.com/', '_blank')}
+            >
+              <span className="agnes-home-link-icon">🔑</span>
+              <span className="agnes-home-link-text">获取 Agnes AI API Key</span>
+              <span className="agnes-home-link-arrow">↗</span>
+            </div>
+            <div
+              className="agnes-home-link-item"
+              onClick={() => window.open('https://platform.sensenova.cn/console/keys', '_blank')}
+            >
+              <span className="agnes-home-link-icon">🔑</span>
+              <span className="agnes-home-link-text">获取 SenseNova API Key</span>
+              <span className="agnes-home-link-arrow">↗</span>
+            </div>
+          </div>
+        </div>
+
+        {/* 底部 */}
+        <Footer type="sea" />
+      </div>
+
+      {/* ===== Agnes AI 抽屉 ===== */}
+      <Drawer
+        open={agnesDrawerOpen}
+        title={<span className="agnes-drawer-title">🎨 Agnes AI 创作工坊</span>}
+        placement="right"
+        width="100%"
+        onClose={() => setAgnesDrawerOpen(false)}
+        className="agnes-drawer"
+      >
+        <div className="agnes-drawer-content">
           {/* API Key 输入 */}
           <Card className="agnes-apikey-section">
             <div className="agnes-apikey-row">
@@ -195,10 +377,67 @@ export default function App() {
             />
           </div>
         </div>
+      </Drawer>
 
-        {/* 底部 */}
-        <Footer type="sea" />
-      </div>
+      {/* ===== SenseNova 抽屉 ===== */}
+      <Drawer
+        open={sensenovaDrawerOpen}
+        title={<span className="agnes-drawer-title">🧠 SenseNova 实验室</span>}
+        placement="right"
+        width="100%"
+        onClose={() => setSensenovaDrawerOpen(false)}
+        className="agnes-drawer"
+      >
+        <div className="agnes-drawer-content">
+          {/* SenseNova API Key 输入 */}
+          <Card className="agnes-apikey-section">
+            <div className="agnes-apikey-row">
+              <span className="agnes-label-icon">🔑</span>
+              <span className="agnes-apikey-label">SenseNova API Key</span>
+              <span className="agnes-apikey-required">*</span>
+            </div>
+            <div className="agnes-apikey-input-row">
+              <Input
+                type={sensenovaShowKey ? 'text' : 'password'}
+                value={sensenovaApiKey}
+                onChange={(e) => {
+                  setSensenovaApiKey(e.target.value)
+                  handleSaveSensenovaApiKey(e.target.value)
+                }}
+                placeholder="输入你的 SenseNova API Key (sk- 开头)"
+                allowClear
+              />
+              <Button
+                size="middle"
+                onClick={() => setSensenovaShowKey(!sensenovaShowKey)}
+              >
+                {sensenovaShowKey ? '隐藏' : '显示'}
+              </Button>
+            </div>
+            <div className="agnes-apikey-tips">
+              前往{' '}
+              <span
+                className="agnes-apikey-tips-link"
+                onClick={() => window.open('https://platform.sensenova.cn/console/keys', '_blank')}
+              >
+                platform.sensenova.cn
+              </span>{' '}
+              注册登录 → 控制台 → API Keys → 创建密钥
+            </div>
+          </Card>
+
+          <Divider type="wave-yellow" />
+
+          {/* 功能 Tab 切换 */}
+          <div className="agnes-tabs-wrapper">
+            <Tabs
+              items={sensenovaTabItems}
+              activeKey={sensenovaActiveTab}
+              onChange={(key) => setSensenovaActiveTab(key as SenseNovaTabKey)}
+            />
+          </div>
+        </div>
+      </Drawer>
     </Cursor>
   )
 }

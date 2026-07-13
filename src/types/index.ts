@@ -82,3 +82,58 @@ export interface ChatResponse {
   }>
   error?: { message?: string }
 }
+
+/* ===== SenseNova 相关类型 ===== */
+
+/** 内容块类型（多模态消息） */
+export interface SenseNovaContentBlock {
+  type: 'text' | 'image_url'
+  text?: string
+  image_url?: { url: string }
+}
+
+/** SenseNova 消息 */
+export interface SenseNovaMessage {
+  role: 'system' | 'user' | 'assistant'
+  content: string | SenseNovaContentBlock[]
+}
+
+/** 聊天历史中的单条展示消息 */
+export interface SenseNovaChatMessage {
+  id: string
+  role: 'user' | 'assistant'
+  content: string
+  imageUrl?: string
+  reasoningContent?: string
+  model: string
+  time: number
+}
+
+/** SenseNova 聊天历史记录 */
+export interface SenseNovaChatHistoryItem {
+  id: string
+  model: string
+  messages: SenseNovaChatMessage[]
+  reasoningEffort: string
+  time: number
+}
+
+/** SenseNova 图片历史记录 */
+export interface SenseNovaImageHistoryItem {
+  id: string
+  url: string
+  urls?: string[]
+  prompt: string
+  size: string
+  model: string
+  time: number
+  responseData: unknown
+}
+
+/** 流式回调 */
+export interface StreamCallbacks {
+  onContent: (chunk: string) => void
+  onReasoning?: (chunk: string) => void
+  onDone?: () => void
+  onError?: (err: string) => void
+}
