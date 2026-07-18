@@ -17,6 +17,11 @@ export default defineConfig({
         target: 'https://token.sensenova.cn',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/sensenova-api/, '')
+      },
+      '/zhipu-api': {
+        target: 'https://open.bigmodel.cn',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/zhipu-api/, '')
       }
     }
   }

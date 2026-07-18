@@ -301,7 +301,11 @@ body {
 }
 
 .agnes-home-card-sensenova::before {
-  background: linear-gradient(180deg, #6c5ce7, #a29bfe);
+background: linear-gradient(180deg, #6c5ce7, #a29bfe);
+}
+
+.agnes-home-card-zhipu::before {
+background: linear-gradient(180deg, #0996fe, #4facfe);
 }
 
 .agnes-home-card:hover {
@@ -339,7 +343,11 @@ body {
 }
 
 .agnes-home-card-sensenova .agnes-home-card-icon {
-  background: rgba(108, 92, 231, 0.1);
+background: rgba(108, 92, 231, 0.1);
+}
+
+.agnes-home-card-zhipu .agnes-home-card-icon {
+background: rgba(9, 150, 254, 0.1);
 }
 
 .agnes-home-card-body {
@@ -387,6 +395,11 @@ body {
 .agnes-home-card-sensenova .agnes-home-card-tag {
   background: rgba(108, 92, 231, 0.1);
   color: #6c5ce7;
+}
+
+.agnes-home-card-zhipu .agnes-home-card-tag {
+  background: rgba(9, 150, 254, 0.1);
+  color: #0996fe;
 }
 
 .agnes-home-card-arrow {
