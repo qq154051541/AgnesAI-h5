@@ -339,13 +339,14 @@ export default function ZhipuVideo({
     Notification[ok ? 'success' : 'error'](ok ? '已复制视频地址' : '复制失败')
   }, [videoUrl])
 
-  const resetVideo = useCallback(() => {
-    setVideoUrl('')
-    setVideoCoverUrl('')
-    setVideoTaskId('')
-    setVideoStatus('')
-    stopPolling()
-  }, [stopPolling])
+const resetVideo = useCallback(() => {
+setVideoUrl('')
+setVideoCoverUrl('')
+setVideoTaskId('')
+setVideoStatus('')
+stopPolling()
+onError('')
+}, [stopPolling, onError])
 
   const addRefImageUrl = useCallback(() => {
     const safe = refImageInput.replace(/[^a-zA-Z0-9\-._~:/?#@!$&'()*+,;=%]/g, '')

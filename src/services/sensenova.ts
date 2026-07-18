@@ -6,7 +6,12 @@
 
 import {
   SENSENOVA_BASE_URL,
-  SENSENOVA_PATHS
+  SENSENOVA_PATHS,
+  SENSENOVA_VISION_MODEL,
+  SENSENOVA_IMG2PROMPT_SYSTEM_ZH,
+  SENSENOVA_IMG2PROMPT_SYSTEM_EN,
+  SENSENOVA_IMG2PROMPT_USER_ZH,
+  SENSENOVA_IMG2PROMPT_USER_EN
 } from '../config/sensenova'
 import type {
   RequestResult,
@@ -293,6 +298,56 @@ export function sensenovaGenerateImage(
       body: JSON.stringify(body)
     },
     300000 // 图片生成可能较慢，5分钟超时
+  )
+}
+
+/* ===== 图转提示词接口 ===== */
+
+/**
+ * 图转提示词（Image2Prompt）
+ * 使用 Flash-Lite 多模态视觉模型，根据参考图片生成适配 U1 Fast 的提示词
+ * 接口：POST /chat/completions（非流式）
+ * 响应格式：{ choices: [{ message: { content: "..." } }] }
+ */
+export function sensenovaImageToPrompt(
+  apiKey: string,
+  imageUrl: string,
+  lang: string
+): RequestResult<ApiResponse> {
+  const isZh = lang === 'zh'
+  const systemPrompt = isZh ? SENSENOVA_IMG2PROMPT_SYSTEM_ZH : SENSENOVA_IMG2PROMPT_SYSTEM_EN
+  const userText = isZh ? SENSENOVA_IMG2PROMPT_USER_ZH : SENSENOVA_IMG2PROMPT_USER_EN
+
+  const body: Record<string, unknown> = {
+    model: SENSENOVA_VISION_MODEL,
+    temperature: 0.7,
+    stream: false,
+    messages: [
+      {
+        role: 'system',
+        content: systemPrompt
+      },
+      {
+        role: 'user',
+        content: [
+          { type: 'text', text: userText },
+          {
+            type: 'image_url',
+            image_url: { url: imageUrl }
+          }
+        ]
+      }
+    ]
+  }
+
+  return fetchWithAbort(
+    `${SENSENOVA_BASE_URL}${SENSENOVA_PATHS.CHAT_COMPLETIONS}`,
+    {
+      method: 'POST',
+      headers: buildHeaders(apiKey),
+      body: JSON.stringify(body)
+    },
+    120000
   )
 }
 

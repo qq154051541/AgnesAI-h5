@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 
 interface ImagePreviewProps {
   /** 单张或多张图片 URL */
@@ -145,7 +146,7 @@ export default function ImagePreview({ src, images, initialIndex = 0, onClose }:
 
   if (!src) return null
 
-  return (
+  return createPortal(
     <div className="agnes-image-preview-mask" onClick={onClose}>
       <button className="agnes-image-preview-close" onClick={onClose} aria-label="关闭">
         ✕
@@ -191,6 +192,7 @@ export default function ImagePreview({ src, images, initialIndex = 0, onClose }:
           {index + 1} / {list.length}
         </div>
       )}
-    </div>
+    </div>,
+    document.body
   )
 }

@@ -212,14 +212,15 @@ const ImageGenerate = forwardRef<ImageGenerateHandle, ImageGenerateProps>(
       Notification[ok ? 'success' : 'error'](ok ? '已复制图片地址' : '复制失败')
     }, [imageUrls])
 
-    const resetImage = useCallback(() => {
-      setImageUrls([])
-      setSelectedImageIndexes([])
-      setIsSelectMode(false)
-      setPrompt('')
-      setRefImageInput('')
-      setRefImageUrls([])
-    }, [])
+const resetImage = useCallback(() => {
+setImageUrls([])
+setSelectedImageIndexes([])
+setIsSelectMode(false)
+setPrompt('')
+setRefImageInput('')
+setRefImageUrls([])
+onError('')
+}, [onError])
 
     const toggleSelectMode = useCallback(() => {
       setIsSelectMode((prev) => {

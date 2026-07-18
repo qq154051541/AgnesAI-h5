@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, forwardRef, useImperativeHandle } from 'react'
 import { Button, Select, Modal, Notification } from 'animal-island-ui'
 import {
   SENSENOVA_U1_SIZES,
@@ -27,9 +27,19 @@ interface SenseNovaImageProps {
   onLoadingChange: (loading: boolean) => void
 }
 
+/** SenseNovaImage 暴露给父组件的方法 */
+export interface SenseNovaImageHandle {
+  setPrompt: (text: string) => void
+}
+
 const PAGE_SIZE = 10
 
-export default function SenseNovaImage({ apiKey, errorMsg, onError, onLoadingChange }: SenseNovaImageProps) {
+const SenseNovaImage = forwardRef<SenseNovaImageHandle, SenseNovaImageProps>(
+  ({ apiKey, errorMsg, onError, onLoadingChange }, ref) => {
+  /* ===== 暴露 setPrompt 给父组件（图转提示词 → 文生图） ===== */
+  useImperativeHandle(ref, () => ({
+    setPrompt: (text: string) => setImgPrompt(text)
+  }))
   /* ===== 图片生成状态 ===== */
   const [imgPrompt, setImgPrompt] = useState('')
   const [imgSizeIndex, setImgSizeIndex] = useState(0)
@@ -229,11 +239,12 @@ export default function SenseNovaImage({ apiKey, errorMsg, onError, onLoadingCha
     setSelectedImageIndexes([])
   }, [selectedImageIndexes, imgResultUrls, downloadSingleImage])
 
-  const resetImages = useCallback(() => {
-    setImgResultUrls([])
-    setIsSelectMode(false)
-    setSelectedImageIndexes([])
-  }, [])
+const resetImages = useCallback(() => {
+setImgResultUrls([])
+setIsSelectMode(false)
+setSelectedImageIndexes([])
+onError('')
+}, [onError])
 
   /* ===== 历史记录操作 ===== */
   const pagedImageHistory = imageHistory.slice(
@@ -669,3 +680,7 @@ export default function SenseNovaImage({ apiKey, errorMsg, onError, onLoadingCha
     </div>
   )
 }
+)
+
+SenseNovaImage.displayName = 'SenseNovaImage'
+export default SenseNovaImage

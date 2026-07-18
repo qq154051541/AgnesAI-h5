@@ -6,6 +6,8 @@ import VideoGenerate from './components/VideoGenerate'
 import Img2Prompt from './components/Img2Prompt'
 import SenseNovaChat from './components/SenseNovaChat'
 import SenseNovaImage from './components/SenseNovaImage'
+import SenseNovaImg2Prompt from './components/SenseNovaImg2Prompt'
+import type { SenseNovaImageHandle } from './components/SenseNovaImage'
 import ZhipuChat from './components/ZhipuChat'
 import ZhipuImage from './components/ZhipuImage'
 import ZhipuVideo from './components/ZhipuVideo'
@@ -57,8 +59,9 @@ export default function App() {
   const [sensenovaDrawerOpen, setSensenovaDrawerOpen] = useState(false)
   const [zhipuDrawerOpen, setZhipuDrawerOpen] = useState(false)
 
-  const imageGenerateRef = useRef<{ setPrompt: (text: string) => void } | null>(null)
-  const zhipuImageRef = useRef<ZhipuImageHandle | null>(null)
+const imageGenerateRef = useRef<{ setPrompt: (text: string) => void } | null>(null)
+const zhipuImageRef = useRef<ZhipuImageHandle | null>(null)
+const sensenovaImageRef = useRef<SenseNovaImageHandle | null>(null)
 
   useEffect(() => {
     const savedKey = getStorage<string>(STORAGE_KEYS.API_KEY)
@@ -92,19 +95,33 @@ export default function App() {
     []
   )
 
-  /** 智谱图转提示词 → CogView-3-Flash 文生图 */
-  const handleZhipuUsePrompt = useCallback(
-    (prompt: string) => {
-      setZhipuActiveTab('cogview')
-      setTimeout(() => {
-        if (zhipuImageRef.current) {
-          zhipuImageRef.current.setPrompt(prompt)
-        }
-      }, 100)
-      Notification.success('已填入 CogView-3-Flash 生图描述')
-    },
-    []
-  )
+/** 智谱图转提示词 → CogView-3-Flash 文生图 */
+const handleZhipuUsePrompt = useCallback(
+(prompt: string) => {
+setZhipuActiveTab('cogview')
+setTimeout(() => {
+if (zhipuImageRef.current) {
+zhipuImageRef.current.setPrompt(prompt)
+}
+}, 100)
+Notification.success('已填入 CogView-3-Flash 生图描述')
+},
+[]
+)
+
+/** SenseNova 图转提示词 → U1 Fast 文生图 */
+const handleSensenovaUsePrompt = useCallback(
+(prompt: string) => {
+setSensenovaActiveTab('u1image')
+setTimeout(() => {
+if (sensenovaImageRef.current) {
+sensenovaImageRef.current.setPrompt(prompt)
+}
+}, 100)
+Notification.success('已填入 U1 Fast 生图描述')
+},
+[]
+)
 
   const handleSaveApiKey = useCallback(
     (key: string) => {
@@ -150,19 +167,17 @@ export default function App() {
       key: 'flashlite',
       label: (
         <span>
-          ⚡ Flash-Lite
+          🔍 图转提示词
           {sensenovaFlashliteLoading && <span className="agnes-tab-loading-dot" />}
         </span>
       ),
       children: (
-        <SenseNovaChat
+        <SenseNovaImg2Prompt
           apiKey={sensenovaApiKey}
-          modelValue={flashLiteModel.value}
-          modelLabel={flashLiteModel.label}
-          modelDescription={flashLiteModel.description}
           errorMsg={errorMsgs.sensenova}
           onError={(msg) => onError('sensenova', msg)}
           onLoadingChange={setSensenovaFlashliteLoading}
+          onUsePrompt={handleSensenovaUsePrompt}
         />
       )
     },
@@ -195,12 +210,13 @@ export default function App() {
         </span>
       ),
       children: (
-        <SenseNovaImage
-          apiKey={sensenovaApiKey}
-          errorMsg={errorMsgs.sensenova}
-          onError={(msg) => onError('sensenova', msg)}
-          onLoadingChange={setSensenovaImageLoading}
-        />
+<SenseNovaImage
+ref={sensenovaImageRef}
+apiKey={sensenovaApiKey}
+errorMsg={errorMsgs.sensenova}
+onError={(msg) => onError('sensenova', msg)}
+onLoadingChange={setSensenovaImageLoading}
+/>
       )
     }
   ]
@@ -385,6 +401,9 @@ export default function App() {
             <div
               className={`agnes-home-card agnes-home-card-agnes ${imageLoading || videoLoading || img2promptLoading ? 'agnes-home-card-busy' : ''}`}
               onClick={() => setAgnesDrawerOpen(true)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setAgnesDrawerOpen(true) } }}
             >
               <div className="agnes-home-card-icon">🎨</div>
               <div className="agnes-home-card-body">
@@ -406,6 +425,9 @@ export default function App() {
             <div
               className={`agnes-home-card agnes-home-card-sensenova ${sensenovaLoading ? 'agnes-home-card-busy' : ''}`}
               onClick={() => setSensenovaDrawerOpen(true)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSensenovaDrawerOpen(true) } }}
             >
               <div className="agnes-home-card-icon">🧠</div>
               <div className="agnes-home-card-body">
@@ -427,6 +449,9 @@ export default function App() {
             <div
               className={`agnes-home-card agnes-home-card-zhipu ${zhipuLoading ? 'agnes-home-card-busy' : ''}`}
               onClick={() => setZhipuDrawerOpen(true)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setZhipuDrawerOpen(true) } }}
             >
               <div className="agnes-home-card-icon">🚀</div>
               <div className="agnes-home-card-body">
@@ -449,30 +474,36 @@ export default function App() {
           <Divider type="wave-yellow" />
 
           <div className="agnes-home-links">
-            <div
+            <a
               className="agnes-home-link-item"
-              onClick={() => window.open('https://platform.agnes-ai.com/', '_blank')}
+              href="https://platform.agnes-ai.com/"
+              target="_blank"
+              rel="noopener noreferrer"
             >
               <span className="agnes-home-link-icon">🔑</span>
               <span className="agnes-home-link-text">获取 Agnes AI API Key</span>
               <span className="agnes-home-link-arrow">↗</span>
-            </div>
-            <div
+            </a>
+            <a
               className="agnes-home-link-item"
-              onClick={() => window.open('https://platform.sensenova.cn/console/keys', '_blank')}
+              href="https://platform.sensenova.cn/console/keys"
+              target="_blank"
+              rel="noopener noreferrer"
             >
               <span className="agnes-home-link-icon">🔑</span>
               <span className="agnes-home-link-text">获取 SenseNova API Key</span>
               <span className="agnes-home-link-arrow">↗</span>
-            </div>
-            <div
+            </a>
+            <a
               className="agnes-home-link-item"
-              onClick={() => window.open('https://open.bigmodel.cn/usercenter/apikeys', '_blank')}
+              href="https://open.bigmodel.cn/usercenter/apikeys"
+              target="_blank"
+              rel="noopener noreferrer"
             >
               <span className="agnes-home-link-icon">🔑</span>
               <span className="agnes-home-link-text">获取智谱 AI API Key</span>
               <span className="agnes-home-link-arrow">↗</span>
-            </div>
+            </a>
           </div>
         </div>
 

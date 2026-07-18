@@ -62,17 +62,18 @@ export const SENSENOVA_MODELS: SenseNovaModelItem[] = [
 
 /** U1 Fast 图片尺寸（2K 分辨率，11种比例） */
 export const SENSENOVA_U1_SIZES = [
-  { value: '2752x1536', label: '2752×1536 (16:9)', ratio: '16:9' },
   { value: '1536x2752', label: '1536×2752 (9:16)', ratio: '9:16' },
+  { value: '2752x1536', label: '2752×1536 (16:9)', ratio: '16:9' },
+  { value: '3072x1376', label: '3072×1376 (21:9)', ratio: '21:9' },
+  { value: '1344x3136', label: '1344×3136 (9:21)', ratio: '9:21' },
   { value: '2048x2048', label: '2048×2048 (1:1)', ratio: '1:1' },
   { value: '2496x1664', label: '2496×1664 (3:2)', ratio: '3:2' },
   { value: '1664x2496', label: '1664×2496 (2:3)', ratio: '2:3' },
   { value: '2368x1760', label: '2368×1760 (4:3)', ratio: '4:3' },
   { value: '1760x2368', label: '1760×2368 (3:4)', ratio: '3:4' },
   { value: '2272x1824', label: '2272×1824 (5:4)', ratio: '5:4' },
-  { value: '1824x2272', label: '1824×2272 (4:5)', ratio: '4:5' },
-  { value: '3072x1376', label: '3072×1376 (21:9)', ratio: '21:9' },
-  { value: '1344x3136', label: '1344×3136 (9:21)', ratio: '9:21' }
+  { value: '1824x2272', label: '1824×2272 (4:5)', ratio: '4:5' }
+  
 ]
 
 /** 推理力度选项 */
@@ -96,5 +97,26 @@ export const SENSENOVA_STORAGE_KEYS = {
   /** 系统提示词（按模型独立） */
   SYSTEM_PROMPT_FLASHLITE: 'sensenova_system_prompt_flashlite',
   SYSTEM_PROMPT_DEEPSEEK: 'sensenova_system_prompt_deepseek',
-  IMAGE_HISTORY: 'sensenova_image_history'
+  IMAGE_HISTORY: 'sensenova_image_history',
+  /** 图转提示词历史记录 */
+  IMG2PROMPT_HISTORY: 'sensenova_img2prompt_history'
 } as const
+
+/** Flash-Lite 视觉理解模型（图转提示词使用） */
+export const SENSENOVA_VISION_MODEL = 'sensenova-6.7-flash-lite'
+
+/** 图转提示词 - 中文系统提示词
+ * 适配 SenseNova U1 Fast 文生图模型，输出结构化提示词
+ */
+export const SENSENOVA_IMG2PROMPT_SYSTEM_ZH =
+  '你是顶级图片prompt生成小助手，接收参考图片后输出适配SenseNova U1 Fast的中文生成提示词，严格按固定结构顺序书写：[主体] + [场景 / 环境] + [艺术风格] + [光照] + [构图] + [质量标准]，描述词汇详尽完整，完整还原原图视觉效果，仅输出纯提示文本，禁止额外说明、注释、多余文字'
+
+/** 图转提示词 - 英文系统提示词 */
+export const SENSENOVA_IMG2PROMPT_SYSTEM_EN =
+  'You are a top-tier image prompt generator. After receiving a reference image, output an English generation prompt adapted for SenseNova U1 Fast, strictly following this structure: [Subject] + [Scene / Environment] + [Art Style] + [Lighting] + [Composition] + [Quality Standard]. Use exhaustive and complete descriptive vocabulary to fully reproduce the original visual effect. Output only pure prompt text. No additional explanations, annotations, or extra text.'
+
+/** 图转提示词 - 中文用户文本 */
+export const SENSENOVA_IMG2PROMPT_USER_ZH = '将上传参考图片转换为适配SenseNova U1 Fast的中文生成提示词'
+
+/** 图转提示词 - 英文用户文本 */
+export const SENSENOVA_IMG2PROMPT_USER_EN = 'Convert the uploaded reference image into an English generation prompt adapted for SenseNova U1 Fast'

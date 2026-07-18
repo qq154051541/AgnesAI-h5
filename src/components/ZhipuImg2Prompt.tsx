@@ -347,7 +347,7 @@ export default function ZhipuImg2Prompt({
               <span className="agnes-result-action-icon">✨</span>
               <span className="agnes-result-action-label">用于图片生成</span>
             </div>
-            <div className="agnes-result-action-btn agnes-result-action-danger" onClick={() => setResult('')}>
+            <div className="agnes-result-action-btn agnes-result-action-danger" onClick={() => { setResult(''); onError('') }}>
               <span className="agnes-result-action-icon">🗑️</span>
               <span className="agnes-result-action-label">清除结果</span>
             </div>

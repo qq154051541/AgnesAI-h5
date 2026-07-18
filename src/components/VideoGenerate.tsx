@@ -272,16 +272,17 @@ export default function VideoGenerate({ apiKey, errorMsg, onError, onLoadingChan
     Notification[ok ? 'success' : 'error'](ok ? '已复制视频地址' : '复制失败')
   }, [videoUrl])
 
-  const resetVideo = useCallback(() => {
-    setVideoUrl('')
-    setVideoTaskId('')
-    setVideoStatus('')
-    setVideoProgress(0)
-    setRefImageInput('')
-    setRefImageUrls([])
-    setIsKeyframeMode(false)
-    stopPolling()
-  }, [stopPolling])
+const resetVideo = useCallback(() => {
+setVideoUrl('')
+setVideoTaskId('')
+setVideoStatus('')
+setVideoProgress(0)
+setRefImageInput('')
+setRefImageUrls([])
+setIsKeyframeMode(false)
+stopPolling()
+onError('')
+}, [stopPolling, onError])
 
   const addRefImageUrl = useCallback(() => {
     const safe = refImageInput.replace(/[^a-zA-Z0-9\-._~:/?#@!$&'()*+,;=%]/g, '')

@@ -86,10 +86,12 @@ export default function SenseNovaChat({
   const abortStreamRef = useRef<(() => void) | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const chatScrollRef = useRef<HTMLDivElement>(null)
+  const currentSessionIdRef = useRef<string | null>(null)
 
   const historyKey = getHistoryKey(modelValue)
   const chatMessagesKey = getChatMessagesKey(modelValue)
   const systemPromptKey = getSystemPromptKey(modelValue)
+  const sessionIdKey = `${chatMessagesKey}-session-id`
 
   /* ===== 初始化 ===== */
   useEffect(() => {
@@ -102,7 +104,9 @@ export default function SenseNovaChat({
       setSystemPrompt(savedSystemPrompt)
       if (savedSystemPrompt.trim()) setShowSystemPrompt(true)
     }
-  }, [historyKey, chatMessagesKey, systemPromptKey])
+    const savedSessionId = getStorage<string>(sessionIdKey)
+    if (savedSessionId) currentSessionIdRef.current = savedSessionId
+  }, [historyKey, chatMessagesKey, systemPromptKey, sessionIdKey])
 
   /* ===== 持久化对话内容 ===== */
   useEffect(() => {
@@ -232,25 +236,43 @@ export default function SenseNovaChat({
             model: modelValue,
             time: Date.now()
           }
+          const allMessages = [...chatMessages, userMsg, assistantMsg]
           setChatMessages((prev) => [...prev, assistantMsg])
           setStreamingContent('')
           setStreamingReasoning('')
           setIsStreaming(false)
           abortStreamRef.current = null
 
-          const allMessages = [...chatMessages, userMsg, assistantMsg]
-          const historyItem: SenseNovaChatHistoryItem = {
-            id: `chat-${Date.now()}`,
-            model: modelValue,
-            messages: allMessages,
-            reasoningEffort: reasoningEffort || 'none',
-            time: Date.now()
+          const sessionId = currentSessionIdRef.current
+          if (sessionId) {
+            // 更新当前会话的历史记录（连续对话合并为一条）
+            setChatHistory((prev) => {
+              const updated = prev.map((item) =>
+                item.id === sessionId
+                  ? { ...item, messages: allMessages, time: Date.now() }
+                  : item
+              )
+              saveChatHistory(updated)
+              return updated
+            })
+          } else {
+            // 创建新的会话历史记录
+            const newId = `chat-${Date.now()}`
+            currentSessionIdRef.current = newId
+            setStorage(sessionIdKey, newId)
+            const historyItem: SenseNovaChatHistoryItem = {
+              id: newId,
+              model: modelValue,
+              messages: allMessages,
+              reasoningEffort: reasoningEffort || 'none',
+              time: Date.now()
+            }
+            setChatHistory((prev) => {
+              const updated = [historyItem, ...prev].slice(0, 50)
+              saveChatHistory(updated)
+              return updated
+            })
           }
-          setChatHistory((prev) => {
-            const updated = [historyItem, ...prev].slice(0, 50)
-            saveChatHistory(updated)
-            return updated
-          })
         },
         onError: (err) => {
           setIsStreaming(false)
@@ -265,7 +287,38 @@ export default function SenseNovaChat({
               model: modelValue,
               time: Date.now()
             }
+            const allMessages = [...chatMessages, userMsg, assistantMsg]
             setChatMessages((prev) => [...prev, assistantMsg])
+
+            // 出错时也保存部分对话到历史记录
+            const sessionId = currentSessionIdRef.current
+            if (sessionId) {
+              setChatHistory((prev) => {
+                const updated = prev.map((item) =>
+                  item.id === sessionId
+                    ? { ...item, messages: allMessages, time: Date.now() }
+                    : item
+                )
+                saveChatHistory(updated)
+                return updated
+              })
+            } else {
+              const newId = `chat-${Date.now()}`
+              currentSessionIdRef.current = newId
+              setStorage(sessionIdKey, newId)
+              const historyItem: SenseNovaChatHistoryItem = {
+                id: newId,
+                model: modelValue,
+                messages: allMessages,
+                reasoningEffort: reasoningEffort || 'none',
+                time: Date.now()
+              }
+              setChatHistory((prev) => {
+                const updated = [historyItem, ...prev].slice(0, 50)
+                saveChatHistory(updated)
+                return updated
+              })
+            }
           }
           setStreamingContent('')
           setStreamingReasoning('')
@@ -275,7 +328,7 @@ export default function SenseNovaChat({
   }, [
     isStreaming, apiKey, chatInput, chatImageUrl, systemPrompt,
     chatMessages, modelValue, isDeepSeek, reasoningEffortIndex,
-    onError, saveChatHistory
+    onError, saveChatHistory, sessionIdKey
   ])
 
   const stopStreaming = useCallback(() => {
@@ -287,17 +340,23 @@ export default function SenseNovaChat({
     onError('已终止生成')
   }, [onError])
 
-  const clearChat = useCallback(() => {
+  const newSession = useCallback(() => {
+    if (abortStreamRef.current) {
+      abortStreamRef.current()
+      abortStreamRef.current = null
+    }
+    setIsStreaming(false)
     setChatMessages([])
     setStreamingContent('')
     setStreamingReasoning('')
     setChatInput('')
     setChatImageUrl('')
     setChatImageInput('')
-    setSystemPrompt('')
+    currentSessionIdRef.current = null
+    setStorage(sessionIdKey, null)
     setStorage(chatMessagesKey, [])
-    setStorage(systemPromptKey, '')
-  }, [chatMessagesKey, systemPromptKey])
+    Notification.success('已开始新会话')
+  }, [chatMessagesKey, sessionIdKey])
 
   const copyMessage = useCallback(async (text: string) => {
     const ok = await copyToClipboard(text)
@@ -344,10 +403,12 @@ export default function SenseNovaChat({
   const clearHistory = useCallback(() => {
     setChatHistory([])
     saveChatHistory([])
+    currentSessionIdRef.current = null
+    setStorage(sessionIdKey, null)
     setHistoryPage(1)
     setHistoryJumpPage('')
     Notification.success('已清空历史记录')
-  }, [saveChatHistory])
+  }, [saveChatHistory, sessionIdKey])
 
   const deleteChatHistory = useCallback((id: string) => {
     setChatHistory((prev) => {
@@ -355,16 +416,24 @@ export default function SenseNovaChat({
       saveChatHistory(updated)
       return updated
     })
-  }, [saveChatHistory])
+    if (currentSessionIdRef.current === id) {
+      currentSessionIdRef.current = null
+      setStorage(sessionIdKey, null)
+      setChatMessages([])
+      setStorage(chatMessagesKey, [])
+    }
+  }, [saveChatHistory, sessionIdKey, chatMessagesKey])
 
   const viewChatHistory = useCallback((item: SenseNovaChatHistoryItem) => {
     setChatMessages(item.messages)
+    currentSessionIdRef.current = item.id
+    setStorage(sessionIdKey, item.id)
     if (item.reasoningEffort) {
       const idx = SENSENOVA_REASONING_EFFORTS.findIndex((e) => e.value === item.reasoningEffort)
       if (idx >= 0) setReasoningEffortIndex(idx)
     }
     window.scrollTo({ top: 0, behavior: 'smooth' })
-  }, [])
+  }, [sessionIdKey])
 
   const jumpHistoryPage = useCallback(() => {
     const page = parseInt(historyJumpPage)
@@ -584,8 +653,8 @@ export default function SenseNovaChat({
               {showReasoning ? '隐藏思考' : '显示思考'}
             </Button>
           )}
-          <Button size="small" type="dashed" onClick={clearChat}>
-            清空对话
+          <Button size="small" type="dashed" onClick={newSession} disabled={isStreaming}>
+            ✨ 新建会话
           </Button>
           {isStreaming ? (
             <Button type="dashed" danger size="middle" onClick={stopStreaming}>

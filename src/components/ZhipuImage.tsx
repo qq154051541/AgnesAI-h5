@@ -346,11 +346,12 @@ const ZhipuImage = forwardRef<ZhipuImageHandle, ZhipuImageProps>(
     setSelectedImageIndexes([])
   }, [selectedImageIndexes, imgResultUrls, downloadSingleImage])
 
-  const resetImages = useCallback(() => {
-    setImgResultUrls([])
-    setIsSelectMode(false)
-    setSelectedImageIndexes([])
-  }, [])
+const resetImages = useCallback(() => {
+setImgResultUrls([])
+setIsSelectMode(false)
+setSelectedImageIndexes([])
+onError('')
+}, [onError])
 
   /* ===== 历史记录操作 ===== */
   const pagedImageHistory = imageHistory.slice(

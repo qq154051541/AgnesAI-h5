@@ -1,13 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { Button, Modal, Notification } from 'animal-island-ui'
-import { STORAGE_KEYS } from '../config/api'
-import { imageToPrompt, uploadToImgbb } from '../services/api'
+import { SENSENOVA_STORAGE_KEYS, SENSENOVA_VISION_MODEL } from '../config/sensenova'
+import { sensenovaImageToPrompt, uploadToImgbbSenseNova } from '../services/sensenova'
 import type { RequestResult, ApiResponse } from '../types'
 import type { Img2PromptHistoryItem } from '../types'
 import { getStorage, setStorage, copyToClipboard, formatTime, truncateText } from '../utils/helpers'
 import ImagePreview from './ImagePreview'
 
-interface Img2PromptProps {
+interface SenseNovaImg2PromptProps {
   apiKey: string
   errorMsg: string
   onError: (msg: string) => void
@@ -17,7 +17,13 @@ interface Img2PromptProps {
 
 const PAGE_SIZE = 10
 
-export default function Img2Prompt({ apiKey, errorMsg, onError, onLoadingChange, onUsePrompt }: Img2PromptProps) {
+export default function SenseNovaImg2Prompt({
+  apiKey,
+  errorMsg,
+  onError,
+  onLoadingChange,
+  onUsePrompt
+}: SenseNovaImg2PromptProps) {
   const [imageUrl, setImageUrl] = useState('')
   const [imageInput, setImageInput] = useState('')
   const [lang, setLang] = useState<'en' | 'zh'>('en')
@@ -39,7 +45,7 @@ export default function Img2Prompt({ apiKey, errorMsg, onError, onLoadingChange,
   const historyTotalPages = Math.ceil(history.length / PAGE_SIZE)
 
   useEffect(() => {
-    const savedHistory = getStorage<Img2PromptHistoryItem[]>(STORAGE_KEYS.IMG2PROMPT_HISTORY)
+    const savedHistory = getStorage<Img2PromptHistoryItem[]>(SENSENOVA_STORAGE_KEYS.IMG2PROMPT_HISTORY)
     if (savedHistory) {
       setHistory(savedHistory)
     }
@@ -50,7 +56,7 @@ export default function Img2Prompt({ apiKey, errorMsg, onError, onLoadingChange,
   }, [isLoading, onLoadingChange])
 
   const saveHistory = useCallback((items: Img2PromptHistoryItem[]) => {
-    setStorage(STORAGE_KEYS.IMG2PROMPT_HISTORY, items)
+    setStorage(SENSENOVA_STORAGE_KEYS.IMG2PROMPT_HISTORY, items)
   }, [])
 
   const addToHistory = useCallback(
@@ -85,7 +91,7 @@ export default function Img2Prompt({ apiKey, errorMsg, onError, onLoadingChange,
     const file = e.target.files?.[0]
     if (!file) return
     try {
-      const url = await uploadToImgbb(file)
+      const url = await uploadToImgbbSenseNova(file)
       setImageUrl(url)
       Notification.success('上传成功')
     } catch {
@@ -103,7 +109,7 @@ export default function Img2Prompt({ apiKey, errorMsg, onError, onLoadingChange,
   const handleGenerate = useCallback(() => {
     if (isLoading) return
     if (!apiKey.trim()) {
-      onError('请输入 API Key')
+      onError('请输入 SenseNova API Key')
       return
     }
     if (!imageUrl.trim()) {
@@ -111,12 +117,11 @@ export default function Img2Prompt({ apiKey, errorMsg, onError, onLoadingChange,
       return
     }
 
-    setStorage(STORAGE_KEYS.API_KEY, apiKey.trim())
     onError('')
     setResult('')
     setIsLoading(true)
 
-    requestRef.current = imageToPrompt(apiKey.trim(), imageUrl.trim(), lang)
+    requestRef.current = sensenovaImageToPrompt(apiKey.trim(), imageUrl.trim(), lang)
     requestRef.current.promise
       .then((res) => {
         if (res.statusCode === 200) {
@@ -231,11 +236,16 @@ export default function Img2Prompt({ apiKey, errorMsg, onError, onLoadingChange,
         onChange={handleFileUpload}
       />
 
+      {/* 模型说明 */}
+      <div className="sensenova-model-desc">
+        使用 Flash-Lite 多模态视觉模型，上传参考图片即可反推生成适配 U1 Fast 的结构化提示词，支持中英文输出，一键填入信息图生成。
+      </div>
+
       {/* 图片输入 */}
       <div className="agnes-form-group">
         <div className="agnes-label-row">
           <span className="agnes-label-icon">🖼️</span>
-          <span className="agnes-label-text">图片</span>
+          <span className="agnes-label-text">参考图片</span>
           <span className="agnes-label-required">*</span>
         </div>
         <div className="agnes-ref-input-row">
@@ -312,7 +322,7 @@ export default function Img2Prompt({ apiKey, errorMsg, onError, onLoadingChange,
       {isLoading && (
         <div className="agnes-loading-box">
           <div className="agnes-spinner" />
-          <div className="agnes-loading-text agnes-loading-dots">AI 正在分析图片，生成提示词</div>
+          <div className="agnes-loading-text agnes-loading-dots">Flash-Lite 正在分析图片，生成提示词</div>
           <Button type="dashed" danger size="small" onClick={stopGenerate}>
             终止分析
           </Button>
@@ -479,6 +489,10 @@ export default function Img2Prompt({ apiKey, errorMsg, onError, onLoadingChange,
             <div className="agnes-detail-field">
               <span className="agnes-detail-label">语言：</span>
               <span className="agnes-detail-value">{detailItem.lang === 'zh' ? '中文' : 'English'}</span>
+            </div>
+            <div className="agnes-detail-field">
+              <span className="agnes-detail-label">模型：</span>
+              <span className="agnes-detail-value">{SENSENOVA_VISION_MODEL}</span>
             </div>
             <div className="agnes-detail-field">
               <span className="agnes-detail-label">生成时间：</span>
