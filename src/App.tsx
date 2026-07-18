@@ -486,7 +486,7 @@ onLoadingChange={setSensenovaImageLoading}
             </a>
             <a
               className="agnes-home-link-item"
-              href="https://platform.sensenova.cn/console/keys"
+              href="https://platform.sensenova.cn/"
               target="_blank"
               rel="noopener noreferrer"
             >
@@ -496,7 +496,7 @@ onLoadingChange={setSensenovaImageLoading}
             </a>
             <a
               className="agnes-home-link-item"
-              href="https://open.bigmodel.cn/usercenter/apikeys"
+              href="https://open.bigmodel.cn/"
               target="_blank"
               rel="noopener noreferrer"
             >
@@ -610,7 +610,7 @@ onLoadingChange={setSensenovaImageLoading}
               前往{' '}
               <span
                 className="agnes-apikey-tips-link"
-                onClick={() => window.open('https://platform.sensenova.cn/console/keys', '_blank')}
+                onClick={() => window.open('https://platform.sensenova.cn/', '_blank')}
               >
                 platform.sensenova.cn
               </span>{' '}
@@ -670,7 +670,7 @@ onLoadingChange={setSensenovaImageLoading}
               前往{' '}
               <span
                 className="agnes-apikey-tips-link"
-                onClick={() => window.open('https://open.bigmodel.cn/usercenter/apikeys', '_blank')}
+                onClick={() => window.open('https://open.bigmodel.cn/', '_blank')}
               >
                 open.bigmodel.cn
               </span>{' '}

@@ -154,8 +154,8 @@ npm run preview
 | 平台 | 获取地址 | 路径 |
 |------|----------|------|
 | Agnes AI | [platform.agnes-ai.com](https://platform.agnes-ai.com/) | 注册登录 → 设置 → API 秘钥 → 创建新的秘钥 |
-| SenseNova | [platform.sensenova.cn](https://platform.sensenova.cn/console/keys) | 注册登录 → 控制台 → API Keys → 创建密钥（sk- 开头） |
-| 智谱 AI | [open.bigmodel.cn](https://open.bigmodel.cn/usercenter/apikeys) | 注册登录 → API Keys → 创建密钥 |
+| SenseNova | [platform.sensenova.cn](https://platform.sensenova.cn/) | 注册登录 → 控制台 → API Keys → 创建密钥（sk- 开头） |
+| 智谱 AI | [open.bigmodel.cn](https://open.bigmodel.cn/) | 注册登录 → API Keys → 创建密钥 |
 
 ## 项目结构
 
