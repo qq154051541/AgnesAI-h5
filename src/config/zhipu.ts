@@ -116,13 +116,13 @@ export function getZhipuStorageKeys(modelValue: string) {
 
 /** CogView-3-Flash 图片尺寸配置（支持多种分辨率） */
 export const ZHIPU_IMAGE_SIZES = [
-  { value: '1024x1024', label: '1024×1024 （1:1）方形', ratio: '1:1' },
   { value: '768x1344', label: '768×1344 （9:16）竖屏', ratio: '9:16' },
   { value: '864x1152', label: '864×1152 （3:4）竖屏', ratio: '3:4' },
   { value: '1344x768', label: '1344×768 （16:9）横屏', ratio: '16:9' },
   { value: '1152x864', label: '1152×864 （4:3）横屏', ratio: '4:3' },
   { value: '1440x720', label: '1440×720 （2:1）横屏', ratio: '2:1' },
-  { value: '720x1440', label: '720×1440 （1:2）竖屏', ratio: '1:2' }
+  { value: '720x1440', label: '720×1440 （1:2）竖屏', ratio: '1:2' },
+  { value: '1024x1024', label: '1024×1024 （1:1）方形', ratio: '1:1' }
 ]
 
 /** CogView-3-Flash 图片生成模型 */
