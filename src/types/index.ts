@@ -130,6 +130,29 @@ export interface SenseNovaImageHistoryItem {
   responseData: unknown
 }
 
+/** 智谱视频生成历史记录 */
+export interface ZhipuVideoHistoryItem {
+  id: string
+  taskId: string
+  url: string
+  coverUrl?: string
+  prompt: string
+  model: string
+  size: string
+  duration: number
+  fps: number
+  quality: string
+  withAudio: boolean
+  refImageUrls: string[]
+  isKeyframeMode: boolean
+  sizeIndex: number
+  durationIndex: number
+  fpsIndex: number
+  qualityIndex: number
+  time: number
+  responseData: unknown
+}
+
 /** 流式回调 */
 export interface StreamCallbacks {
   onContent: (chunk: string) => void

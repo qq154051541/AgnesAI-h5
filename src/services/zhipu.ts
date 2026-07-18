@@ -10,7 +10,13 @@
 
 import {
   ZHIPU_BASE_URL,
-  ZHIPU_PATHS
+  ZHIPU_PATHS,
+  ZHIPU_VISION_MODEL,
+  ZHIPU_VIDEO_MODEL,
+  ZHIPU_IMG2PROMPT_SYSTEM_ZH,
+  ZHIPU_IMG2PROMPT_SYSTEM_EN,
+  ZHIPU_IMG2PROMPT_USER_ZH,
+  ZHIPU_IMG2PROMPT_USER_EN
 } from '../config/zhipu'
 import type {
   RequestResult,
@@ -340,5 +346,128 @@ export function zhipuGenerateImage(
       body: JSON.stringify(body)
     },
     300000 // 图片生成可能较慢，5分钟超时
+  )
+}
+
+/* ===== 图转提示词接口 ===== */
+
+/**
+ * 图转提示词（Image2Prompt）
+ * 使用 GLM-4.6V-Flash 多模态视觉模型，根据参考图片生成适配 CogView-3-Flash 的提示词
+ * 接口：POST /chat/completions（非流式）
+ * 响应格式：{ choices: [{ message: { content: "..." } }] }
+ */
+export function zhipuImageToPrompt(
+  apiKey: string,
+  imageUrl: string,
+  lang: string
+): RequestResult<ApiResponse> {
+  const isZh = lang === 'zh'
+  const systemPrompt = isZh ? ZHIPU_IMG2PROMPT_SYSTEM_ZH : ZHIPU_IMG2PROMPT_SYSTEM_EN
+  const userText = isZh ? ZHIPU_IMG2PROMPT_USER_ZH : ZHIPU_IMG2PROMPT_USER_EN
+
+  const body: Record<string, unknown> = {
+    model: ZHIPU_VISION_MODEL,
+    temperature: 0.7,
+    stream: false,
+    messages: [
+      {
+        role: 'system',
+        content: systemPrompt
+      },
+      {
+        role: 'user',
+        content: [
+          { type: 'text', text: userText },
+          {
+            type: 'image_url',
+            image_url: { url: imageUrl }
+          }
+        ]
+      }
+    ]
+  }
+
+  return fetchWithAbort(
+    `${ZHIPU_BASE_URL}${ZHIPU_PATHS.CHAT_COMPLETIONS}`,
+    {
+      method: 'POST',
+      headers: buildHeaders(apiKey),
+      body: JSON.stringify(body)
+    },
+    120000
+  )
+}
+
+/* ===== 视频生成接口（异步） ===== */
+
+/** 视频生成请求参数 */
+export interface ZhipuVideoOptions {
+  /** 文本描述（≤512字符） */
+  prompt: string
+  /** 图片 URL（图生视频）或数组（首尾帧，2张） */
+  imageUrl?: string | string[]
+  /** 分辨率 */
+  size: string
+  /** 时长（秒）：5 或 10 */
+  duration: number
+  /** 帧率：30 或 60 */
+  fps: number
+  /** 输出模式：speed / quality */
+  quality: string
+  /** 是否生成音效 */
+  withAudio: boolean
+}
+
+/**
+ * 创建视频生成任务（异步）
+ * 接口：POST /videos/generations
+ * 响应格式：{ id, model, request_id, task_status: 'PROCESSING' }
+ */
+export function zhipuCreateVideoTask(
+  apiKey: string,
+  options: ZhipuVideoOptions
+): RequestResult<ApiResponse> {
+  const body: Record<string, unknown> = {
+    model: ZHIPU_VIDEO_MODEL,
+    prompt: options.prompt,
+    size: options.size,
+    duration: options.duration,
+    fps: options.fps,
+    quality: options.quality,
+    with_audio: options.withAudio
+  }
+
+  if (options.imageUrl) {
+    body.image_url = options.imageUrl
+  }
+
+  return fetchWithAbort(
+    `${ZHIPU_BASE_URL}${ZHIPU_PATHS.VIDEO_GENERATIONS}`,
+    {
+      method: 'POST',
+      headers: buildHeaders(apiKey),
+      body: JSON.stringify(body)
+    },
+    60000
+  )
+}
+
+/**
+ * 查询异步任务结果
+ * 接口：GET /async-result/{id}
+ * 响应格式：{ id, model, task_status, video_result: [{ url, cover_image_url }] }
+ */
+export function zhipuQueryVideoTask(
+  apiKey: string,
+  taskId: string
+): RequestResult<ApiResponse> {
+  return fetchWithAbort(
+    `${ZHIPU_BASE_URL}${ZHIPU_PATHS.ASYNC_RESULT}/${encodeURIComponent(taskId)}`,
+    {
+      method: 'GET',
+      headers: buildHeaders(apiKey)
+    },
+    30000
   )
 }

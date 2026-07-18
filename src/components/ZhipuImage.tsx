@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, forwardRef, useImperativeHandle } from 'react'
 import { Button, Select, Modal, Notification } from 'animal-island-ui'
 import {
   ZHIPU_IMAGE_SIZES,
@@ -33,16 +33,27 @@ interface ZhipuImageProps {
   onLoadingChange: (loading: boolean) => void
 }
 
+/** ZhipuImage 暴露给父组件的方法 */
+export interface ZhipuImageHandle {
+  setPrompt: (text: string) => void
+}
+
 const PAGE_SIZE = 10
 
-export default function ZhipuImage({
-  apiKey,
-  modelLabel,
-  modelDescription,
-  errorMsg,
-  onError,
-  onLoadingChange
-}: ZhipuImageProps) {
+const ZhipuImage = forwardRef<ZhipuImageHandle, ZhipuImageProps>(
+  ({
+    apiKey,
+    modelLabel,
+    modelDescription,
+    errorMsg,
+    onError,
+    onLoadingChange
+  }, ref) => {
+  /* ===== 暴露 setPrompt 给父组件（图转提示词 → 文生图） ===== */
+  useImperativeHandle(ref, () => ({
+    setPrompt: (text: string) => setImgPrompt(text)
+  }))
+
   /* ===== 图片生成状态 ===== */
   const [imgPrompt, setImgPrompt] = useState('')
   const [imgSizeIndex, setImgSizeIndex] = useState(0)
@@ -774,4 +785,7 @@ export default function ZhipuImage({
       />
     </div>
   )
-}
+  }
+)
+
+export default ZhipuImage

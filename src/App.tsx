@@ -8,6 +8,9 @@ import SenseNovaChat from './components/SenseNovaChat'
 import SenseNovaImage from './components/SenseNovaImage'
 import ZhipuChat from './components/ZhipuChat'
 import ZhipuImage from './components/ZhipuImage'
+import ZhipuVideo from './components/ZhipuVideo'
+import ZhipuImg2Prompt from './components/ZhipuImg2Prompt'
+import type { ZhipuImageHandle } from './components/ZhipuImage'
 import { STORAGE_KEYS } from './config/api'
 import { SENSENOVA_STORAGE_KEYS, SENSENOVA_MODELS } from './config/sensenova'
 import { ZHIPU_STORAGE_KEYS, ZHIPU_MODELS } from './config/zhipu'
@@ -15,7 +18,7 @@ import { getStorage, setStorage } from './utils/helpers'
 
 type TabKey = 'image' | 'video' | 'img2prompt'
 type SenseNovaTabKey = 'flashlite' | 'deepseek' | 'u1image'
-type ZhipuTabKey = 'glm' | 'glm-vision' | 'cogview'
+type ZhipuTabKey = 'glm' | 'video' | 'cogview' | 'img2prompt'
 
 export default function App() {
   const [apiKey, setApiKey] = useState('')
@@ -35,8 +38,9 @@ export default function App() {
   const [sensenovaDeepseekLoading, setSensenovaDeepseekLoading] = useState(false)
   const [sensenovaImageLoading, setSensenovaImageLoading] = useState(false)
   const [zhipuGlmLoading, setZhipuGlmLoading] = useState(false)
-  const [zhipuVisionLoading, setZhipuVisionLoading] = useState(false)
+  const [zhipuVideoLoading, setZhipuVideoLoading] = useState(false)
   const [zhipuImageLoading, setZhipuImageLoading] = useState(false)
+  const [zhipuImg2PromptLoading, setZhipuImg2PromptLoading] = useState(false)
 
   /* ===== SenseNova 状态 ===== */
   const [sensenovaApiKey, setSensenovaApiKey] = useState('')
@@ -54,6 +58,7 @@ export default function App() {
   const [zhipuDrawerOpen, setZhipuDrawerOpen] = useState(false)
 
   const imageGenerateRef = useRef<{ setPrompt: (text: string) => void } | null>(null)
+  const zhipuImageRef = useRef<ZhipuImageHandle | null>(null)
 
   useEffect(() => {
     const savedKey = getStorage<string>(STORAGE_KEYS.API_KEY)
@@ -83,6 +88,20 @@ export default function App() {
         }
       }, 100)
       Notification.success('已填入图片提示词')
+    },
+    []
+  )
+
+  /** 智谱图转提示词 → CogView-3-Flash 文生图 */
+  const handleZhipuUsePrompt = useCallback(
+    (prompt: string) => {
+      setZhipuActiveTab('cogview')
+      setTimeout(() => {
+        if (zhipuImageRef.current) {
+          zhipuImageRef.current.setPrompt(prompt)
+        }
+      }, 100)
+      Notification.success('已填入 CogView-3-Flash 生图描述')
     },
     []
   )
@@ -118,13 +137,13 @@ export default function App() {
   )
 
   const sensenovaLoading = sensenovaFlashliteLoading || sensenovaDeepseekLoading || sensenovaImageLoading
-  const zhipuLoading = zhipuGlmLoading || zhipuVisionLoading || zhipuImageLoading
+  const zhipuLoading = zhipuGlmLoading || zhipuVideoLoading || zhipuImageLoading || zhipuImg2PromptLoading
 
   const flashLiteModel = SENSENOVA_MODELS[0]
   const deepSeekModel = SENSENOVA_MODELS[1]
   const glmModel = ZHIPU_MODELS[0]
-  const glmVisionModel = ZHIPU_MODELS[1]
   const cogviewModel = ZHIPU_MODELS[2]
+  const cogvideoModel = ZHIPU_MODELS[3]
 
   const sensenovaTabItems: TabItem[] = [
     {
@@ -208,23 +227,21 @@ export default function App() {
       )
     },
     {
-      key: 'glm-vision',
+      key: 'video',
       label: (
         <span>
-          👁️ GLM-4.6V-Flash
-          {zhipuVisionLoading && <span className="agnes-tab-loading-dot" />}
+          🎬 cogvideox-flash
+          {zhipuVideoLoading && <span className="agnes-tab-loading-dot" />}
         </span>
       ),
       children: (
-        <ZhipuChat
+        <ZhipuVideo
           apiKey={zhipuApiKey}
-          modelValue={glmVisionModel.value}
-          modelLabel={glmVisionModel.label}
-          modelDescription={glmVisionModel.description}
-          supportsImage
+          modelLabel={cogvideoModel.label}
+          modelDescription={cogvideoModel.description}
           errorMsg={errorMsgs.zhipu}
           onError={(msg) => onError('zhipu', msg)}
-          onLoadingChange={setZhipuVisionLoading}
+          onLoadingChange={setZhipuVideoLoading}
         />
       )
     },
@@ -238,12 +255,31 @@ export default function App() {
       ),
       children: (
         <ZhipuImage
+          ref={zhipuImageRef}
           apiKey={zhipuApiKey}
           modelLabel={cogviewModel.label}
           modelDescription={cogviewModel.description}
           errorMsg={errorMsgs.zhipu}
           onError={(msg) => onError('zhipu', msg)}
           onLoadingChange={setZhipuImageLoading}
+        />
+      )
+    },
+    {
+      key: 'img2prompt',
+      label: (
+        <span>
+          🔍 图转提示词
+          {zhipuImg2PromptLoading && <span className="agnes-tab-loading-dot" />}
+        </span>
+      ),
+      children: (
+        <ZhipuImg2Prompt
+          apiKey={zhipuApiKey}
+          errorMsg={errorMsgs.zhipu}
+          onError={(msg) => onError('zhipu', msg)}
+          onLoadingChange={setZhipuImg2PromptLoading}
+          onUsePrompt={handleZhipuUsePrompt}
         />
       )
     }
@@ -395,11 +431,12 @@ export default function App() {
               <div className="agnes-home-card-icon">🚀</div>
               <div className="agnes-home-card-body">
                 <div className="agnes-home-card-title">智谱 AI 智能体</div>
-                <div className="agnes-home-card-subtitle">Agentic Coding · 视觉理解 · 文生图</div>
+                <div className="agnes-home-card-subtitle">Agentic Coding · 文生图 · 视频生成 · 图转提示词</div>
                 <div className="agnes-home-card-tags">
                   <span className="agnes-home-card-tag">🚀 GLM-4.7-Flash</span>
-                  <span className="agnes-home-card-tag">👁️ GLM-4.6V-Flash</span>
                   <span className="agnes-home-card-tag">🎨 CogView-3-Flash</span>
+                  <span className="agnes-home-card-tag">🎬 cogvideox-flash</span>
+                  <span className="agnes-home-card-tag">🔍 图转提示词</span>
                 </div>
               </div>
               <div className="agnes-home-card-arrow">›</div>

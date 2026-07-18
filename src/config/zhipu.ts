@@ -15,11 +15,15 @@ export const ZHIPU_PATHS = {
   /** 对话补全（GLM-4.7-Flash 等） */
   CHAT_COMPLETIONS: '/chat/completions',
   /** 图片生成（CogView-3-Flash） */
-  IMAGE_GENERATIONS: '/images/generations'
+  IMAGE_GENERATIONS: '/images/generations',
+  /** 视频生成（cogvideox-flash，异步） */
+  VIDEO_GENERATIONS: '/videos/generations',
+  /** 查询异步任务结果 */
+  ASYNC_RESULT: '/async-result'
 } as const
 
 /** 模型类型 */
-export type ZhipuModelType = 'chat' | 'vision' | 'image'
+export type ZhipuModelType = 'chat' | 'vision' | 'image' | 'video'
 
 /** 模型配置项 */
 export interface ZhipuModelItem {
@@ -59,6 +63,13 @@ export const ZHIPU_MODELS: ZhipuModelItem[] = [
     type: 'image',
     description:
       '免费文生图模型，根据文本描述生成高质量图像，支持多种分辨率。推理速度快，适用于艺术创作、设计参考、PPT 配图、游戏开发等场景。'
+  },
+  {
+    value: 'cogvideox-flash',
+    label: 'cogvideox-flash',
+    type: 'video',
+    description:
+      '视频生成模型（异步），支持文生视频、图生视频、首尾帧生视频。最高支持 4K 分辨率，可选 30/60 FPS、5/10 秒时长，支持 AI 音效生成。'
   }
 ]
 
@@ -86,7 +97,11 @@ export const ZHIPU_STORAGE_KEYS = {
   /** GLM-4.6V-Flash 系统提示词 */
   SYSTEM_PROMPT_GLM46V: 'zhipu_system_prompt_glm46v',
   /** CogView-3-Flash 生图历史 */
-  IMAGE_HISTORY: 'zhipu_image_history'
+  IMAGE_HISTORY: 'zhipu_image_history',
+  /** GLM-4.6V-Flash 图转提示词历史 */
+  IMG2PROMPT_HISTORY: 'zhipu_img2prompt_history',
+  /** cogvideox-flash 视频生成历史 */
+  VIDEO_HISTORY: 'zhipu_video_history'
 } as const
 
 /** 根据模型 value 获取对应的存储 key */
@@ -112,6 +127,60 @@ export const ZHIPU_IMAGE_SIZES = [
 
 /** CogView-3-Flash 图片生成模型 */
 export const ZHIPU_IMAGE_MODEL = 'cogview-3-flash'
+
+/** cogvideox-flash 视频生成模型（异步接口） */
+export const ZHIPU_VIDEO_MODEL = 'cogvideox-flash'
+
+/** cogvideox-flash 视频尺寸配置（支持多种分辨率，最高 4K） */
+export const ZHIPU_VIDEO_SIZES = [
+  { value: '1920x1080', label: '1920×1080（16:9）横屏', ratio: '16:9' },
+  { value: '1080x1920', label: '1080×1920（9:16）竖屏', ratio: '9:16' },
+  { value: '1024x1024', label: '1024×1024（1:1）方形', ratio: '1:1' },
+  { value: '1280x720', label: '1280×720（16:9）横屏', ratio: '16:9' },
+  { value: '720x1280', label: '720×1280（9:16）竖屏', ratio: '9:16' },
+  { value: '2048x1080', label: '2048×1080（17:9）超宽', ratio: '17:9' },
+  { value: '3840x2160', label: '3840×2160（16:9）4K', ratio: '16:9' }
+]
+
+/** cogvideox-flash 视频时长配置 */
+export const ZHIPU_VIDEO_DURATIONS = [
+  { value: 5, label: '约 5 秒' },
+  { value: 10, label: '约 10 秒' }
+]
+
+/** cogvideox-flash 视频帧率配置 */
+export const ZHIPU_VIDEO_FPS = [
+  { value: 30, label: '30 FPS' },
+  { value: 60, label: '60 FPS' }
+]
+
+/** cogvideox-flash 输出模式 */
+export const ZHIPU_VIDEO_QUALITY = [
+  { value: 'speed', label: '速度优先' },
+  { value: 'quality', label: '质量优先' }
+] as const
+
+/** cogvideox-flash 视频生成轮询间隔（毫秒） */
+export const ZHIPU_VIDEO_POLL_INTERVAL = 5000
+
+/** GLM-4.6V-Flash 视觉理解模型（图转提示词使用） */
+export const ZHIPU_VISION_MODEL = 'glm-4.6v-flash'
+
+/** 图转提示词 - 中文系统提示词
+ * 适配 CogView-3-Flash 文生图模型，输出结构化提示词
+ */
+export const ZHIPU_IMG2PROMPT_SYSTEM_ZH =
+  '你是顶级图片prompt生成小助手，接收参考图片后输出适配CogView-3-Flash的中文生成提示词，严格按固定结构顺序书写：[主体] + [场景 / 环境] + [艺术风格] + [光照] + [构图] + [质量标准]，描述词汇详尽完整，完整还原原图视觉效果，仅输出纯提示文本，禁止额外说明、注释、多余文字'
+
+/** 图转提示词 - 英文系统提示词 */
+export const ZHIPU_IMG2PROMPT_SYSTEM_EN =
+  'You are a top-tier image prompt generator. After receiving a reference image, output an English generation prompt adapted for CogView-3-Flash, strictly following this structure: [Subject] + [Scene / Environment] + [Art Style] + [Lighting] + [Composition] + [Quality Standard]. Use exhaustive and complete descriptive vocabulary to fully reproduce the original visual effect. Output only pure prompt text. No additional explanations, annotations, or extra text.'
+
+/** 图转提示词 - 中文用户文本 */
+export const ZHIPU_IMG2PROMPT_USER_ZH = '将上传参考图片转换为适配CogView-3-Flash的中文生成提示词'
+
+/** 图转提示词 - 英文用户文本 */
+export const ZHIPU_IMG2PROMPT_USER_EN = 'Convert the uploaded reference image into an English generation prompt adapted for CogView-3-Flash'
 
 /** 智谱 AI 接口并发限制
  * CogView-3-Flash、GLM-4.6V-Flash、GLM-4.7-Flash 三个模型均限制并发数为 1：
