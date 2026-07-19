@@ -305,7 +305,16 @@ onError('')
       setRefImageUrls((prev) => [...prev, url])
       Notification.success('上传成功')
     } catch {
-      Notification.error('上传失败')
+      // URL 上传失败时，改用 Data URI Base64
+      const reader = new FileReader()
+      reader.onload = (ev) => {
+        const dataUri = ev.target?.result as string
+        if (dataUri) {
+          setRefImageUrls((prev) => [...prev, dataUri])
+        }
+      }
+      reader.readAsDataURL(file)
+      Notification.warning('URL 上传失败，已改用 Base64 本地图片')
     }
     e.target.value = ''
   }, [])
