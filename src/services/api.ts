@@ -10,6 +10,7 @@ import {
   API_PATHS,
   VIDEO_MODEL,
   CHAT_MODEL,
+  CHAT_MODEL_FALLBACK,
   IMG2PROMPT_SYSTEM_ZH,
   IMG2PROMPT_SYSTEM_EN,
   IMG2PROMPT_USER_ZH,
@@ -19,8 +20,11 @@ import type { RequestResult, ApiResponse } from '../types'
 
 /**
  * 清理 URL，提取纯净的 http/https 地址
+ * 注意：Data URI (data:image/...;base64,...) 直接原样返回，不做清理
  */
 function cleanUrl(url: string): string {
+  // Data URI Base64 直接原样返回，避免正则误匹配 base64 中的 http:// 片段
+  if (url.startsWith('data:')) return url
   const safe = String(url).replace(/[^a-zA-Z0-9\-._~:/?#@!$&'()*+,;=%]/g, '')
   const match = safe.match(/https?:\/\/[a-zA-Z0-9\-._~:/?#@!$&'()*+,;=%]+/)
   return match ? match[0] : safe
@@ -80,6 +84,13 @@ function fetchWithAbort(
 
 /**
  * 生成图片
+ * @param apiKey    API Key
+ * @param prompt    提示词
+ * @param model     模型名称
+ * @param size      精确尺寸（"1024x1024"）或档位（"2K"）
+ * @param refImageUrls 参考图 URL 数组（图生图）
+ * @param n         生成数量
+ * @param ratio     宽高比，仅档位式 size 时使用（如 "16:9"）
  */
 export function generateImage(
   apiKey: string,
@@ -87,16 +98,22 @@ export function generateImage(
   model: string,
   size: string,
   refImageUrls?: string[],
-  n?: number
+  n?: number,
+  ratio?: string
 ): RequestResult<ApiResponse> {
-  const [w, h] = size.split('x').map(Number)
-  const alignedW = alignToMultiple(w, 16)
-  const alignedH = alignToMultiple(h, 16)
-
   const requestData: Record<string, unknown> = {
     model,
-    prompt,
-    size: `${alignedW}x${alignedH}`
+    prompt
+  }
+
+  if (ratio) {
+    // 档位式尺寸（2.1 Flash）：size 为 "1K"/"2K"/"3K"/"4K"，配合 ratio
+    requestData.size = size
+    requestData.ratio = ratio
+  } else {
+    // 精确尺寸（2.0 Flash）：对齐到 16 的倍数
+    const [w, h] = size.split('x').map(Number)
+    requestData.size = `${alignToMultiple(w, 16)}x${alignToMultiple(h, 16)}`
   }
 
   if (n && n > 1) {
@@ -104,7 +121,10 @@ export function generateImage(
   }
 
   if (refImageUrls && refImageUrls.length > 0) {
-    const cleanedImages = refImageUrls.map((url) => cleanUrl(url)).filter((url) => url)
+    // Data URI (base64) 直接使用，HTTP URL 进行清理
+    const cleanedImages = refImageUrls
+      .map((url) => (url.startsWith('data:') ? url : cleanUrl(url)))
+      .filter((url) => url)
     requestData.extra_body = {
       image: cleanedImages,
       response_format: 'url'
@@ -147,7 +167,10 @@ export function createVideoTask(
   }
 
   if (refImageUrls && refImageUrls.length > 0) {
-    const cleanedUrls = refImageUrls.map((url) => cleanUrl(url)).filter((url) => url)
+    // Data URI (base64) 直接使用，HTTP URL 进行清理
+    const cleanedUrls = refImageUrls
+      .map((url) => (url.startsWith('data:') ? url : cleanUrl(url)))
+      .filter((url) => url)
 
     if (isKeyframeMode) {
       // 关键帧模式：使用 extra_body.image（数组）+ extra_body.mode
@@ -197,6 +220,7 @@ export function queryVideoTask(apiKey: string, videoId: string): RequestResult<A
 
 /**
  * 图转提示词
+ * 先尝试 agnes-2.5-flash，失败后回退 agnes-2.0-flash
  */
 export function imageToPrompt(
   apiKey: string,
@@ -207,8 +231,8 @@ export function imageToPrompt(
   const systemPrompt = isZh ? IMG2PROMPT_SYSTEM_ZH : IMG2PROMPT_SYSTEM_EN
   const userText = isZh ? IMG2PROMPT_USER_ZH : IMG2PROMPT_USER_EN
 
-  const body = {
-    model: CHAT_MODEL,
+  const buildBody = (model: string) => ({
+    model,
     temperature: 0.7,
     stream: false,
     messages: [
@@ -227,16 +251,63 @@ export function imageToPrompt(
         ]
       }
     ]
+  })
+
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 120000)
+
+  const doFetch = async (model: string): Promise<ApiResponse> => {
+    const res = await fetch(`${API_BASE_URL}${API_PATHS.CHAT_COMPLETIONS}`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(buildBody(model)),
+      signal: controller.signal
+    })
+    const contentType = res.headers.get('content-type') || ''
+    let data: unknown
+    if (contentType.includes('application/json')) {
+      data = await res.json()
+    } else {
+      const text = await res.text()
+      try {
+        data = JSON.parse(text)
+      } catch {
+        data = text
+      }
+    }
+    return { statusCode: res.status, data }
   }
 
-  return fetchWithAbort(`${API_BASE_URL}${API_PATHS.CHAT_COMPLETIONS}`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(body)
-  })
+  const promise = doFetch(CHAT_MODEL)
+    .then((res) => {
+      // 2.5-flash 成功直接返回
+      if (res.statusCode === 200) return res
+      // 2.5-flash 失败，回退到 2.0-flash
+      return doFetch(CHAT_MODEL_FALLBACK)
+    })
+    .catch((err) => {
+      // 2.5-flash 网络错误/超时，尝试回退
+      if (err.name === 'AbortError') {
+        throw { errMsg: '请求超时或已取消' }
+      }
+      return doFetch(CHAT_MODEL_FALLBACK).catch((fallbackErr) => {
+        if (fallbackErr.name === 'AbortError') {
+          throw { errMsg: '请求超时或已取消' }
+        }
+        throw { errMsg: fallbackErr.message || '网络请求失败' }
+      })
+    })
+
+  return {
+    promise,
+    abort: () => {
+      clearTimeout(timeoutId)
+      controller.abort()
+    }
+  }
 }
 
 /**

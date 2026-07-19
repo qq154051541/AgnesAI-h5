@@ -9,7 +9,10 @@ export interface ImageHistoryItem {
   urls: string[]
   prompt: string
   model: string
+  /** 精确尺寸（如 "1024x1024"）或档位（如 "2K"） */
   size: string
+  /** 宽高比，仅档位式 size 时存在 */
+  ratio?: string
   refImageUrls: string[]
   time: number
   responseData: unknown

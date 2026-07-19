@@ -53,7 +53,15 @@ const ImageGenerate = forwardRef<ImageGenerateHandle, ImageGenerateProps>(
 
     // 根据当前模型过滤可用尺寸
     const availableSizes = SIZES.filter((s) => !s.model || s.model === MODELS[modelIndex].value)
-    const imageCount = IMAGE_COUNTS[countIndex].value
+    const isV21 = MODELS[modelIndex].value === 'agnes-image-2.1-flash'
+
+    // 2.1 模型：档位 + 宽高比选择
+    const TIERS_21 = ['1K', '2K', '3K', '4K'] as const
+    const currentTier = isV21 ? (availableSizes[sizeIndex]?.value || '2K') : ''
+    const tierSizes = isV21 ? availableSizes.filter((s) => s.value === currentTier) : []
+    // 3K/4K 档位限制只能生成 1 张
+    const isMaxTier = currentTier === '3K' || currentTier === '4K'
+    const imageCount = isMaxTier ? 1 : IMAGE_COUNTS[countIndex].value
 
     const pagedHistory = history.slice(
       (historyPage - 1) * PAGE_SIZE,
@@ -77,7 +85,7 @@ const ImageGenerate = forwardRef<ImageGenerateHandle, ImageGenerateProps>(
     }, [])
 
     const addToHistory = useCallback(
-      (urls: string[], promptText: string, model: string, size: string, responseData: unknown, refImgs: string[]) => {
+      (urls: string[], promptText: string, model: string, size: string, responseData: unknown, refImgs: string[], ratio?: string) => {
         const record: ImageHistoryItem = {
           id: Date.now().toString(),
           url: urls[0],
@@ -85,6 +93,7 @@ const ImageGenerate = forwardRef<ImageGenerateHandle, ImageGenerateProps>(
           prompt: promptText,
           model,
           size,
+          ratio,
           refImageUrls: refImgs,
           time: Date.now(),
           responseData
@@ -118,13 +127,15 @@ const ImageGenerate = forwardRef<ImageGenerateHandle, ImageGenerateProps>(
       requestsRef.current = []
 
       const model = MODELS[modelIndex].value
-      const size = availableSizes[sizeIndex].value
+      const sizeItem = availableSizes[sizeIndex]
+      const size = sizeItem.value
+      const ratio = sizeItem.ratio
 
       const errorMessages: string[] = []
 
       const sendRequest = (i: number) => {
         if (i >= imageCount) return
-        const request = generateImage(apiKey.trim(), prompt.trim(), model, size, refImageUrls, 1)
+        const request = generateImage(apiKey.trim(), prompt.trim(), model, size, refImageUrls, 1, ratio)
         requestsRef.current.push(request)
 
         request.promise
@@ -160,7 +171,7 @@ const ImageGenerate = forwardRef<ImageGenerateHandle, ImageGenerateProps>(
                     onError('所有图片生成均失败' + detail)
                   } else {
                     const responseCopy = { data: currentUrls.map((u) => ({ url: u })) }
-                    addToHistory(currentUrls.slice(), prompt.trim(), model, size, responseCopy, refImageUrls)
+                    addToHistory(currentUrls.slice(), prompt.trim(), model, size, responseCopy, refImageUrls, ratio)
                     if (currentUrls.length < imageCount) {
                       const detail = errorMessages.length > 0 ? '：' + [...new Set(errorMessages)].join('；') : ''
                       onError(`部分图片生成失败（成功 ${currentUrls.length}/${imageCount}）` + detail)
@@ -350,7 +361,11 @@ onError('')
         if (idx >= 0) setModelIndex(idx)
       }
       if (detailItem.size) {
-        const idx = availableSizes.findIndex((s) => s.value === detailItem.size)
+        // 同时匹配 size 和 ratio（档位式尺寸可能有多个相同 value）
+        const idx = availableSizes.findIndex(
+          (s) => s.value === detailItem.size &&
+                 (s.ratio || '') === (detailItem.ratio || '')
+        )
         if (idx >= 0) setSizeIndex(idx)
       }
       setRefImageUrls(detailItem.refImageUrls || [])
@@ -456,6 +471,62 @@ onError('')
         </div>
 
         {/* 尺寸与数量 */}
+        {isV21 ? (
+          <div className="agnes-form-group">
+            <div className="agnes-label-row">
+              <span className="agnes-label-icon">📐</span>
+              <span className="agnes-label-text">尺寸</span>
+              <span className="agnes-label-required">*</span>
+            </div>
+            {/* 2.1 Flash：档位 + 宽高比滑动选择 */}
+            <div className="agnes-size-picker-21">
+              <div className="agnes-tier-row">
+                {TIERS_21.map((tier) => (
+                  <button
+                    key={tier}
+                    className={`agnes-tier-btn ${currentTier === tier ? 'agnes-tier-btn-active' : ''}`}
+                    onClick={() => {
+                      const idx = availableSizes.findIndex((s) => s.value === tier)
+                      if (idx >= 0) setSizeIndex(idx)
+                      // 切换到 3K/4K 档位时强制数量为 1 张
+                      if (tier === '3K' || tier === '4K') setCountIndex(0)
+                    }}
+                  >
+                    {tier}
+                  </button>
+                ))}
+              </div>
+              <div className="agnes-ratio-scroll">
+                {tierSizes.map((s) => {
+                  const idx = availableSizes.indexOf(s)
+                  const isActive = idx === sizeIndex
+                  const [rw, rh] = (s.ratio || '1:1').split(':').map(Number)
+                  const maxDim = 30
+                  const previewW = rw >= rh ? maxDim : Math.round((rw / rh) * maxDim)
+                  const previewH = rh >= rw ? maxDim : Math.round((rh / rw) * maxDim)
+                  return (
+                    <div
+                      key={s.ratio}
+                      className={`agnes-ratio-item ${isActive ? 'agnes-ratio-item-active' : ''}`}
+                      onClick={() => setSizeIndex(idx)}
+                    >
+                      <div className="agnes-ratio-preview-wrap">
+                        <div
+                          className="agnes-ratio-preview"
+                          style={{ width: `${previewW}px`, height: `${previewH}px` }}
+                        />
+                      </div>
+                      <div className="agnes-ratio-info">
+                        <span className="agnes-ratio-label">{s.ratio}</span>
+                        <span className="agnes-ratio-pixels">{s.label.split(' ').pop()?.replace(/[（）]/g, '')}</span>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        ) : (
         <div className="agnes-form-row">
           <div className="agnes-form-group">
             <div className="agnes-label-row">
@@ -483,6 +554,24 @@ onError('')
             />
           </div>
         </div>
+        )}
+        {/* 2.1 模型时数量单独一行 */}
+        {isV21 && (
+          <div className="agnes-form-group">
+            <div className="agnes-label-row">
+              <span className="agnes-label-icon">🔢</span>
+              <span className="agnes-label-text">数量</span>
+              {isMaxTier && <span className="agnes-label-optional">3K/4K 仅支持 1 张</span>}
+            </div>
+            <Select
+              value={String(isMaxTier ? 0 : countIndex)}
+              onChange={(key) => setCountIndex(Number(key))}
+              options={IMAGE_COUNTS.map((c, i) => ({ key: String(i), label: c.label }))}
+              placeholder="选择数量"
+              disabled={isMaxTier}
+            />
+          </div>
+        )}
 
         {/* 提示词 */}
         <div className="agnes-form-group">
@@ -681,7 +770,7 @@ onError('')
                     <div className="agnes-history-prompt">{truncateText(item.prompt, 30)}</div>
                     <div className="agnes-history-tags">
                       <span className="agnes-history-tag">{item.model}</span>
-                      <span className="agnes-history-tag">{item.size}</span>
+                      <span className="agnes-history-tag">{item.size}{item.ratio ? ` ${item.ratio}` : ''}</span>
                       {item.urls && item.urls.length > 1 && (
                         <span className="agnes-history-tag">{item.urls.length}张</span>
                       )}
@@ -777,7 +866,7 @@ onError('')
               </div>
               <div className="agnes-detail-field">
                 <span className="agnes-detail-label">尺寸：</span>
-                <span className="agnes-detail-value">{detailItem.size}</span>
+                <span className="agnes-detail-value">{detailItem.size}{detailItem.ratio ? ` (${detailItem.ratio})` : ''}</span>
               </div>
               {detailItem.urls && detailItem.urls.length > 1 && (
                 <div className="agnes-detail-field">
