@@ -17,7 +17,8 @@ import {
   getStorage,
   setStorage,
   copyToClipboard,
-  formatTime
+  formatTime,
+  fileToJpegDataUri
 } from '../utils/helpers'
 import ImagePreview from './ImagePreview'
 
@@ -365,12 +366,14 @@ export default function ZhipuChat({
       setChatImageUrl(url)
       Notification.success('上传成功')
     } catch {
-      const reader = new FileReader()
-      reader.onload = (ev) => {
-        setChatImageUrl(ev.target?.result as string)
+      // 上传失败时转 JPEG Data URI（自动处理 HEIC 等格式）
+      try {
+        const dataUri = await fileToJpegDataUri(file)
+        setChatImageUrl(dataUri)
+        Notification.warning('上传失败，已转用本地图片')
+      } catch {
+        Notification.error('图片格式不支持，请使用 JPG 或 PNG 格式')
       }
-      reader.readAsDataURL(file)
-      Notification.warning('上传失败，使用本地图片')
     }
     e.target.value = ''
   }, [])

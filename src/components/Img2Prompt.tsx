@@ -4,7 +4,7 @@ import { STORAGE_KEYS } from '../config/api'
 import { imageToPrompt, uploadToImgbb } from '../services/api'
 import type { RequestResult, ApiResponse } from '../types'
 import type { Img2PromptHistoryItem } from '../types'
-import { getStorage, setStorage, copyToClipboard, formatTime, truncateText } from '../utils/helpers'
+import { getStorage, setStorage, copyToClipboard, formatTime, truncateText, fileToJpegDataUri } from '../utils/helpers'
 import ImagePreview from './ImagePreview'
 
 interface Img2PromptProps {
@@ -89,13 +89,14 @@ export default function Img2Prompt({ apiKey, errorMsg, onError, onLoadingChange,
       setImageUrl(url)
       Notification.success('上传成功')
     } catch {
-      // 上传失败时使用 base64 本地预览
-      const reader = new FileReader()
-      reader.onload = (ev) => {
-        setImageUrl(ev.target?.result as string)
+      // 上传失败时转 JPEG Data URI（自动处理 HEIC 等格式）
+      try {
+        const dataUri = await fileToJpegDataUri(file)
+        setImageUrl(dataUri)
+        Notification.warning('上传失败，已转用本地图片')
+      } catch {
+        Notification.error('图片格式不支持，请使用 JPG 或 PNG 格式')
       }
-      reader.readAsDataURL(file)
-      Notification.warning('上传失败，使用本地图片')
     }
     e.target.value = ''
   }, [])

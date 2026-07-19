@@ -4,7 +4,7 @@ import { VIDEO_SIZES, VIDEO_DURATIONS, STORAGE_KEYS } from '../config/api'
 import { createVideoTask, queryVideoTask, uploadToImgbb } from '../services/api'
 import type { RequestResult, ApiResponse } from '../types'
 import type { VideoHistoryItem } from '../types'
-import { getStorage, setStorage, copyToClipboard, downloadFile, formatTime, truncateText, formatResponseData } from '../utils/helpers'
+import { getStorage, setStorage, copyToClipboard, downloadFile, formatTime, truncateText, formatResponseData, fileToJpegDataUri } from '../utils/helpers'
 import ImagePreview from './ImagePreview'
 
 interface VideoGenerateProps {
@@ -305,16 +305,14 @@ onError('')
       setRefImageUrls((prev) => [...prev, url])
       Notification.success('上传成功')
     } catch {
-      // URL 上传失败时，改用 Data URI Base64
-      const reader = new FileReader()
-      reader.onload = (ev) => {
-        const dataUri = ev.target?.result as string
-        if (dataUri) {
-          setRefImageUrls((prev) => [...prev, dataUri])
-        }
+      // URL 上传失败时，转 JPEG Data URI（自动处理 HEIC 等格式）
+      try {
+        const dataUri = await fileToJpegDataUri(file)
+        setRefImageUrls((prev) => [...prev, dataUri])
+        Notification.warning('URL 上传失败，已转用本地图片')
+      } catch {
+        Notification.error('图片格式不支持，请使用 JPG 或 PNG 格式')
       }
-      reader.readAsDataURL(file)
-      Notification.warning('URL 上传失败，已改用 Base64 本地图片')
     }
     e.target.value = ''
   }, [])
