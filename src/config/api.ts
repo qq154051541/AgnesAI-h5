@@ -4,7 +4,7 @@
  */
 
 /** API 基础地址 */
-export const API_BASE_URL = 'https://apihub.agnes-ai.com'
+export const API_BASE_URL = 'https://apihub.agnes-ai.cn'
 
 /** 图片上传基础地址 */
 export const IMGBB_UPLOAD_URL = 'https://imgbb.com/json'

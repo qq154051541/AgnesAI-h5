@@ -10,7 +10,7 @@
 
 ### 🎨 Agnes AI 创作工坊
 
-基于 [Agnes AI API](https://apihub.agnes-ai.com)，提供图片与视频生成能力。
+基于 [Agnes AI API](https://apihub.agnes-ai.cn)，提供图片与视频生成能力。
 
 #### 🖼️ 图片生成
 
@@ -202,7 +202,7 @@ AgnesAI-h5/
 
 ### Agnes AI
 
-接口地址：`https://apihub.agnes-ai.com`
+接口地址：`https://apihub.agnes-ai.cn`
 
 | 接口 | 路径 | 说明 |
 |------|------|------|
