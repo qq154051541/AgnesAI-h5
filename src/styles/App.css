@@ -315,6 +315,129 @@ body {
   margin-bottom: var(--agnes-space-lg);
 }
 
+/* 未配置状态：高亮引导边框 */
+.agnes-apikey-section-empty {
+  border-color: rgba(25, 200, 185, 0.4) !important;
+  box-shadow: var(--agnes-shadow-primary-sm) !important;
+}
+
+/* 未配置时的步骤引导 */
+.agnes-apikey-guide {
+  display: flex;
+  align-items: center;
+  gap: var(--agnes-space-sm);
+  margin-bottom: var(--agnes-space-md);
+  padding: var(--agnes-space-sm) var(--agnes-space-md);
+  background: var(--agnes-primary-bg-soft);
+  border: 1px dashed rgba(25, 200, 185, 0.35);
+  border-radius: var(--agnes-radius-sm);
+}
+
+.agnes-apikey-guide-badge {
+  flex-shrink: 0;
+  padding: 2px 10px;
+  font-size: var(--agnes-font-xs);
+  font-weight: 700;
+  color: #fff;
+  background: var(--agnes-gradient-primary);
+  border-radius: var(--agnes-radius-full);
+  box-shadow: var(--agnes-shadow-primary-sm);
+}
+
+.agnes-apikey-guide-text {
+  font-size: var(--agnes-font-sm);
+  font-weight: 600;
+  color: var(--agnes-primary-active);
+}
+
+/* 已配置折叠态：一行状态条 */
+.agnes-apikey-collapsed {
+  display: flex;
+  align-items: center;
+  gap: var(--agnes-space-sm);
+  margin-bottom: var(--agnes-space-lg);
+  padding: 10px var(--agnes-space-lg);
+  background: var(--agnes-bg-card);
+  border: 2px solid var(--agnes-border);
+  border-radius: var(--agnes-radius-base);
+  cursor: pointer;
+  transition: all var(--agnes-transition);
+}
+
+.agnes-apikey-collapsed:hover {
+  border-color: var(--agnes-primary);
+  box-shadow: var(--agnes-shadow-sm);
+}
+
+.agnes-apikey-collapsed:active {
+  transform: scale(0.99);
+}
+
+.agnes-apikey-status-icon {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--agnes-success);
+  border-radius: 50%;
+}
+
+.agnes-apikey-status-text {
+  flex-shrink: 0;
+  font-size: var(--agnes-font-sm);
+  font-weight: 600;
+  color: var(--agnes-text);
+  white-space: nowrap;
+}
+
+.agnes-apikey-mask {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--agnes-font-sm);
+  color: var(--agnes-text-muted);
+  font-family: 'Courier New', monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.agnes-apikey-edit {
+  flex-shrink: 0;
+  font-size: var(--agnes-font-sm);
+  font-weight: 600;
+  color: var(--agnes-primary);
+  transition: color var(--agnes-transition-fast);
+}
+
+.agnes-apikey-collapsed:hover .agnes-apikey-edit {
+  color: var(--agnes-primary-active);
+  text-decoration: underline;
+}
+
+/* 展开态的收起按钮 */
+.agnes-apikey-collapse {
+  margin-left: auto;
+  padding: 4px 10px;
+  border: none;
+  background: var(--agnes-bg-secondary);
+  border-radius: var(--agnes-radius-xs);
+  font-size: var(--agnes-font-sm);
+  color: var(--agnes-text-secondary);
+  cursor: pointer;
+  transition: all var(--agnes-transition-fast);
+  font-family: inherit;
+}
+
+.agnes-apikey-collapse:hover {
+  color: var(--agnes-primary);
+  background: var(--agnes-primary-bg);
+}
+
 .agnes-apikey-row {
   display: flex;
   align-items: center;
@@ -508,6 +631,41 @@ body {
   width: 8px;
 }
 
+/* 「● 创作中」文字徽标：动森主色脉冲动画 */
+.agnes-home-card-busy-badge {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  font-size: 11px;
+  line-height: 1.4;
+  font-weight: 700;
+  color: #fff;
+  background: var(--agnes-primary);
+  border-radius: 999px;
+  box-shadow: 0 2px 8px rgba(230, 126, 34, 0.45);
+  animation: agnesBusyBadgePulse 1.6s ease-in-out infinite;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+@keyframes agnesBusyBadgePulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+    box-shadow: 0 2px 8px rgba(230, 126, 34, 0.45);
+  }
+  50% {
+    transform: scale(1.06);
+    opacity: 0.88;
+    box-shadow: 0 2px 14px rgba(230, 126, 34, 0.7);
+  }
+}
+
 .agnes-home-card-icon {
   flex-shrink: 0;
   width: 58px;
@@ -604,21 +762,73 @@ body {
   color: var(--agnes-primary);
 }
 
-.agnes-home-card-dot {
+/* 忙碌状态徽标（右上角） */
+.agnes-home-card-badge {
   position: absolute;
-  top: 12px;
+  top: 10px;
   right: 12px;
-  width: 8px;
-  height: 8px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  font-size: var(--agnes-font-xs);
+  font-weight: 700;
+  color: var(--agnes-primary-active);
+  background: var(--agnes-primary-bg);
+  border: 1px solid rgba(25, 200, 185, 0.3);
+  border-radius: var(--agnes-radius-full);
+}
+
+.agnes-home-card-badge-dot {
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
-  background: var(--agnes-error);
-  box-shadow: 0 0 0 0 rgba(224, 90, 90, 0.5);
+  background: var(--agnes-primary);
+  box-shadow: 0 0 0 0 rgba(25, 200, 185, 0.5);
   animation: agnes-busy-pulse 1.5s ease-in-out infinite;
 }
 
 @keyframes agnes-busy-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(224, 90, 90, 0.5); }
-  50% { box-shadow: 0 0 0 6px rgba(224, 90, 90, 0); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(25, 200, 185, 0.5); }
+  50% { box-shadow: 0 0 0 5px rgba(25, 200, 185, 0); }
+}
+
+/* 首次使用引导横幅 */
+.agnes-home-guide {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--agnes-space-md);
+  margin-bottom: var(--agnes-space-xl);
+  padding: var(--agnes-space-md) var(--agnes-space-lg);
+  background: var(--agnes-gradient-warm);
+  border: 2px solid rgba(232, 169, 72, 0.3);
+  border-radius: var(--agnes-radius-lg);
+  animation: agnes-fade-in 0.4s ease;
+}
+
+.agnes-home-guide-icon {
+  flex-shrink: 0;
+  font-size: 22px;
+  line-height: 1.3;
+  animation: agnes-float 3s ease-in-out infinite;
+}
+
+.agnes-home-guide-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.agnes-home-guide-title {
+  font-size: var(--agnes-font-base);
+  font-weight: 700;
+  color: var(--agnes-text);
+  margin-bottom: 2px;
+}
+
+.agnes-home-guide-text {
+  font-size: var(--agnes-font-sm);
+  color: #a08050;
+  line-height: 1.6;
 }
 
 /* 链接区域 */
@@ -711,6 +921,22 @@ body {
   overflow: visible !important;
 }
 
+/* keep-alive：组件库 Tabs 不再承载内容，隐藏其内容容器 */
+.agnes-tabs-wrapper [class*='animal-tabContent'] {
+  display: none !important;
+}
+
+/* keep-alive 面板：全部挂载，仅控制显隐，保证后台任务状态不丢失 */
+.agnes-tab-panel {
+  display: none;
+}
+
+.agnes-tab-panel-active {
+  display: block;
+  padding: var(--agnes-space-md) 4px 0;
+  animation: agnes-fade-in 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
 /* 让 tab 列表支持换行，确保所有 tab 全部展示 */
 .agnes-tabs-wrapper [class*='animal-tabList'] {
   flex-wrap: wrap;
@@ -784,6 +1010,9 @@ body {
 
 /* ===== 错误提示 ===== */
 .agnes-error-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
   margin-bottom: var(--agnes-space-md);
   margin-top: var(--agnes-space-md);
   padding: var(--agnes-space-md) var(--agnes-space-lg);
@@ -797,6 +1026,13 @@ body {
   line-height: 1.6;
   word-break: break-word;
   animation: agnes-shake-in 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}
+
+.agnes-error-box::before {
+  content: '⚠️';
+  flex-shrink: 0;
+  font-size: 14px;
+  line-height: 1.5;
 }
 
 @keyframes agnes-shake-in {
@@ -1615,8 +1851,8 @@ body {
 }
 
 .agnes-history-delete-btn {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;

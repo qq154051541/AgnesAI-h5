@@ -1,6 +1,8 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { Cursor, Drawer, Tabs, Button, Input, Card, Notification, Divider, Footer } from 'animal-island-ui'
-import type { TabItem } from 'animal-island-ui'
+import { Cursor, Drawer, Notification, Divider, Footer } from 'animal-island-ui'
+import KeepAliveTabs from './components/KeepAliveTabs'
+import type { KeepAliveTabItem } from './components/KeepAliveTabs'
+import ApiKeyField from './components/ApiKeyField'
 import ImageGenerate from './components/ImageGenerate'
 import VideoGenerate from './components/VideoGenerate'
 import Img2Prompt from './components/Img2Prompt'
@@ -24,7 +26,6 @@ type ZhipuTabKey = 'glm' | 'video' | 'cogview' | 'img2prompt'
 
 export default function App() {
   const [apiKey, setApiKey] = useState('')
-  const [showKey, setShowKey] = useState(false)
   const [activeTab, setActiveTab] = useState<TabKey>('image')
   const [errorMsgs, setErrorMsgs] = useState<Record<string, string>>({
     image: '',
@@ -46,12 +47,10 @@ export default function App() {
 
   /* ===== SenseNova 状态 ===== */
   const [sensenovaApiKey, setSensenovaApiKey] = useState('')
-  const [sensenovaShowKey, setSensenovaShowKey] = useState(false)
   const [sensenovaActiveTab, setSensenovaActiveTab] = useState<SenseNovaTabKey>('flashlite')
 
   /* ===== 智谱 AI 状态 ===== */
   const [zhipuApiKey, setZhipuApiKey] = useState('')
-  const [zhipuShowKey, setZhipuShowKey] = useState(false)
   const [zhipuActiveTab, setZhipuActiveTab] = useState<ZhipuTabKey>('glm')
 
   /* 抽屉状态 */
@@ -162,7 +161,7 @@ Notification.success('已填入 U1 Fast 生图描述')
   const cogviewModel = ZHIPU_MODELS[2]
   const cogvideoModel = ZHIPU_MODELS[3]
 
-  const sensenovaTabItems: TabItem[] = [
+  const sensenovaTabItems: KeepAliveTabItem[] = [
     {
       key: 'flashlite',
       label: (
@@ -210,18 +209,18 @@ Notification.success('已填入 U1 Fast 生图描述')
         </span>
       ),
       children: (
-<SenseNovaImage
-ref={sensenovaImageRef}
-apiKey={sensenovaApiKey}
-errorMsg={errorMsgs.sensenova}
-onError={(msg) => onError('sensenova', msg)}
-onLoadingChange={setSensenovaImageLoading}
-/>
+        <SenseNovaImage
+          ref={sensenovaImageRef}
+          apiKey={sensenovaApiKey}
+          errorMsg={errorMsgs.sensenova}
+          onError={(msg) => onError('sensenova', msg)}
+          onLoadingChange={setSensenovaImageLoading}
+        />
       )
     }
   ]
 
-  const zhipuTabItems: TabItem[] = [
+  const zhipuTabItems: KeepAliveTabItem[] = [
     {
       key: 'glm',
       label: (
@@ -301,7 +300,7 @@ onLoadingChange={setSensenovaImageLoading}
     }
   ]
 
-  const tabItems: TabItem[] = [
+  const tabItems: KeepAliveTabItem[] = [
     {
       key: 'image',
       label: (
@@ -389,12 +388,23 @@ onLoadingChange={setSensenovaImageLoading}
           <div className="agnes-header-deco" />
         </header>
 
-        {/* 主内容区 - 双卡片入口 */}
+        {/* 主内容区 - 平台入口 */}
         <div className="agnes-main agnes-home-main">
-            <div className="agnes-home-intro">
+          <div className="agnes-home-intro">
             <h2 className="agnes-home-title">选择创作平台</h2>
             <p className="agnes-home-desc">三大 AI 平台，覆盖图像、视频、对话与智能编码</p>
           </div>
+
+          {/* 首次使用引导 */}
+          {!apiKey && !sensenovaApiKey && !zhipuApiKey && (
+            <div className="agnes-home-guide">
+              <span className="agnes-home-guide-icon">👋</span>
+              <div className="agnes-home-guide-body">
+                <div className="agnes-home-guide-title">欢迎使用绘境</div>
+                <div className="agnes-home-guide-text">选择下方任一平台，进入后先配置 API Key 即可开始创作</div>
+              </div>
+            </div>
+          )}
 
           <div className="agnes-home-cards">
             {/* Agnes AI 卡片 */}
@@ -417,7 +427,7 @@ onLoadingChange={setSensenovaImageLoading}
               </div>
               <div className="agnes-home-card-arrow">›</div>
               {(imageLoading || videoLoading || img2promptLoading) && (
-                <span className="agnes-home-card-dot" />
+                <span className="agnes-home-card-busy-badge">● 创作中</span>
               )}
             </div>
 
@@ -441,7 +451,7 @@ onLoadingChange={setSensenovaImageLoading}
               </div>
               <div className="agnes-home-card-arrow">›</div>
               {sensenovaLoading && (
-                <span className="agnes-home-card-dot" />
+                <span className="agnes-home-card-busy-badge">● 创作中</span>
               )}
             </div>
 
@@ -466,13 +476,14 @@ onLoadingChange={setSensenovaImageLoading}
               </div>
               <div className="agnes-home-card-arrow">›</div>
               {zhipuLoading && (
-                <span className="agnes-home-card-dot" />
+                <span className="agnes-home-card-busy-badge">● 创作中</span>
               )}
             </div>
           </div>
 
           <Divider type="wave-yellow" />
 
+          <div className="agnes-home-links-title">🔑 快速获取 API Key</div>
           <div className="agnes-home-links">
             <a
               className="agnes-home-link-item"
@@ -521,48 +532,25 @@ onLoadingChange={setSensenovaImageLoading}
         className="agnes-drawer"
       >
         <div className="agnes-drawer-content">
-          {/* API Key 输入 */}
-          <Card className="agnes-apikey-section">
-            <div className="agnes-apikey-row">
-              <span className="agnes-label-icon">🔑</span>
-              <span className="agnes-apikey-label">API Key</span>
-              <span className="agnes-apikey-required">*</span>
-            </div>
-            <div className="agnes-apikey-input-row">
-              <Input
-                type={showKey ? 'text' : 'password'}
-                value={apiKey}
-                onChange={(e) => {
-                  setApiKey(e.target.value)
-                  handleSaveApiKey(e.target.value)
-                }}
-                placeholder="输入你的 Agnes AI API Key"
-                allowClear
-              />
-              <Button
-                size="middle"
-                onClick={() => setShowKey(!showKey)}
-              >
-                {showKey ? '隐藏' : '显示'}
-              </Button>
-            </div>
-            <div className="agnes-apikey-tips">
-              前往{' '}
-              <span
-                className="agnes-apikey-tips-link"
-                onClick={() => window.open('https://platform.agnes-ai.com/', '_blank')}
-              >
-                platform.agnes-ai.com
-              </span>{' '}
-              注册登录 → 设置 → API 秘钥 → 创建新的秘钥
-            </div>
-          </Card>
+          {/* API Key 配置 */}
+          <ApiKeyField
+            value={apiKey}
+            onChange={(key) => {
+              setApiKey(key)
+              handleSaveApiKey(key)
+            }}
+            label="API Key"
+            placeholder="输入你的 Agnes AI API Key"
+            platformUrl="https://platform.agnes-ai.com/"
+            platformName="platform.agnes-ai.com"
+            steps="注册登录 → 设置 → API 秘钥 → 创建新的秘钥"
+          />
 
           <Divider type="wave-yellow" />
 
           {/* 功能 Tab 切换 */}
           <div className="agnes-tabs-wrapper">
-            <Tabs
+            <KeepAliveTabs
               items={tabItems}
               activeKey={activeTab}
               onChange={(key) => setActiveTab(key as TabKey)}
@@ -581,48 +569,25 @@ onLoadingChange={setSensenovaImageLoading}
         className="agnes-drawer"
       >
         <div className="agnes-drawer-content">
-          {/* SenseNova API Key 输入 */}
-          <Card className="agnes-apikey-section">
-            <div className="agnes-apikey-row">
-              <span className="agnes-label-icon">🔑</span>
-              <span className="agnes-apikey-label">SenseNova API Key</span>
-              <span className="agnes-apikey-required">*</span>
-            </div>
-            <div className="agnes-apikey-input-row">
-              <Input
-                type={sensenovaShowKey ? 'text' : 'password'}
-                value={sensenovaApiKey}
-                onChange={(e) => {
-                  setSensenovaApiKey(e.target.value)
-                  handleSaveSensenovaApiKey(e.target.value)
-                }}
-                placeholder="输入你的 SenseNova API Key (sk- 开头)"
-                allowClear
-              />
-              <Button
-                size="middle"
-                onClick={() => setSensenovaShowKey(!sensenovaShowKey)}
-              >
-                {sensenovaShowKey ? '隐藏' : '显示'}
-              </Button>
-            </div>
-            <div className="agnes-apikey-tips">
-              前往{' '}
-              <span
-                className="agnes-apikey-tips-link"
-                onClick={() => window.open('https://platform.sensenova.cn/', '_blank')}
-              >
-                platform.sensenova.cn
-              </span>{' '}
-              注册登录 → 控制台 → API Keys → 创建密钥
-            </div>
-          </Card>
+          {/* SenseNova API Key 配置 */}
+          <ApiKeyField
+            value={sensenovaApiKey}
+            onChange={(key) => {
+              setSensenovaApiKey(key)
+              handleSaveSensenovaApiKey(key)
+            }}
+            label="SenseNova API Key"
+            placeholder="输入你的 SenseNova API Key (sk- 开头)"
+            platformUrl="https://platform.sensenova.cn/"
+            platformName="platform.sensenova.cn"
+            steps="注册登录 → 控制台 → API Keys → 创建密钥"
+          />
 
           <Divider type="wave-yellow" />
 
           {/* 功能 Tab 切换 */}
           <div className="agnes-tabs-wrapper">
-            <Tabs
+            <KeepAliveTabs
               items={sensenovaTabItems}
               activeKey={sensenovaActiveTab}
               onChange={(key) => setSensenovaActiveTab(key as SenseNovaTabKey)}
@@ -641,48 +606,25 @@ onLoadingChange={setSensenovaImageLoading}
         className="agnes-drawer"
       >
         <div className="agnes-drawer-content">
-          {/* 智谱 AI API Key 输入 */}
-          <Card className="agnes-apikey-section">
-            <div className="agnes-apikey-row">
-              <span className="agnes-label-icon">🔑</span>
-              <span className="agnes-apikey-label">智谱 AI API Key</span>
-              <span className="agnes-apikey-required">*</span>
-            </div>
-            <div className="agnes-apikey-input-row">
-              <Input
-                type={zhipuShowKey ? 'text' : 'password'}
-                value={zhipuApiKey}
-                onChange={(e) => {
-                  setZhipuApiKey(e.target.value)
-                  handleSaveZhipuApiKey(e.target.value)
-                }}
-                placeholder="输入你的智谱 AI API Key"
-                allowClear
-              />
-              <Button
-                size="middle"
-                onClick={() => setZhipuShowKey(!zhipuShowKey)}
-              >
-                {zhipuShowKey ? '隐藏' : '显示'}
-              </Button>
-            </div>
-            <div className="agnes-apikey-tips">
-              前往{' '}
-              <span
-                className="agnes-apikey-tips-link"
-                onClick={() => window.open('https://open.bigmodel.cn/', '_blank')}
-              >
-                open.bigmodel.cn
-              </span>{' '}
-              注册登录 → API Keys → 创建密钥
-            </div>
-          </Card>
+          {/* 智谱 AI API Key 配置 */}
+          <ApiKeyField
+            value={zhipuApiKey}
+            onChange={(key) => {
+              setZhipuApiKey(key)
+              handleSaveZhipuApiKey(key)
+            }}
+            label="智谱 AI API Key"
+            placeholder="输入你的智谱 AI API Key"
+            platformUrl="https://open.bigmodel.cn/"
+            platformName="open.bigmodel.cn"
+            steps="注册登录 → API Keys → 创建密钥"
+          />
 
           <Divider type="wave-yellow" />
 
           {/* 功能 Tab 切换 */}
           <div className="agnes-tabs-wrapper">
-            <Tabs
+            <KeepAliveTabs
               items={zhipuTabItems}
               activeKey={zhipuActiveTab}
               onChange={(key) => setZhipuActiveTab(key as ZhipuTabKey)}

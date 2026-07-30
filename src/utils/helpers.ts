@@ -2,6 +2,9 @@
  * 工具函数
  */
 
+import { Notification } from 'animal-island-ui'
+import type { TaskStatus } from '../types'
+
 /** 格式化时间 */
 export function formatTime(timestamp: number): string {
   const date = new Date(timestamp)
@@ -53,68 +56,89 @@ export async function copyToClipboard(text: string): Promise<boolean> {
   }
 }
 
-/** 下载单个文件（图片或视频），移动端优先保存到相册 */
-export async function downloadFile(url: string, fileName: string): Promise<void> {
-  // data: URL 转 blob
-  let blob: Blob
-  if (url.startsWith('data:')) {
-    const arr = url.split(',')
-    const matchResult = arr[0].match(/:(.*?);/)
-    const mime = matchResult ? matchResult[1] : 'image/png'
-    const bstr = atob(arr[1])
-    let n = bstr.length
-    const u8arr = new Uint8Array(n)
-    while (n--) {
-      u8arr[n] = bstr.charCodeAt(n)
-    }
-    blob = new Blob([u8arr], { type: mime })
-  } else {
-    // 通过代理下载，绕过跨域限制
-    const proxyUrl = url.replace(/^https?:\/\/platform-outputs\.agnes-ai\.space/, '/image-proxy')
-    try {
-      const res = await fetch(proxyUrl)
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      blob = await res.blob()
-    } catch {
-      try {
-        const res = await fetch(url)
-        blob = await res.blob()
-      } catch {
-        // 最终 fallback：直接打开链接
-        const a = document.createElement('a')
-        a.href = url
-        a.target = '_blank'
-        a.download = fileName
-        a.click()
-        return
-      }
-    }
+/** 判断是否为移动端（含 iPadOS 桌面 UA 模式） */
+export function isMobileDevice(): boolean {
+  if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+    return true
   }
+  return navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1
+}
 
-  // 尝试用 Navigator API 保存文件（部分移动端浏览器支持，会保存到相册/下载）
+/** 下载选项 */
+export interface DownloadOptions {
+  /** 批量下载场景：静默处理（不弹结果提示、不调用系统分享面板，避免连环弹窗） */
+  silent?: boolean
+}
+
+/**
+ * 下载单个文件（图片或视频）
+ *
+ * 体验策略：
+ * - 移动端：先弹出系统分享面板（Web Share），用户确认后可直接「存储图像/视频」到相册；
+ *   不支持分享则回退浏览器下载并提示保存位置
+ * - PC 端：直接走浏览器下载，并 toast 告知下载已开始
+ */
+export async function downloadFile(url: string, fileName: string, options: DownloadOptions = {}): Promise<void> {
+  const { silent = false } = options
+  const isMobile = isMobileDevice()
   const ext = fileName.split('.').pop()?.toLowerCase() || ''
   const isImage = ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp'].includes(ext)
   const isVideo = ['mp4', 'webm', 'mov', 'avi', 'mkv'].includes(ext)
+  const mime = isImage
+    ? `image/${ext === 'jpg' ? 'jpeg' : ext || 'png'}`
+    : isVideo
+      ? `video/${ext || 'mp4'}`
+      : 'application/octet-stream'
+  const mediaLabel = isImage ? '图片' : '视频'
 
-  if (navigator.canShare && navigator.canShare({ files: [] })) {
+  // 1. 获取内容 Blob：data: URL 直接解码；远程地址优先走代理绕跨域
+  let blob: Blob
+  try {
+    if (url.startsWith('data:')) {
+      const arr = url.split(',')
+      const matchResult = arr[0].match(/:(.*?);/)
+      const dataMime = matchResult ? matchResult[1] : mime
+      const bstr = atob(arr[1])
+      let n = bstr.length
+      const u8arr = new Uint8Array(n)
+      while (n--) {
+        u8arr[n] = bstr.charCodeAt(n)
+      }
+      blob = new Blob([u8arr], { type: dataMime })
+    } else {
+      const proxyUrl = url.replace(/^https?:\/\/platform-outputs\.agnes-ai\.space/, '/image-proxy')
+      try {
+        const res = await fetch(proxyUrl)
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        blob = await res.blob()
+      } catch {
+        const res = await fetch(url)
+        blob = await res.blob()
+      }
+    }
+  } catch (err) {
+    console.error('获取文件内容失败:', err)
+    if (!silent) Notification.error('下载失败：无法获取文件内容')
+    return
+  }
+
+  // 2. 移动端：优先系统分享面板（用户确认后可存储到相册）
+  if (isMobile && !silent && navigator.canShare) {
     try {
-      const file = new File([blob], fileName, {
-        type: isImage ? `image/${ext === 'jpg' ? 'jpeg' : ext}` : isVideo ? `video/${ext}` : blob.type
-      })
+      const file = new File([blob], fileName, { type: mime })
       if (navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          files: [file],
-          title: '保存到相册',
-          text: fileName
-        })
+        await navigator.share({ files: [file], title: `保存${mediaLabel}` })
+        Notification.success('已调出保存面板，选择「存储照片/视频」即可保存到相册')
         return
       }
-    } catch {
-      // 用户取消或不支持，继续走下载流程
+    } catch (shareErr) {
+      // 用户取消分享属正常行为，静默返回
+      if ((shareErr as Error).name === 'AbortError') return
+      // 其他错误继续走浏览器下载兜底
     }
   }
 
-  // 通用下载：创建 blob URL 触发下载
+  // 3. 通用浏览器下载
   const blobUrl = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = blobUrl
@@ -124,6 +148,23 @@ export async function downloadFile(url: string, fileName: string): Promise<void>
   a.click()
   document.body.removeChild(a)
   setTimeout(() => URL.revokeObjectURL(blobUrl), 1000)
+
+  if (!silent) {
+    Notification.success(
+      isMobile
+        ? `${mediaLabel}已开始下载，可在浏览器「下载记录」中查看；安卓用户可在相册找到`
+        : `已开始下载：${fileName}`
+    )
+  }
+}
+
+/** 修复从 localStorage 恢复的历史状态：残留「生成中」标记为「已中断」（刷新或关闭页面所致） */
+export function normalizeHistoryOnLoad<T extends { status?: TaskStatus; failReason?: string }>(items: T[]): T[] {
+  return items.map((item) =>
+    item.status === 'generating'
+      ? { ...item, status: 'interrupted' as TaskStatus, failReason: item.failReason || '页面刷新或关闭导致中断' }
+      : item
+  )
 }
 
 /** localStorage 读取 */

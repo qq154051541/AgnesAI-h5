@@ -4,7 +4,7 @@ import { VIDEO_SIZES, VIDEO_DURATIONS, STORAGE_KEYS } from '../config/api'
 import { createVideoTask, queryVideoTask, uploadToImgbb } from '../services/api'
 import type { RequestResult, ApiResponse } from '../types'
 import type { VideoHistoryItem } from '../types'
-import { getStorage, setStorage, copyToClipboard, downloadFile, formatTime, truncateText, formatResponseData, fileToJpegDataUri } from '../utils/helpers'
+import { getStorage, setStorage, copyToClipboard, downloadFile, formatTime, truncateText, formatResponseData, fileToJpegDataUri, normalizeHistoryOnLoad } from '../utils/helpers'
 import ImagePreview from './ImagePreview'
 
 interface VideoGenerateProps {
@@ -37,6 +37,10 @@ export default function VideoGenerate({ apiKey, errorMsg, onError, onLoadingChan
   const requestRef = useRef<RequestResult<ApiResponse> | null>(null)
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  /** 当前进行中任务对应的历史记录 ID */
+  const currentTaskRecordIdRef = useRef<string | null>(null)
+  /** saveHistory 的 ref 化，供初始化 effect 使用 */
+  const saveHistoryRef = useRef<((items: VideoHistoryItem[]) => void) | null>(null)
 
   const pagedHistory = history.slice(
     (historyPage - 1) * PAGE_SIZE,
@@ -47,7 +51,10 @@ export default function VideoGenerate({ apiKey, errorMsg, onError, onLoadingChan
   useEffect(() => {
     const savedHistory = getStorage<VideoHistoryItem[]>(STORAGE_KEYS.VIDEO_HISTORY)
     if (savedHistory) {
-      setHistory(savedHistory)
+      // 上次会话遗留的「生成中」记录统一标记为已中断
+      const fixed = normalizeHistoryOnLoad(savedHistory)
+      setHistory(fixed)
+      saveHistoryRef.current?.(fixed)
     }
   }, [])
 
@@ -68,22 +75,25 @@ export default function VideoGenerate({ apiKey, errorMsg, onError, onLoadingChan
   const saveHistory = useCallback((items: VideoHistoryItem[]) => {
     setStorage(STORAGE_KEYS.VIDEO_HISTORY, items)
   }, [])
+  saveHistoryRef.current = saveHistory
 
-  const addToHistory = useCallback(
+  /**
+   * 任务开始时立即写入一条「生成中」历史记录，
+   * 防止任务进行中切换 tab / 刷新页面导致任务无痕迹地丢失。
+   */
+  const startTaskRecord = useCallback(
     (
-      url: string,
       promptText: string,
       size: string,
       duration: string,
-      responseData: unknown,
       refImgs: string[],
+      keyframeMode: boolean,
       sIndex: number,
-      dIndex: number,
-      keyframeMode: boolean
-    ) => {
+      dIndex: number
+    ): string => {
       const record: VideoHistoryItem = {
-        id: Date.now().toString(),
-        url,
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        url: '',
         prompt: promptText,
         size,
         duration,
@@ -92,10 +102,24 @@ export default function VideoGenerate({ apiKey, errorMsg, onError, onLoadingChan
         sizeIndex: sIndex,
         durationIndex: dIndex,
         time: Date.now(),
-        responseData
+        responseData: null,
+        status: 'generating'
       }
       setHistory((prev) => {
         const updated = [record, ...prev].slice(0, 50)
+        saveHistory(updated)
+        return updated
+      })
+      return record.id
+    },
+    [saveHistory]
+  )
+
+  /** 任务结束后回写详细结果（成功 / 失败 / 中断） */
+  const finishTaskRecord = useCallback(
+    (id: string, patch: Partial<VideoHistoryItem>) => {
+      setHistory((prev) => {
+        const updated = prev.map((it) => (it.id === id ? { ...it, ...patch } : it))
         saveHistory(updated)
         return updated
       })
@@ -132,26 +156,23 @@ export default function VideoGenerate({ apiKey, errorMsg, onError, onLoadingChan
               // 视频地址在 remixed_from_video_id 字段
               const rawUrl = String(data.remixed_from_video_id || data.url || '').trim()
               const cleanUrl = rawUrl.replace(/^[\s`]+|[\s`]+$/g, '')
+              const recordId = currentTaskRecordIdRef.current
               if (cleanUrl) {
                 setVideoUrl(cleanUrl)
                 setVideoStatus('生成完成')
                 setVideoProgress(100)
                 Notification.success('视频生成完成')
-                const sizeVal = VIDEO_SIZES[sizeIndex].value
-                const durationLabel = VIDEO_DURATIONS[durationIndex].label
-                addToHistory(
-                  cleanUrl,
-                  prompt.trim(),
-                  sizeVal,
-                  durationLabel,
-                  data,
-                  refImageUrls,
-                  sizeIndex,
-                  durationIndex,
-                  isKeyframeMode
-                )
+                // 任务完成，回写历史记录详情
+                if (recordId) {
+                  currentTaskRecordIdRef.current = null
+                  finishTaskRecord(recordId, { url: cleanUrl, responseData: data, status: 'success' })
+                }
               } else {
                 onError('视频生成完成但未获取到视频地址')
+                if (recordId) {
+                  currentTaskRecordIdRef.current = null
+                  finishTaskRecord(recordId, { status: 'failed', failReason: '任务完成但未获取到视频地址' })
+                }
               }
             } else if (status === 'failed') {
               stopPolling()
@@ -161,6 +182,11 @@ export default function VideoGenerate({ apiKey, errorMsg, onError, onLoadingChan
                 (data.error as { message?: string })?.message ||
                 '未知错误'
               onError('视频生成失败: ' + errMsg)
+              const recordId = currentTaskRecordIdRef.current
+              if (recordId) {
+                currentTaskRecordIdRef.current = null
+                finishTaskRecord(recordId, { status: 'failed', failReason: errMsg })
+              }
             } else if (status === 'in_progress' || status === 'processing') {
               setVideoStatus(progress > 0 ? `生成中 ${progress}%` : '生成中...')
             } else if (status === 'queued' || status === 'pending') {
@@ -174,7 +200,7 @@ export default function VideoGenerate({ apiKey, errorMsg, onError, onLoadingChan
           // 轮询失败不中断，继续尝试
         })
     }, 10000)
-  }, [apiKey, stopPolling, sizeIndex, durationIndex, prompt, refImageUrls, isKeyframeMode, addToHistory, onError])
+  }, [apiKey, stopPolling, finishTaskRecord, onError])
 
   const handleGenerate = useCallback(() => {
     if (isLoading) return
@@ -205,6 +231,17 @@ export default function VideoGenerate({ apiKey, errorMsg, onError, onLoadingChan
     const height = parseInt(sizeVal.split('x')[1])
     const duration = VIDEO_DURATIONS[durationIndex]
 
+    // 请求开始立即写入「生成中」历史记录，防止切换 tab 导致任务丢失
+    currentTaskRecordIdRef.current = startTaskRecord(
+      prompt.trim(),
+      sizeVal,
+      duration.label,
+      refImageUrls,
+      isKeyframeMode,
+      sizeIndex,
+      durationIndex
+    )
+
     requestRef.current = createVideoTask(
       apiKey.trim(),
       prompt.trim(),
@@ -218,6 +255,7 @@ export default function VideoGenerate({ apiKey, errorMsg, onError, onLoadingChan
 
     requestRef.current.promise
       .then((res) => {
+        const recordId = currentTaskRecordIdRef.current
         if (res.statusCode === 200 || res.statusCode === 201) {
           const data = res.data as Record<string, unknown>
           const videoId = (data.video_id || data.id || data.task_id || '') as string
@@ -228,6 +266,10 @@ export default function VideoGenerate({ apiKey, errorMsg, onError, onLoadingChan
           } else {
             setIsLoading(false)
             onError('未获取到任务 ID')
+            if (recordId) {
+              currentTaskRecordIdRef.current = null
+              finishTaskRecord(recordId, { status: 'failed', failReason: '未获取到任务 ID' })
+            }
           }
         } else {
           setIsLoading(false)
@@ -237,24 +279,44 @@ export default function VideoGenerate({ apiKey, errorMsg, onError, onLoadingChan
             JSON.stringify(data) ||
             `HTTP ${res.statusCode}`
           onError('创建视频任务失败: ' + errMsg)
+          if (recordId) {
+            currentTaskRecordIdRef.current = null
+            finishTaskRecord(recordId, { status: 'failed', failReason: errMsg })
+          }
         }
       })
       .catch((err) => {
         setIsLoading(false)
-        onError('网络请求失败: ' + (err?.errMsg || err?.message || ''))
+        const msg = err?.errMsg || err?.message || ''
+        onError('网络请求失败: ' + msg)
+        const recordId = currentTaskRecordIdRef.current
+        currentTaskRecordIdRef.current = null
+        if (recordId) {
+          finishTaskRecord(recordId, { status: 'failed', failReason: '网络请求失败' + (msg ? '：' + msg : '') })
+        }
       })
-  }, [isLoading, apiKey, prompt, sizeIndex, durationIndex, refImageUrls, isKeyframeMode, onError, startPolling])
+  }, [isLoading, apiKey, prompt, sizeIndex, durationIndex, refImageUrls, isKeyframeMode, onError, startPolling, startTaskRecord, finishTaskRecord])
 
   const stopGenerate = useCallback(() => {
     if (requestRef.current) {
-      requestRef.current.abort()
+      try {
+        requestRef.current.abort()
+      } catch {
+        // 忽略 abort 错误
+      }
       requestRef.current = null
     }
     stopPolling()
     setIsLoading(false)
     setVideoStatus('')
+    // 终止时立即把任务历史标记为已中断
+    const taskId = currentTaskRecordIdRef.current
+    if (taskId) {
+      currentTaskRecordIdRef.current = null
+      finishTaskRecord(taskId, { status: 'interrupted', failReason: '已手动终止' })
+    }
     onError('已终止生成')
-  }, [stopPolling, onError])
+  }, [stopPolling, onError, finishTaskRecord])
 
   const handleCopyPrompt = useCallback(async () => {
     const ok = await copyToClipboard(prompt)
@@ -586,22 +648,34 @@ onError('')
           <div className="agnes-history-list">
             {pagedHistory.map((item) => (
               <div className="agnes-history-item" key={item.id}>
-                <div
-                  className="agnes-history-video-thumb-wrap"
-                  onClick={() => viewHistory(item)}
-                >
-                  <video
-                    className="agnes-history-video-thumb"
-                    src={item.url}
-                    muted
-                  />
-                  <div className="agnes-history-video-play-icon">
-                    <span className="agnes-history-video-play">▶</span>
+                {item.url ? (
+                  <div
+                    className="agnes-history-video-thumb-wrap"
+                    onClick={() => viewHistory(item)}
+                  >
+                    <video
+                      className="agnes-history-video-thumb"
+                      src={item.url}
+                      muted
+                    />
+                    <div className="agnes-history-video-play-icon">
+                      <span className="agnes-history-video-play">▶</span>
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <div
+                    className="agnes-history-thumb agnes-history-thumb-placeholder"
+                    onClick={() => (item.status === 'generating' ? Notification.warning('任务仍在生成中...') : setDetailItem(item))}
+                  >
+                    {item.status === 'generating' ? '⏳' : '⛔'}
+                  </div>
+                )}
                 <div className="agnes-history-info" onClick={() => setDetailItem(item)}>
                   <div className="agnes-history-prompt">{truncateText(item.prompt, 20)}</div>
                   <div className="agnes-history-tags">
+                    {item.status === 'generating' && <span className="agnes-history-tag">⏳ 生成中</span>}
+                    {item.status === 'interrupted' && <span className="agnes-history-tag">⛔ 已中断</span>}
+                    {item.status === 'failed' && <span className="agnes-history-tag">⚠️ 失败</span>}
                     <span className="agnes-history-tag">{item.size}</span>
                     <span className="agnes-history-tag">{item.duration}</span>
                   </div>
@@ -665,11 +739,26 @@ onError('')
       >
         {detailItem && (
           <div className="agnes-detail-popup-body">
-            <video
-              className="agnes-detail-video"
-              src={detailItem.url}
-              controls
-            />
+            {detailItem.url ? (
+              <video
+                className="agnes-detail-video"
+                src={detailItem.url}
+                controls
+              />
+            ) : (
+              <div className="agnes-history-thumb-placeholder" style={{ width: '100%', height: 200 }}>
+                {detailItem.status === 'generating' ? '⏳ 生成中' : detailItem.status === 'failed' ? '⚠️ 生成失败' : '⛔ 已中断'}
+                {detailItem.failReason ? `（${detailItem.failReason}）` : ''}
+              </div>
+            )}
+            {detailItem.status && detailItem.status !== 'success' && (
+              <div className="agnes-detail-field">
+                <span className="agnes-detail-label">状态：</span>
+                <span className="agnes-detail-value">
+                  {detailItem.status === 'generating' ? '⏳ 生成中' : detailItem.status === 'failed' ? `⚠️ 失败：${detailItem.failReason || '未知原因'}` : '⛔ 已中断'}
+                </span>
+              </div>
+            )}
 
             <div className="agnes-detail-field agnes-detail-prompt-field">
               <div className="agnes-detail-prompt-header">

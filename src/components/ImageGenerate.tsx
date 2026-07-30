@@ -4,7 +4,8 @@ import { MODELS, SIZES, IMAGE_COUNTS, STORAGE_KEYS } from '../config/api'
 import { generateImage, uploadToImgbb } from '../services/api'
 import type { RequestResult } from '../types'
 import type { ImageHistoryItem } from '../types'
-import { getStorage, setStorage, copyToClipboard, downloadFile, formatTime, truncateText, formatResponseData, fileToJpegDataUri } from '../utils/helpers'
+import { getStorage, setStorage, copyToClipboard, downloadFile, formatTime, truncateText, formatResponseData, fileToJpegDataUri, normalizeHistoryOnLoad } from '../utils/helpers'
+import { useStageHint } from '../hooks/useStageHint'
 import ImagePreview from './ImagePreview'
 
 export interface ImageGenerateHandle {
@@ -46,6 +47,10 @@ const ImageGenerate = forwardRef<ImageGenerateHandle, ImageGenerateProps>(
 
     const requestsRef = useRef<RequestResult[]>([])
     const fileInputRef = useRef<HTMLInputElement>(null)
+    /** 标记当前任务是否被手动终止（终止后不再覆盖错误提示） */
+    const stopRequestedRef = useRef(false)
+    // 加载阶段提示（随等待时长递进）
+    const { hint: stageHint, elapsed } = useStageHint(isLoading)
 
     useImperativeHandle(ref, () => ({
       setPrompt: (text: string) => setPrompt(text)
@@ -72,9 +77,15 @@ const ImageGenerate = forwardRef<ImageGenerateHandle, ImageGenerateProps>(
     useEffect(() => {
       const savedHistory = getStorage<ImageHistoryItem[]>(STORAGE_KEYS.IMAGE_HISTORY)
       if (savedHistory) {
-        setHistory(savedHistory)
+        // 上次会话遗留的「生成中」记录统一标记为已中断
+        const fixed = normalizeHistoryOnLoad(savedHistory)
+        setHistory(fixed)
+        saveHistoryRef.current?.(fixed)
       }
     }, [])
+
+    // saveHistory 的 ref 化，供初始化 effect 使用
+    const saveHistoryRef = useRef<((items: ImageHistoryItem[]) => void) | null>(null)
 
     useEffect(() => {
       onLoadingChange(isLoading)
@@ -83,23 +94,42 @@ const ImageGenerate = forwardRef<ImageGenerateHandle, ImageGenerateProps>(
     const saveHistory = useCallback((items: ImageHistoryItem[]) => {
       setStorage(STORAGE_KEYS.IMAGE_HISTORY, items)
     }, [])
+    saveHistoryRef.current = saveHistory
 
-    const addToHistory = useCallback(
-      (urls: string[], promptText: string, model: string, size: string, responseData: unknown, refImgs: string[], ratio?: string) => {
+    /**
+     * 任务开始时立即写入一条「生成中」历史记录，
+     * 防止任务进行中切换 tab / 刷新页面导致任务无痕迹地丢失。
+     */
+    const startTaskRecord = useCallback(
+      (promptText: string, model: string, sizeVal: string, ratioVal: string | undefined, refImgs: string[]): string => {
         const record: ImageHistoryItem = {
-          id: Date.now().toString(),
-          url: urls[0],
-          urls,
+          id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          url: '',
+          urls: [],
           prompt: promptText,
           model,
-          size,
-          ratio,
+          size: sizeVal,
+          ratio: ratioVal,
           refImageUrls: refImgs,
           time: Date.now(),
-          responseData
+          responseData: null,
+          status: 'generating'
         }
         setHistory((prev) => {
           const updated = [record, ...prev].slice(0, 50)
+          saveHistory(updated)
+          return updated
+        })
+        return record.id
+      },
+      [saveHistory]
+    )
+
+    /** 任务结束后回写详细结果（成功 / 失败 / 中断） */
+    const finishTaskRecord = useCallback(
+      (id: string, patch: Partial<ImageHistoryItem>) => {
+        setHistory((prev) => {
+          const updated = prev.map((it) => (it.id === id ? { ...it, ...patch } : it))
           saveHistory(updated)
           return updated
         })
@@ -125,11 +155,15 @@ const ImageGenerate = forwardRef<ImageGenerateHandle, ImageGenerateProps>(
       setCompletedCount(0)
       setTotalCount(imageCount)
       requestsRef.current = []
+      stopRequestedRef.current = false
 
       const model = MODELS[modelIndex].value
       const sizeItem = availableSizes[sizeIndex]
       const size = sizeItem.value
       const ratio = sizeItem.ratio
+
+      // 请求发起后立即记录一条「生成中」历史
+      const taskRecordId = startTaskRecord(prompt.trim(), model, size, ratio, refImageUrls)
 
       const errorMessages: string[] = []
 
@@ -157,7 +191,9 @@ const ImageGenerate = forwardRef<ImageGenerateHandle, ImageGenerateProps>(
           .catch((err) => {
             const errMsg = err?.errMsg || err?.message || '请求超时或网络异常'
             errorMessages.push(errMsg)
-            onError(errMsg)
+            if (!stopRequestedRef.current) {
+              onError(errMsg)
+            }
           })
           .finally(() => {
             setCompletedCount((prev) => {
@@ -166,15 +202,31 @@ const ImageGenerate = forwardRef<ImageGenerateHandle, ImageGenerateProps>(
                 setIsLoading(false)
                 requestsRef.current = []
                 setImageUrls((currentUrls) => {
+                  const detail = errorMessages.length > 0 ? [...new Set(errorMessages)].join('；') : ''
                   if (currentUrls.length === 0) {
-                    const detail = errorMessages.length > 0 ? '：' + [...new Set(errorMessages)].join('；') : ''
-                    onError('所有图片生成均失败' + detail)
+                    // 全部失败 / 被手动终止：回写失败或中断记录
+                    const wasStopped = stopRequestedRef.current
+                    const reason = wasStopped
+                      ? '已手动终止'
+                      : '所有图片生成均失败' + (detail ? '：' + detail : '')
+                    finishTaskRecord(taskRecordId, {
+                      status: wasStopped ? 'interrupted' : 'failed',
+                      failReason: reason
+                    })
+                    if (!wasStopped) onError(reason)
                   } else {
+                    // 成功（含部分成功 / 手动终止后保留已完成图片）
                     const responseCopy = { data: currentUrls.map((u) => ({ url: u })) }
-                    addToHistory(currentUrls.slice(), prompt.trim(), model, size, responseCopy, refImageUrls, ratio)
-                    if (currentUrls.length < imageCount) {
-                      const detail = errorMessages.length > 0 ? '：' + [...new Set(errorMessages)].join('；') : ''
-                      onError(`部分图片生成失败（成功 ${currentUrls.length}/${imageCount}）` + detail)
+                    finishTaskRecord(taskRecordId, {
+                      status: 'success',
+                      url: currentUrls[0],
+                      urls: currentUrls.slice(),
+                      responseData: stopRequestedRef.current
+                        ? { ...responseCopy, note: `已手动终止，保留已完成 ${currentUrls.length} 张` }
+                        : responseCopy
+                    })
+                    if (detail) {
+                      onError(`部分图片生成失败（成功 ${currentUrls.length}/${imageCount}）：${detail}`)
                     }
                   }
                   return currentUrls
@@ -189,9 +241,10 @@ const ImageGenerate = forwardRef<ImageGenerateHandle, ImageGenerateProps>(
       for (let i = 1; i < imageCount; i++) {
         setTimeout(() => sendRequest(i), i * 5000)
       }
-    }, [isLoading, apiKey, prompt, imageCount, modelIndex, sizeIndex, availableSizes, refImageUrls, onError, addToHistory])
+    }, [isLoading, apiKey, prompt, imageCount, modelIndex, sizeIndex, availableSizes, refImageUrls, onError, startTaskRecord, finishTaskRecord])
 
     const stopImageGenerate = useCallback(() => {
+      stopRequestedRef.current = true
       requestsRef.current.forEach((req) => req.abort())
       requestsRef.current = []
       setIsLoading(false)
@@ -203,8 +256,8 @@ const ImageGenerate = forwardRef<ImageGenerateHandle, ImageGenerateProps>(
       Notification[ok ? 'success' : 'error'](ok ? '已复制提示词' : '复制失败')
     }, [prompt])
 
-    const downloadSingleImage = useCallback((url: string) => {
-      downloadFile(url, `agnes-ai-${Date.now()}.png`)
+    const downloadSingleImage = useCallback((url: string, options?: { silent?: boolean }) => {
+      downloadFile(url, `agnes-ai-${Date.now()}.png`, options)
     }, [])
 
     const handleDownload = useCallback(() => {
@@ -212,9 +265,11 @@ const ImageGenerate = forwardRef<ImageGenerateHandle, ImageGenerateProps>(
     }, [imageUrls, downloadSingleImage])
 
     const handleDownloadAll = useCallback(() => {
+      // 批量下载走静默模式，避免连环弹窗，最后统一提示
       imageUrls.forEach((url, idx) => {
-        setTimeout(() => downloadSingleImage(url), idx * 500)
+        setTimeout(() => downloadSingleImage(url, { silent: true }), idx * 500)
       })
+      Notification.success(`已发起批量下载，共 ${imageUrls.length} 个文件`)
     }, [imageUrls, downloadSingleImage])
 
     const copyImageUrl = useCallback(async () => {
@@ -267,8 +322,9 @@ onError('')
         return
       }
       selectedImageIndexes.forEach((idx, i) => {
-        setTimeout(() => downloadSingleImage(imageUrls[idx]), i * 500)
+        setTimeout(() => downloadSingleImage(imageUrls[idx], { silent: true }), i * 500)
       })
+      Notification.success(`已发起批量下载，共 ${selectedImageIndexes.length} 个文件`)
       setIsSelectMode(false)
       setSelectedImageIndexes([])
     }, [selectedImageIndexes, imageUrls, downloadSingleImage])
@@ -421,8 +477,9 @@ onError('')
         return
       }
       detailSelectedIndexes.forEach((idx, i) => {
-        setTimeout(() => downloadSingleImage(detailItem.urls![idx]), i * 500)
+        setTimeout(() => downloadSingleImage(detailItem.urls![idx], { silent: true }), i * 500)
       })
+      Notification.success(`已发起批量下载，共 ${detailSelectedIndexes.length} 个文件`)
       setIsDetailSelectMode(false)
       setDetailSelectedIndexes([])
     }, [detailItem, detailSelectedIndexes, downloadSingleImage])
@@ -657,9 +714,20 @@ onError('')
           <div className="agnes-loading-box">
             <div className="agnes-spinner" />
             {totalCount > 1 ? (
-              <div className="agnes-loading-text">AI 正在创作中（{completedCount}/{totalCount}）</div>
+              <>
+                <div className="agnes-loading-text">AI 正在创作中（{completedCount}/{totalCount}）</div>
+                <div className="agnes-progress-bar">
+                  <div
+                    className="agnes-progress-fill"
+                    style={{ width: `${Math.round((completedCount / totalCount) * 100)}%` }}
+                  />
+                </div>
+              </>
             ) : (
-              <div className="agnes-loading-text agnes-loading-dots">AI 正在创作中，请耐心等待</div>
+              <>
+                <div className="agnes-loading-text agnes-loading-dots">{stageHint}</div>
+                <div className="agnes-loading-elapsed">已等待 {elapsed} 秒</div>
+              </>
             )}
             <Button type="dashed" danger size="small" onClick={stopImageGenerate}>
               终止生成
@@ -758,15 +826,27 @@ onError('')
             <div className="agnes-history-list">
               {pagedHistory.map((item) => (
                 <div className="agnes-history-item" key={item.id}>
-                  <img
-                    className="agnes-history-thumb"
-                    src={item.url}
-                    alt="thumb"
-                    onClick={() => viewHistory(item)}
-                  />
+                  {item.url || (item.urls && item.urls.length > 0) ? (
+                    <img
+                      className="agnes-history-thumb"
+                      src={item.url || item.urls![0]}
+                      alt="thumb"
+                      onClick={() => viewHistory(item)}
+                    />
+                  ) : (
+                    <div
+                      className="agnes-history-thumb agnes-history-thumb-placeholder"
+                      onClick={() => (item.status === 'generating' ? Notification.warning('任务仍在生成中...') : undefined)}
+                    >
+                      {item.status === 'generating' ? '⏳' : '⛔'}
+                    </div>
+                  )}
                   <div className="agnes-history-info" onClick={() => showDetail(item)}>
                     <div className="agnes-history-prompt">{truncateText(item.prompt, 30)}</div>
                     <div className="agnes-history-tags">
+                      {item.status === 'generating' && <span className="agnes-history-tag">⏳ 生成中</span>}
+                      {item.status === 'interrupted' && <span className="agnes-history-tag">⛔ 已中断</span>}
+                      {item.status === 'failed' && <span className="agnes-history-tag">⚠️ 失败</span>}
                       <span className="agnes-history-tag">{item.model}</span>
                       <span className="agnes-history-tag">{item.size}{item.ratio ? ` ${item.ratio}` : ''}</span>
                       {item.urls && item.urls.length > 1 && (

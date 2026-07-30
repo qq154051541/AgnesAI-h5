@@ -2,6 +2,9 @@
  * 类型定义
  */
 
+/** 任务状态：生成中 / 成功 / 失败 / 已中断（刷新或手动终止） */
+export type TaskStatus = 'generating' | 'success' | 'failed' | 'interrupted'
+
 /** 图片历史记录 */
 export interface ImageHistoryItem {
   id: string
@@ -16,6 +19,10 @@ export interface ImageHistoryItem {
   refImageUrls: string[]
   time: number
   responseData: unknown
+  /** 任务状态；旧记录无此字段，展示时视为成功 */
+  status?: TaskStatus
+  /** 失败 / 中断原因 */
+  failReason?: string
 }
 
 /** 视频历史记录 */
@@ -31,6 +38,10 @@ export interface VideoHistoryItem {
   durationIndex: number
   time: number
   responseData: unknown
+  /** 任务状态；旧记录无此字段，展示时视为成功 */
+  status?: TaskStatus
+  /** 失败 / 中断原因 */
+  failReason?: string
 }
 
 /** 图转提示词历史记录 */
@@ -131,6 +142,10 @@ export interface SenseNovaImageHistoryItem {
   model: string
   time: number
   responseData: unknown
+  /** 任务状态；旧记录无此字段，展示时视为成功 */
+  status?: TaskStatus
+  /** 失败 / 中断原因 */
+  failReason?: string
 }
 
 /** 智谱视频生成历史记录 */
@@ -154,6 +169,10 @@ export interface ZhipuVideoHistoryItem {
   qualityIndex: number
   time: number
   responseData: unknown
+  /** 任务状态；旧记录无此字段，展示时视为成功 */
+  status?: TaskStatus
+  /** 失败 / 中断原因 */
+  failReason?: string
 }
 
 /** 流式回调 */

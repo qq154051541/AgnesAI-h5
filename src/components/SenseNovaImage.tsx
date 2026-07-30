@@ -16,8 +16,10 @@ import {
   downloadFile,
   formatTime,
   truncateText,
-  formatResponseData
+  formatResponseData,
+  normalizeHistoryOnLoad
 } from '../utils/helpers'
+import { useStageHint } from '../hooks/useStageHint'
 import ImagePreview from './ImagePreview'
 
 interface SenseNovaImageProps {
@@ -49,10 +51,18 @@ const SenseNovaImage = forwardRef<SenseNovaImageHandle, SenseNovaImageProps>(
   const [isSelectMode, setIsSelectMode] = useState(false)
   const [selectedImageIndexes, setSelectedImageIndexes] = useState<number[]>([])
   const [completedCount, setCompletedCount] = useState(0)
+  // 加载阶段提示（随等待时长递进）
+  const { hint: stageHint, elapsed } = useStageHint(isLoading)
 
   /* ===== Refs ===== */
   const requestsRef = useRef<RequestResult<ApiResponse>[]>([])
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([])
+  /** 标记当前任务是否被手动终止 */
+  const stopRequestedRef = useRef(false)
+  /** 当前进行中任务的历史记录 ID（用于终止时回写） */
+  const currentTaskIdRef = useRef<string | null>(null)
+  /** saveImageHistory 的 ref 化，供初始化 effect 使用 */
+  const saveImageHistoryRef = useRef<((items: SenseNovaImageHistoryItem[]) => void) | null>(null)
 
   /* ===== 历史记录 ===== */
   const [imageHistory, setImageHistory] = useState<SenseNovaImageHistoryItem[]>([])
@@ -68,7 +78,12 @@ const SenseNovaImage = forwardRef<SenseNovaImageHandle, SenseNovaImageProps>(
   /* ===== 初始化 ===== */
   useEffect(() => {
     const savedImg = getStorage<SenseNovaImageHistoryItem[]>(SENSENOVA_STORAGE_KEYS.IMAGE_HISTORY)
-    if (savedImg) setImageHistory(savedImg)
+    if (savedImg) {
+      // 上次会话遗留的「生成中」记录统一标记为已中断
+      const fixed = normalizeHistoryOnLoad(savedImg)
+      setImageHistory(fixed)
+      saveImageHistoryRef.current?.(fixed)
+    }
   }, [])
 
   useEffect(() => {
@@ -79,6 +94,46 @@ const SenseNovaImage = forwardRef<SenseNovaImageHandle, SenseNovaImageProps>(
   const saveImageHistory = useCallback((items: SenseNovaImageHistoryItem[]) => {
     setStorage(SENSENOVA_STORAGE_KEYS.IMAGE_HISTORY, items)
   }, [])
+  saveImageHistoryRef.current = saveImageHistory
+
+  /**
+   * 任务开始时立即写入一条「生成中」历史记录，
+   * 防止任务进行中切换 tab / 刷新页面导致任务无痕迹地丢失。
+   */
+  const startTaskRecord = useCallback(
+    (promptText: string, sizeVal: string): string => {
+      const record: SenseNovaImageHistoryItem = {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        url: '',
+        urls: [],
+        prompt: promptText,
+        size: sizeVal,
+        model: 'sensenova-u1-fast',
+        time: Date.now(),
+        responseData: null,
+        status: 'generating'
+      }
+      setImageHistory((prev) => {
+        const updated = [record, ...prev].slice(0, 50)
+        saveImageHistory(updated)
+        return updated
+      })
+      return record.id
+    },
+    [saveImageHistory]
+  )
+
+  /** 任务结束后回写详细结果（成功 / 失败 / 中断） */
+  const finishTaskRecord = useCallback(
+    (id: string, patch: Partial<SenseNovaImageHistoryItem>) => {
+      setImageHistory((prev) => {
+        const updated = prev.map((it) => (it.id === id ? { ...it, ...patch } : it))
+        saveImageHistory(updated)
+        return updated
+      })
+    },
+    [saveImageHistory]
+  )
 
   /* ===== 图片生成功能 ===== */
   const handleGenerateImage = useCallback(() => {
@@ -100,10 +155,15 @@ const SenseNovaImage = forwardRef<SenseNovaImageHandle, SenseNovaImageProps>(
     setCompletedCount(0)
     requestsRef.current = []
     timersRef.current = []
+    stopRequestedRef.current = false
 
     const size = SENSENOVA_U1_SIZES[imgSizeIndex].value
     const errorMessages: string[] = []
     const collectedUrls: string[] = []
+
+    // 请求发起后立即记录一条「生成中」历史
+    const taskRecordId = startTaskRecord(imgPrompt.trim(), size)
+    currentTaskIdRef.current = taskRecordId
 
     const sendRequest = (i: number) => {
       if (i >= imageCount) return
@@ -135,30 +195,32 @@ const SenseNovaImage = forwardRef<SenseNovaImageHandle, SenseNovaImageProps>(
               setIsLoading(false)
               requestsRef.current = []
               timersRef.current = []
+              currentTaskIdRef.current = null
 
+              const detail = errorMessages.length > 0 ? [...new Set(errorMessages)].join('；') : ''
               if (collectedUrls.length === 0) {
-                const detail = errorMessages.length > 0 ? '：' + [...new Set(errorMessages)].join('；') : ''
-                onError('所有图片生成均失败' + detail)
+                // 全部失败 / 被手动终止
+                const wasStopped = stopRequestedRef.current
+                finishTaskRecord(taskRecordId, {
+                  status: wasStopped ? 'interrupted' : 'failed',
+                  failReason: wasStopped ? '已手动终止' : '所有图片生成均失败' + (detail ? '：' + detail : '')
+                })
+                if (!wasStopped) {
+                  onError('所有图片生成均失败' + (detail ? '：' + detail : ''))
+                }
               } else {
+                // 成功（含部分成功 / 终止后保留已完成图片）
                 const responseCopy = { data: collectedUrls.map((u) => ({ url: u })) }
-                const record: SenseNovaImageHistoryItem = {
-                  id: Date.now().toString(),
+                finishTaskRecord(taskRecordId, {
+                  status: 'success',
                   url: collectedUrls[0],
                   urls: collectedUrls.slice(),
-                  prompt: imgPrompt.trim(),
-                  size,
-                  model: 'sensenova-u1-fast',
-                  time: Date.now(),
-                  responseData: responseCopy
-                }
-                setImageHistory((prev) => {
-                  const updated = [record, ...prev].slice(0, 50)
-                  saveImageHistory(updated)
-                  return updated
+                  responseData: stopRequestedRef.current
+                    ? { ...responseCopy, note: `已手动终止，保留已完成 ${collectedUrls.length} 张` }
+                    : responseCopy
                 })
-                if (collectedUrls.length < imageCount) {
-                  const detail = errorMessages.length > 0 ? '：' + [...new Set(errorMessages)].join('；') : ''
-                  onError(`部分图片生成失败（成功 ${collectedUrls.length}/${imageCount}）` + detail)
+                if (detail && !stopRequestedRef.current) {
+                  onError(`部分图片生成失败（成功 ${collectedUrls.length}/${imageCount}）：${detail}`)
                 }
               }
             }
@@ -173,16 +235,35 @@ const SenseNovaImage = forwardRef<SenseNovaImageHandle, SenseNovaImageProps>(
       const timer = setTimeout(() => sendRequest(i), i * 5000)
       timersRef.current.push(timer)
     }
-  }, [isLoading, apiKey, imgPrompt, imgSizeIndex, imageCount, onError, saveImageHistory])
+  }, [isLoading, apiKey, imgPrompt, imgSizeIndex, imageCount, onError, saveImageHistory, startTaskRecord, finishTaskRecord])
 
   const stopImageGenerate = useCallback(() => {
+    stopRequestedRef.current = true
     requestsRef.current.forEach((req) => req.abort())
     requestsRef.current = []
     timersRef.current.forEach((t) => clearTimeout(t))
     timersRef.current = []
     setIsLoading(false)
+    // 终止时立即回写历史：已有部分结果则保留，否则标记为已中断
+    const taskId = currentTaskIdRef.current
+    if (taskId) {
+      currentTaskIdRef.current = null
+      setImgResultUrls((urls) => {
+        if (urls.length > 0) {
+          finishTaskRecord(taskId, {
+            status: 'success',
+            url: urls[0],
+            urls: [...urls],
+            responseData: { data: urls.map((u: string) => ({ url: u })), note: `已手动终止，保留已完成 ${urls.length} 张` }
+          })
+        } else {
+          finishTaskRecord(taskId, { status: 'interrupted', failReason: '已手动终止' })
+        }
+        return urls
+      })
+    }
     onError('已终止生成')
-  }, [onError])
+  }, [onError, finishTaskRecord])
 
   /* ===== 图片下载 ===== */
   const downloadSingleImage = useCallback((url: string) => {
@@ -191,9 +272,10 @@ const SenseNovaImage = forwardRef<SenseNovaImageHandle, SenseNovaImageProps>(
 
   const downloadAllImages = useCallback(() => {
     imgResultUrls.forEach((url, idx) => {
-      setTimeout(() => downloadSingleImage(url), idx * 500)
+      setTimeout(() => downloadFile(url, `sensenova-u1-${Date.now()}-${idx + 1}.png`, { silent: true }), idx * 500)
     })
-  }, [imgResultUrls, downloadSingleImage])
+    Notification.success(`已发起批量下载，共 ${imgResultUrls.length} 个文件`)
+  }, [imgResultUrls])
 
   const copyImageUrl = useCallback(async () => {
     if (imgResultUrls.length === 0) return
@@ -233,11 +315,12 @@ const SenseNovaImage = forwardRef<SenseNovaImageHandle, SenseNovaImageProps>(
       return
     }
     selectedImageIndexes.forEach((idx, i) => {
-      setTimeout(() => downloadSingleImage(imgResultUrls[idx]), i * 500)
+      setTimeout(() => downloadFile(imgResultUrls[idx], `sensenova-u1-${Date.now()}-${i + 1}.png`, { silent: true }), i * 500)
     })
+    Notification.success(`已发起批量下载，共 ${selectedImageIndexes.length} 个文件`)
     setIsSelectMode(false)
     setSelectedImageIndexes([])
-  }, [selectedImageIndexes, imgResultUrls, downloadSingleImage])
+  }, [selectedImageIndexes, imgResultUrls])
 
 const resetImages = useCallback(() => {
 setImgResultUrls([])
@@ -270,7 +353,11 @@ onError('')
   }, [saveImageHistory])
 
   const viewImageHistory = useCallback((item: SenseNovaImageHistoryItem) => {
-    const urls = item.urls || [item.url]
+    const urls = item.urls && item.urls.length > 0 ? item.urls : item.url ? [item.url] : []
+    if (urls.length === 0) {
+      Notification.warning('该任务还没有生成结果')
+      return
+    }
     setImgResultUrls(urls)
     setImgPrompt(item.prompt)
     const idx = SENSENOVA_U1_SIZES.findIndex((s) => s.value === item.size)
@@ -483,11 +570,18 @@ onError('')
           </div>
           <div className="agnes-history-list">
             {pagedImageHistory.map((imgItem) => {
-              const urls = imgItem.urls || [imgItem.url]
+              const urls = (imgItem.urls && imgItem.urls.length > 0 ? imgItem.urls : [imgItem.url]).filter(Boolean)
               const isMulti = urls.length > 1
               return (
                 <div className="agnes-history-item" key={imgItem.id}>
-                  {isMulti ? (
+                  {urls.length === 0 ? (
+                    <div
+                      className="agnes-history-thumb agnes-history-thumb-placeholder"
+                      onClick={() => (imgItem.status === 'generating' ? Notification.warning('任务仍在生成中...') : undefined)}
+                    >
+                      {imgItem.status === 'generating' ? '⏳' : '⛔'}
+                    </div>
+                  ) : isMulti ? (
                     <div
                       className="agnes-history-thumb-grid"
                       onClick={() => viewImageHistory(imgItem)}
@@ -504,7 +598,7 @@ onError('')
                   ) : (
                     <img
                       className="agnes-history-thumb"
-                      src={imgItem.url}
+                      src={urls[0]}
                       alt="thumb"
                       onClick={() => viewImageHistory(imgItem)}
                     />
@@ -517,6 +611,9 @@ onError('')
                       {truncateText(imgItem.prompt, 30)}
                     </div>
                     <div className="agnes-history-tags">
+                      {imgItem.status === 'generating' && <span className="agnes-history-tag">⏳ 生成中</span>}
+                      {imgItem.status === 'interrupted' && <span className="agnes-history-tag">⛔ 已中断</span>}
+                      {imgItem.status === 'failed' && <span className="agnes-history-tag">⚠️ 失败</span>}
                       <span className="agnes-history-tag">{imgItem.size}</span>
                       {isMulti && (
                         <span className="agnes-history-tag">{urls.length}张</span>
@@ -654,10 +751,19 @@ onError('')
                 使用此描述
               </Button>
               <Button onClick={() => {
-                const urls = detailItem.urls || [detailItem.url]
-                urls.forEach((url, idx) => {
-                  setTimeout(() => downloadFile(url, `sensenova-u1-${Date.now()}-${idx + 1}.png`), idx * 500)
-                })
+                const urls = detailItem.urls && detailItem.urls.length > 0 ? detailItem.urls : detailItem.url ? [detailItem.url] : []
+                if (urls.length === 0) {
+                  Notification.warning('该任务还没有生成结果')
+                  return
+                }
+                if (urls.length === 1) {
+                  downloadFile(urls[0], `sensenova-u1-${Date.now()}.png`)
+                } else {
+                  urls.forEach((url, idx) => {
+                    setTimeout(() => downloadFile(url, `sensenova-u1-${Date.now()}-${idx + 1}.png`, { silent: true }), idx * 500)
+                  })
+                  Notification.success(`已发起批量下载，共 ${urls.length} 个文件`)
+                }
               }}>
                 下载图片
               </Button>
