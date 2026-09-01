@@ -1,0 +1,86 @@
+﻿/* ===== 设计变量（与 animal-island-ui 对齐） ===== */
+:root {
+  /* 主色 */
+  --agnes-primary: var(--animal-primary-color, #19c8b9);
+  --agnes-primary-hover: var(--animal-primary-color-hover, #3dd4c6);
+  --agnes-primary-active: #15b0a2;
+  --agnes-primary-bg: var(--animal-primary-color-bg, #e6f9f6);
+  --agnes-primary-bg-soft: rgba(25, 200, 185, 0.06);
+
+  /* 功能色 */
+  --agnes-success: #5cb85c;
+  --agnes-success-bg: rgba(92, 184, 92, 0.1);
+  --agnes-warning: #e8a948;
+  --agnes-warning-bg: rgba(232, 169, 72, 0.12);
+  --agnes-info: #4a90d9;
+  --agnes-info-bg: rgba(74, 144, 217, 0.1);
+  --agnes-error: var(--animal-error-color, #e05a5a);
+  --agnes-error-hover: #d04545;
+  --agnes-error-bg: rgba(224, 90, 90, 0.1);
+
+  /* 文字 */
+  --agnes-text: var(--animal-text-color, #794f27);
+  --agnes-text-secondary: var(--animal-text-color-secondary, #9f927d);
+  --agnes-text-muted: #b0a285;
+  --agnes-text-on-primary: #ffffff;
+
+  /* 边框 */
+  --agnes-border: var(--animal-border-color-light, #e8e2d6);
+  --agnes-border-strong: #d9cfba;
+  --agnes-border-hover: var(--animal-border-color-hover, #827157);
+
+  /* 背景 */
+  --agnes-bg: var(--animal-bg-color, #f8f8f0);
+  --agnes-bg-secondary: var(--animal-bg-color-secondary, #f0e8d8);
+  --agnes-bg-card: #ffffff;
+  --agnes-bg-glass: rgba(255, 255, 255, 0.72);
+  --agnes-bg-glass-strong: rgba(255, 255, 255, 0.88);
+  /** 浅色表面上的 hover 高亮（暗黑模式下切换为微透明白） */
+  --agnes-bg-hover: rgba(255, 255, 255, 0.5);
+
+  /* 圆角 */
+  --agnes-radius-xs: 8px;
+  --agnes-radius-sm: 12px;
+  --agnes-radius-base: var(--animal-border-radius-sm, 16px);
+  --agnes-radius-lg: var(--animal-border-radius-base, 18px);
+  --agnes-radius-xl: 24px;
+  --agnes-radius-full: 999px;
+
+  /* 阴影 */
+  --agnes-shadow-sm: var(--animal-shadow-sm, 0 2px 4px 0 rgba(61, 52, 40, 0.06));
+  --agnes-shadow-base: var(--animal-shadow-base, 0 3px 10px 0 rgba(61, 52, 40, 0.1));
+  --agnes-shadow-lg: var(--animal-shadow-lg, 0 8px 24px 0 rgba(61, 52, 40, 0.14));
+  --agnes-shadow-primary: 0 6px 20px 0 rgba(25, 200, 185, 0.28);
+  --agnes-shadow-primary-sm: 0 2px 8px 0 rgba(25, 200, 185, 0.2);
+
+  /* 渐变 */
+  --agnes-gradient-primary: linear-gradient(135deg, #19c8b9 0%, #3dd4c6 100%);
+  --agnes-gradient-warm: linear-gradient(135deg, #fff5e6 0%, #ffe8d1 100%);
+  --agnes-gradient-agnes: linear-gradient(135deg, #19c8b9 0%, #4dd4c6 100%);
+  --agnes-gradient-sensenova: linear-gradient(135deg, #6c5ce7 0%, #a29bfe 100%);
+  --agnes-gradient-zhipu: linear-gradient(135deg, #0996fe 0%, #4facfe 100%);
+
+  /* 动效 */
+  --agnes-transition: var(--animal-motion-duration-base, 0.25s) var(--animal-motion-ease, cubic-bezier(0.4, 0, 0.2, 1));
+  --agnes-transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  --agnes-transition-slow: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  --agnes-transition-bounce: 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* 间距（显式回退） */
+  --agnes-space-xs: 4px;
+  --agnes-space-sm: var(--animal-spacing-sm, 8px);
+  --agnes-space-md: var(--animal-spacing-md, 12px);
+  --agnes-space-lg: var(--animal-spacing-lg, 16px);
+  --agnes-space-xl: var(--animal-spacing-xl, 24px);
+  --agnes-space-xxl: 32px;
+
+  /* 字号 */
+  --agnes-font-xs: 10px;
+  --agnes-font-sm: var(--animal-font-size-sm, 12px);
+  --agnes-font-base: var(--animal-font-size-base, 14px);
+  --agnes-font-lg: var(--animal-font-size-lg, 16px);
+  --agnes-font-xl: 18px;
+  --agnes-font-xxl: 22px;
+}
+
+

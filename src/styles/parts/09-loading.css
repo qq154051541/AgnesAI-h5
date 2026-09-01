@@ -1,0 +1,89 @@
+﻿/* ===== 加载状态 ===== */
+.agnes-loading-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px var(--agnes-space-lg);
+  margin-top: var(--agnes-space-lg);
+  background: var(--agnes-bg-glass);
+  border: 2px dashed var(--agnes-border);
+  border-radius: var(--agnes-radius-xl);
+  gap: var(--agnes-space-md);
+  animation: agnes-fade-in 0.3s ease;
+}
+
+@keyframes agnes-fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.agnes-spinner {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 3px solid rgba(25, 200, 185, 0.18);
+  border-top-color: var(--agnes-primary);
+  border-right-color: var(--agnes-primary-hover);
+  animation: agnes-spin 0.8s linear infinite;
+  position: relative;
+}
+
+.agnes-spinner::after {
+  content: '';
+  position: absolute;
+  inset: 5px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  border-top-color: rgba(25, 200, 185, 0.4);
+  animation: agnes-spin 1.2s linear infinite reverse;
+}
+
+@keyframes agnes-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.agnes-loading-text {
+  font-size: var(--agnes-font-base);
+  color: var(--agnes-text-secondary);
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.agnes-loading-dots::after {
+  content: '';
+  animation: agnes-dots 1.5s infinite steps(4, end);
+}
+
+@keyframes agnes-dots {
+  0% { content: ''; }
+  25% { content: '.'; }
+  50% { content: '..'; }
+  75% { content: '...'; }
+  100% { content: ''; }
+}
+
+.agnes-video-progress-bar {
+  width: 60%;
+  max-width: 300px;
+  height: 6px;
+  background: rgba(0, 0, 0, 0.08);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.agnes-video-progress-fill {
+  height: 100%;
+  background: var(--agnes-gradient-primary);
+  border-radius: 3px;
+  transition: width 0.3s;
+}
+
+.agnes-video-status-text {
+  font-size: var(--agnes-font-sm);
+  color: var(--agnes-text-secondary);
+  white-space: nowrap;
+}
+
+

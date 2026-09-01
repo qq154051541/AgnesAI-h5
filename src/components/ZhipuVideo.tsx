@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Button, Select, Modal, Notification } from 'animal-island-ui'
+import { Button, Select, Notification } from 'animal-island-ui'
 import {
   ZHIPU_VIDEO_SIZES,
   ZHIPU_VIDEO_DURATIONS,
@@ -10,42 +10,43 @@ import {
   ZHIPU_VIDEO_MODEL
 } from '../config/zhipu'
 import { zhipuCreateVideoTask, zhipuQueryVideoTask, uploadToImgbbZhipu } from '../services/zhipu'
-import type { RequestResult, ApiResponse } from '../types'
-import type { ZhipuVideoHistoryItem } from '../types'
+import type { RequestResult, ApiResponse, ZhipuVideoHistoryItem } from '../types'
 import {
-  getStorage,
-  setStorage,
+
   copyToClipboard,
   downloadFile,
   formatTime,
   truncateText,
-  formatResponseData,
-  normalizeHistoryOnLoad,
   getOrientation,
   ORIENTATION_LABELS
 } from '../utils/helpers'
+import { useHistory } from '../hooks/useHistory'
+import { useHistoryPagination } from '../hooks/useHistoryPagination'
+import HistoryPagination from './HistoryPagination'
+import HistoryDetail from './HistoryDetail'
+import type { HistoryRecordType } from './HistoryDetail'
 import ImagePreview from './ImagePreview'
+
+const PAGE_SIZE = 10
+const POLL_TIMEOUT_MS = 30 * 60 * 1000
 
 interface ZhipuVideoProps {
   apiKey: string
-  modelLabel: string
+
   modelDescription: string
   errorMsg: string
   onError: (msg: string) => void
   onLoadingChange: (loading: boolean) => void
 }
 
-const PAGE_SIZE = 10
-
 export default function ZhipuVideo({
   apiKey,
-  modelLabel,
+
   modelDescription,
   errorMsg,
   onError,
   onLoadingChange
 }: ZhipuVideoProps) {
-  /* ===== 视频生成状态 ===== */
   const [sizeIndex, setSizeIndex] = useState(0)
   const [durationIndex, setDurationIndex] = useState(0)
   const [fpsIndex, setFpsIndex] = useState(0)
@@ -60,138 +61,60 @@ export default function ZhipuVideo({
   const [videoTaskId, setVideoTaskId] = useState('')
   const [videoStatus, setVideoStatus] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-
-  /* ===== 历史记录 ===== */
-  const [history, setHistory] = useState<ZhipuVideoHistoryItem[]>([])
-  const [historyPage, setHistoryPage] = useState(1)
-  const [historyJumpPage, setHistoryJumpPage] = useState('')
-  const [detailItem, setDetailItem] = useState<ZhipuVideoHistoryItem | null>(null)
   const [previewSrc, setPreviewSrc] = useState('')
+  const [detailRecord, setDetailRecord] = useState<ZhipuVideoHistoryItem | null>(null)
 
-  /* ===== Refs ===== */
   const requestRef = useRef<RequestResult<ApiResponse> | null>(null)
-  const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  /** 当前进行中任务对应的历史记录 ID */
   const currentTaskRecordIdRef = useRef<string | null>(null)
-  /** saveHistory 的 ref 化，供初始化 effect 使用 */
-  const saveHistoryRef = useRef<((items: ZhipuVideoHistoryItem[]) => void) | null>(null)
+  const pollStartTimeRef = useRef(0)
+  const stoppedRef = useRef(false)
 
-  const pagedHistory = history.slice(
-    (historyPage - 1) * PAGE_SIZE,
-    historyPage * PAGE_SIZE
-  )
-  const historyTotalPages = Math.ceil(history.length / PAGE_SIZE)
-
-  /* ===== 初始化 ===== */
-  useEffect(() => {
-    const savedHistory = getStorage<ZhipuVideoHistoryItem[]>(ZHIPU_STORAGE_KEYS.VIDEO_HISTORY)
-    if (savedHistory) {
-      // 上次会话遗留的「生成中」记录统一标记为已中断
-      const fixed = normalizeHistoryOnLoad(savedHistory)
-      setHistory(fixed)
-      saveHistoryRef.current?.(fixed)
-    }
-  }, [])
+  const historyCtrl = useHistory<ZhipuVideoHistoryItem>(ZHIPU_STORAGE_KEYS.VIDEO_HISTORY)
+  const paging = useHistoryPagination(historyCtrl.history, PAGE_SIZE)
 
   useEffect(() => {
     onLoadingChange(isLoading)
   }, [isLoading, onLoadingChange])
 
-  // 清理轮询定时器
   useEffect(() => {
     return () => {
       if (pollTimerRef.current) {
-        clearInterval(pollTimerRef.current)
+        clearTimeout(pollTimerRef.current)
         pollTimerRef.current = null
       }
     }
   }, [])
 
-  const saveHistory = useCallback((items: ZhipuVideoHistoryItem[]) => {
-    setStorage(ZHIPU_STORAGE_KEYS.VIDEO_HISTORY, items)
-  }, [])
-  saveHistoryRef.current = saveHistory
-
-  /**
-   * 任务开始时立即写入一条「生成中」历史记录，
-   * 防止任务进行中切换 tab / 刷新页面导致任务无痕迹地丢失。
-   */
-  const startTaskRecord = useCallback(
-    (
-      promptText: string,
-      sizeVal: string,
-      durationVal: number,
-      fpsVal: number,
-      qualityVal: string,
-      audioFlag: boolean,
-      refImgs: string[],
-      keyframeMode: boolean,
-      sIndex: number,
-      dIndex: number,
-      fIndex: number,
-      qIndex: number
-    ): string => {
-      const record: ZhipuVideoHistoryItem = {
-        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        taskId: '',
-        url: '',
-        coverUrl: '',
-        prompt: promptText,
-        model: ZHIPU_VIDEO_MODEL,
-        size: sizeVal,
-        duration: durationVal,
-        fps: fpsVal,
-        quality: qualityVal,
-        withAudio: audioFlag,
-        refImageUrls: refImgs,
-        isKeyframeMode: keyframeMode,
-        sizeIndex: sIndex,
-        durationIndex: dIndex,
-        fpsIndex: fIndex,
-        qualityIndex: qIndex,
-        time: Date.now(),
-        responseData: null,
-        status: 'generating'
-      }
-      setHistory((prev) => {
-        const updated = [record, ...prev].slice(0, 50)
-        saveHistory(updated)
-        return updated
-      })
-      return record.id
-    },
-    [saveHistory]
-  )
-
-  /** 任务结束后回写详细结果（成功 / 失败 / 中断） */
-  const finishTaskRecord = useCallback(
-    (id: string, patch: Partial<ZhipuVideoHistoryItem>) => {
-      setHistory((prev) => {
-        const updated = prev.map((it) => (it.id === id ? { ...it, ...patch } : it))
-        saveHistory(updated)
-        return updated
-      })
-    },
-    [saveHistory]
-  )
-
   const stopPolling = useCallback(() => {
     if (pollTimerRef.current) {
-      clearInterval(pollTimerRef.current)
+      clearTimeout(pollTimerRef.current)
       pollTimerRef.current = null
     }
   }, [])
 
-  /* ===== 轮询查询任务状态 ===== */
   const startPolling = useCallback(
     (taskId: string) => {
       stopPolling()
-      pollTimerRef.current = setInterval(() => {
-        if (!taskId) return
+      pollStartTimeRef.current = Date.now()
+      const tick = () => {
+        if (stoppedRef.current) return
+        if (Date.now() - pollStartTimeRef.current > POLL_TIMEOUT_MS) {
+          stopPolling()
+          setIsLoading(false)
+          onError('视频生成超时（30 分钟），请重试')
+          const recordId = currentTaskRecordIdRef.current
+          if (recordId) {
+            currentTaskRecordIdRef.current = null
+            historyCtrl.finishTaskRecord(recordId, { status: 'interrupted', failReason: '轮询超时' })
+          }
+          return
+        }
         requestRef.current = zhipuQueryVideoTask(apiKey.trim(), taskId)
         requestRef.current.promise
           .then((res) => {
+            if (stoppedRef.current) return
             if (res.statusCode === 200) {
               const data = res.data as Record<string, unknown>
               const status = (data.task_status as string) || ''
@@ -209,25 +132,25 @@ export default function ZhipuVideo({
                   setVideoCoverUrl(cover)
                   setVideoStatus('生成完成')
                   Notification.success('视频生成完成')
-                  // 任务完成，回写历史记录详情
                   const recordId = currentTaskRecordIdRef.current
                   if (recordId) {
                     currentTaskRecordIdRef.current = null
-                    finishTaskRecord(recordId, {
+                    historyCtrl.finishTaskRecord(recordId, {
                       url,
                       coverUrl: cover,
                       responseData: data,
                       status: 'success'
-                    })
+                    } as Partial<ZhipuVideoHistoryItem>)
                   }
                 } else {
                   onError('视频生成完成但未获取到视频地址')
                   const recordId = currentTaskRecordIdRef.current
                   if (recordId) {
                     currentTaskRecordIdRef.current = null
-                    finishTaskRecord(recordId, { status: 'failed', failReason: '任务完成但未获取到视频地址' })
+                    historyCtrl.finishTaskRecord(recordId, { status: 'failed', failReason: '任务完成但未获取到视频地址' })
                   }
                 }
+                return
               } else if (status === 'FAIL') {
                 stopPolling()
                 setIsLoading(false)
@@ -240,8 +163,9 @@ export default function ZhipuVideo({
                 const recordId = currentTaskRecordIdRef.current
                 if (recordId) {
                   currentTaskRecordIdRef.current = null
-                  finishTaskRecord(recordId, { status: 'failed', failReason: errMsg })
+                  historyCtrl.finishTaskRecord(recordId, { status: 'failed', failReason: errMsg })
                 }
+                return
               } else if (status === 'PROCESSING') {
                 setVideoStatus('生成中...')
               } else if (status) {
@@ -250,14 +174,17 @@ export default function ZhipuVideo({
             }
           })
           .catch(() => {
-            // 轮询失败不中断，继续尝试
+            // 单次轮询失败继续尝试
           })
-      }, ZHIPU_VIDEO_POLL_INTERVAL)
+        if (!stoppedRef.current) {
+          pollTimerRef.current = setTimeout(tick, ZHIPU_VIDEO_POLL_INTERVAL)
+        }
+      }
+      pollTimerRef.current = setTimeout(tick, ZHIPU_VIDEO_POLL_INTERVAL)
     },
-    [apiKey, stopPolling, sizeIndex, durationIndex, fpsIndex, qualityIndex, prompt, withAudio, refImageUrls, isKeyframeMode, finishTaskRecord, onError]
+    [apiKey, stopPolling, historyCtrl, onError]
   )
 
-  /* ===== 生成视频 ===== */
   const handleGenerate = useCallback(() => {
     if (isLoading) return
     if (!apiKey.trim()) {
@@ -268,8 +195,6 @@ export default function ZhipuVideo({
       onError('请输入视频描述或添加参考图')
       return
     }
-
-    // 首尾帧模式需要正好 2 张参考图
     if (isKeyframeMode && refImageUrls.length !== 2) {
       onError('首尾帧模式需要添加 2 张参考图（首帧 + 尾帧）')
       return
@@ -280,33 +205,38 @@ export default function ZhipuVideo({
     setVideoCoverUrl('')
     setVideoStatus('任务提交中...')
     setIsLoading(true)
+    stoppedRef.current = false
 
     const sizeVal = ZHIPU_VIDEO_SIZES[sizeIndex].value
     const durationVal = ZHIPU_VIDEO_DURATIONS[durationIndex].value
     const fpsVal = ZHIPU_VIDEO_FPS[fpsIndex].value
     const qualityVal = ZHIPU_VIDEO_QUALITY[qualityIndex].value
 
-    // 构造图片参数：首尾帧模式传数组，图生视频传字符串
     let imageUrl: string | string[] | undefined
     if (refImageUrls.length > 0) {
       imageUrl = isKeyframeMode ? refImageUrls.slice(0, 2) : refImageUrls[0]
     }
 
-    // 请求开始立即写入「生成中」历史记录，防止切换 tab 导致任务丢失
-    currentTaskRecordIdRef.current = startTaskRecord(
-      prompt.trim() || '让画面动起来',
-      sizeVal,
-      durationVal,
-      fpsVal,
-      qualityVal,
+    const taskRecordId = historyCtrl.startTaskRecord({
+      taskId: '',
+      url: '',
+      coverUrl: '',
+      prompt: prompt.trim() || '让画面动起来',
+      model: ZHIPU_VIDEO_MODEL,
+      size: sizeVal,
+      duration: durationVal,
+      fps: fpsVal,
+      quality: qualityVal,
       withAudio,
       refImageUrls,
       isKeyframeMode,
       sizeIndex,
       durationIndex,
       fpsIndex,
-      qualityIndex
-    )
+      qualityIndex,
+      responseData: null
+    } as unknown as Omit<ZhipuVideoHistoryItem, 'id' | 'time' | 'status'>)
+    currentTaskRecordIdRef.current = taskRecordId
 
     requestRef.current = zhipuCreateVideoTask(apiKey.trim(), {
       prompt: prompt.trim() || '让画面动起来',
@@ -320,9 +250,9 @@ export default function ZhipuVideo({
 
     requestRef.current.promise
       .then((res) => {
+        if (stoppedRef.current) return
         const recordId = currentTaskRecordIdRef.current
         const data = res.data as Record<string, unknown>
-        // 优先检查业务错误（即使 HTTP 200 也可能返回 error 字段）
         const apiError = data?.error as { code?: string; message?: string } | undefined
         if (apiError && apiError.message) {
           setIsLoading(false)
@@ -330,7 +260,7 @@ export default function ZhipuVideo({
           onError(`创建视频任务失败${codeStr}：${apiError.message}`)
           if (recordId) {
             currentTaskRecordIdRef.current = null
-            finishTaskRecord(recordId, { status: 'failed', failReason: `${apiError.message}${codeStr}` })
+            historyCtrl.finishTaskRecord(recordId, { status: 'failed', failReason: `${apiError.message}${codeStr}` })
           }
           return
         }
@@ -339,9 +269,8 @@ export default function ZhipuVideo({
           if (taskId) {
             setVideoTaskId(taskId)
             setVideoStatus('任务已提交，等待处理...')
-            // 更新任务 ID 到历史记录，便于后续手动追踪
             if (recordId) {
-              finishTaskRecord(recordId, { taskId })
+              historyCtrl.finishTaskRecord(recordId, { taskId } as Partial<ZhipuVideoHistoryItem>)
             }
             startPolling(taskId)
           } else {
@@ -349,7 +278,7 @@ export default function ZhipuVideo({
             onError('未获取到任务 ID')
             if (recordId) {
               currentTaskRecordIdRef.current = null
-              finishTaskRecord(recordId, { status: 'failed', failReason: '未获取到任务 ID' })
+              historyCtrl.finishTaskRecord(recordId, { status: 'failed', failReason: '未获取到任务 ID' })
             }
           }
         } else {
@@ -361,42 +290,39 @@ export default function ZhipuVideo({
           onError('创建视频任务失败: ' + errMsg)
           if (recordId) {
             currentTaskRecordIdRef.current = null
-            finishTaskRecord(recordId, { status: 'failed', failReason: errMsg })
+            historyCtrl.finishTaskRecord(recordId, { status: 'failed', failReason: errMsg })
           }
         }
       })
       .catch((err) => {
+        if (stoppedRef.current) return
         setIsLoading(false)
         const msg = err?.errMsg || err?.message || ''
         onError('网络请求失败: ' + msg)
         const recordId = currentTaskRecordIdRef.current
         currentTaskRecordIdRef.current = null
         if (recordId) {
-          finishTaskRecord(recordId, { status: 'failed', failReason: '网络请求失败' + (msg ? '：' + msg : '') })
+          historyCtrl.finishTaskRecord(recordId, { status: 'failed', failReason: '网络请求失败' + (msg ? '：' + msg : '') })
         }
       })
-  }, [isLoading, apiKey, prompt, sizeIndex, durationIndex, fpsIndex, qualityIndex, withAudio, refImageUrls, isKeyframeMode, onError, startPolling, startTaskRecord, finishTaskRecord])
+  }, [isLoading, apiKey, prompt, sizeIndex, durationIndex, fpsIndex, qualityIndex, withAudio, refImageUrls, isKeyframeMode, onError, startPolling, historyCtrl])
 
   const stopGenerate = useCallback(() => {
+    stoppedRef.current = true
     if (requestRef.current) {
-      try {
-        requestRef.current.abort()
-      } catch {
-        // 忽略 abort 错误
-      }
+      try { requestRef.current.abort() } catch { /* ignore */ }
       requestRef.current = null
     }
     stopPolling()
     setIsLoading(false)
     setVideoStatus('')
-    // 终止时立即把任务历史标记为已中断
     const taskId = currentTaskRecordIdRef.current
     if (taskId) {
       currentTaskRecordIdRef.current = null
-      finishTaskRecord(taskId, { status: 'interrupted', failReason: '已手动终止' })
+      historyCtrl.finishTaskRecord(taskId, { status: 'interrupted', failReason: '已手动终止' })
     }
     onError('已终止生成')
-  }, [stopPolling, onError, finishTaskRecord])
+  }, [stopPolling, onError, historyCtrl])
 
   const handleCopyPrompt = useCallback(async () => {
     const ok = await copyToClipboard(prompt)
@@ -414,21 +340,20 @@ export default function ZhipuVideo({
     Notification[ok ? 'success' : 'error'](ok ? '已复制视频地址' : '复制失败')
   }, [videoUrl])
 
-const resetVideo = useCallback(() => {
-setVideoUrl('')
-setVideoCoverUrl('')
-setVideoTaskId('')
-setVideoStatus('')
-stopPolling()
-onError('')
-}, [stopPolling, onError])
+  const resetVideo = useCallback(() => {
+    setVideoUrl('')
+    setVideoCoverUrl('')
+    setVideoTaskId('')
+    setVideoStatus('')
+    stopPolling()
+    onError('')
+  }, [stopPolling, onError])
 
   const addRefImageUrl = useCallback(() => {
     const safe = refImageInput.replace(/[^a-zA-Z0-9\-._~:/?#@!$&'()*+,;=%]/g, '')
     const match = safe.match(/https?:\/\/[a-zA-Z0-9\-._~:/?#@!$&'()*+,;=%]+/)
     const url = match ? match[0] : safe
     if (!url) return
-    // 首尾帧模式最多 2 张，图生视频最多 1 张
     const maxCount = isKeyframeMode ? 2 : 1
     setRefImageUrls((prev) => (prev.length >= maxCount ? [...prev.slice(0, maxCount - 1), url] : [...prev, url]))
     setRefImageInput('')
@@ -456,71 +381,6 @@ onError('')
     setRefImageUrls((prev) => prev.filter((_, i) => i !== index))
   }, [])
 
-  /* ===== 历史记录操作 ===== */
-  const deleteHistory = useCallback(
-    (id: string) => {
-      setHistory((prev) => {
-        const updated = prev.filter((item) => item.id !== id)
-        saveHistory(updated)
-        return updated
-      })
-    },
-    [saveHistory]
-  )
-
-  const clearHistory = useCallback(() => {
-    setHistory([])
-    setHistoryPage(1)
-    setHistoryJumpPage('')
-    saveHistory([])
-    Notification.success('已清空历史记录')
-  }, [saveHistory])
-
-  const jumpHistoryPage = useCallback(() => {
-    const page = parseInt(historyJumpPage)
-    if (isNaN(page) || page < 1 || page > historyTotalPages) {
-      Notification.warning('请输入有效页码')
-      return
-    }
-    setHistoryPage(page)
-    setHistoryJumpPage('')
-  }, [historyJumpPage, historyTotalPages])
-
-
-  const usePrompt = useCallback(() => {
-    if (!detailItem) return
-    setPrompt(detailItem.prompt)
-    if (detailItem.sizeIndex !== undefined) setSizeIndex(detailItem.sizeIndex)
-    if (detailItem.durationIndex !== undefined) setDurationIndex(detailItem.durationIndex)
-    if (detailItem.fpsIndex !== undefined) setFpsIndex(detailItem.fpsIndex)
-    if (detailItem.qualityIndex !== undefined) setQualityIndex(detailItem.qualityIndex)
-    setWithAudio(detailItem.withAudio || false)
-    setRefImageUrls(detailItem.refImageUrls || [])
-    setIsKeyframeMode(detailItem.isKeyframeMode || false)
-    setDetailItem(null)
-    window.scrollTo({ top: 0, behavior: 'smooth' })
-  }, [detailItem])
-
-  const copyDetailPrompt = useCallback(async () => {
-    if (!detailItem?.prompt) return
-    const ok = await copyToClipboard(detailItem.prompt)
-    Notification[ok ? 'success' : 'error'](ok ? '已复制提示词' : '复制失败')
-  }, [detailItem])
-
-  const copyDetailUrl = useCallback(async () => {
-    if (!detailItem?.url) return
-    const ok = await copyToClipboard(detailItem.url)
-    Notification[ok ? 'success' : 'error'](ok ? '已复制视频地址' : '复制失败')
-  }, [detailItem])
-
-  const downloadDetailVideo = useCallback(() => {
-    if (!detailItem?.url) {
-      Notification.warning('该任务还没有生成结果')
-      return
-    }
-    downloadFile(detailItem.url, `cogvideox-flash-${Date.now()}.mp4`)
-  }, [detailItem])
-
   return (
     <div>
       <input
@@ -531,12 +391,8 @@ onError('')
         onChange={handleFileUpload}
       />
 
-      {/* 模型描述 */}
-      <div className="sensenova-model-desc">
-        {modelDescription}
-      </div>
+      <div className="sensenova-model-desc">{modelDescription}</div>
 
-      {/* 尺寸、时长、帧率、质量 */}
       <div className="agnes-form-row">
         <div className="agnes-form-group">
           <div className="agnes-label-row">
@@ -595,7 +451,6 @@ onError('')
         </div>
       </div>
 
-      {/* 音效开关 */}
       <div className="agnes-form-group">
         <div className="agnes-label-row">
           <span className="agnes-label-icon">🔊</span>
@@ -618,7 +473,6 @@ onError('')
         </div>
       </div>
 
-      {/* 视频提示词 */}
       <div className="agnes-form-group">
         <div className="agnes-label-row">
           <span className="agnes-label-icon">✨</span>
@@ -643,7 +497,6 @@ onError('')
         </div>
       </div>
 
-      {/* 参考图（图生视频 / 首尾帧） */}
       <div className="agnes-form-group">
         <div className="agnes-label-row">
           <span className="agnes-label-icon">🖼️</span>
@@ -704,7 +557,6 @@ onError('')
         )}
       </div>
 
-      {/* 生成按钮 */}
       <div className="agnes-generate-btn-wrapper">
         <Button
           type="primary"
@@ -718,10 +570,8 @@ onError('')
         </Button>
       </div>
 
-      {/* 错误提示 */}
       {errorMsg && <div className="agnes-error-box">{errorMsg}</div>}
 
-      {/* 加载状态 */}
       {isLoading && (
         <div className="agnes-loading-box">
           <div className="agnes-spinner" />
@@ -738,7 +588,6 @@ onError('')
         </div>
       )}
 
-      {/* 视频展示区 */}
       {videoUrl && (
         <div className="agnes-result-box">
           <div className="agnes-result-header">
@@ -768,46 +617,41 @@ onError('')
         </div>
       )}
 
-      {/* 历史记录 */}
-      {history.length > 0 && (
+      {historyCtrl.history.length > 0 && (
         <div className="agnes-history-box">
           <div className="agnes-history-header">
             <span className="agnes-history-title">🎬 视频历史</span>
-            <Button size="small" type="dashed" danger onClick={clearHistory}>
+            <Button size="small" type="dashed" danger onClick={() => { paging.reset(); historyCtrl.clearHistory() }}>
               清空
             </Button>
           </div>
           <div className="agnes-history-list">
-            {pagedHistory.map((item) => (
-              <div className="agnes-history-item" key={item.id}>
+            {paging.pagedItems.map((item) => (
+              <div
+                className="agnes-history-item"
+                key={item.id}
+                onClick={() => setDetailRecord(item)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setDetailRecord(item) } }}
+              >
                 {item.url || item.coverUrl ? (
                   <div className="agnes-history-video-thumb-wrap">
                     {item.coverUrl ? (
-                      <img
-                        className="agnes-history-thumb"
-                        src={item.coverUrl}
-                        alt="cover"
-                      />
+                      <img className="agnes-history-thumb" src={item.coverUrl} alt="cover" />
                     ) : (
-                      <video
-                        className="agnes-history-video-thumb"
-                        src={item.url}
-                        muted
-                      />
+                      <video className="agnes-history-video-thumb" src={item.url} muted />
                     )}
                     <div className="agnes-history-video-play-icon">
                       <span className="agnes-history-video-play">▶</span>
                     </div>
                   </div>
                 ) : (
-                  <div
-                    className="agnes-history-thumb agnes-history-thumb-placeholder"
-                    onClick={() => (item.status === 'generating' ? Notification.warning('任务仍在生成中...') : setDetailItem(item))}
-                  >
+                  <div className="agnes-history-thumb agnes-history-thumb-placeholder">
                     {item.status === 'generating' ? '⏳' : '⛔'}
                   </div>
                 )}
-                <div className="agnes-history-info" onClick={() => setDetailItem(item)}>
+                <div className="agnes-history-info">
                   <div className="agnes-history-prompt">{truncateText(item.prompt, 20)}</div>
                   <div className="agnes-history-tags">
                     {item.status === 'generating' && <span className="agnes-history-tag">⏳ 生成中</span>}
@@ -825,174 +669,36 @@ onError('')
                   </div>
                   <div className="agnes-history-meta">{formatTime(item.time)}</div>
                 </div>
-                <div className="agnes-history-delete-btn" onClick={() => deleteHistory(item.id)}>
+                <div
+                  className="agnes-history-delete-btn"
+                  onClick={(e) => { e.stopPropagation(); historyCtrl.deleteHistory(item.id!) }}
+                >
                   ✕
                 </div>
               </div>
             ))}
           </div>
 
-          {/* 分页 */}
-          {historyTotalPages > 1 && (
-            <div className="agnes-history-pagination">
-              <Button size="small" disabled={historyPage <= 1} onClick={() => setHistoryPage(1)}>
-                首页
-              </Button>
-              <Button size="small" disabled={historyPage <= 1} onClick={() => setHistoryPage((p) => p - 1)}>
-                上一页
-              </Button>
-              <span className="agnes-page-info">{historyPage} / {historyTotalPages}</span>
-              <Button size="small" disabled={historyPage >= historyTotalPages} onClick={() => setHistoryPage((p) => p + 1)}>
-                下一页
-              </Button>
-              <Button size="small" disabled={historyPage >= historyTotalPages} onClick={() => setHistoryPage(historyTotalPages)}>
-                尾页
-              </Button>
-              {historyTotalPages > 3 && (
-                <div className="agnes-page-jump">
-                  <input
-                    className="agnes-page-jump-input"
-                    type="number"
-                    value={historyJumpPage}
-                    maxLength={4}
-                    placeholder="页码"
-                    onChange={(e) => setHistoryJumpPage(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && jumpHistoryPage()}
-                  />
-                  <Button size="small" onClick={jumpHistoryPage}>跳转</Button>
-                </div>
-              )}
-            </div>
-          )}
+          <HistoryPagination
+            page={paging.page}
+            totalPages={paging.totalPages}
+            jumpInput={paging.jumpInput}
+            onJumpInputChange={paging.setJumpInput}
+            onFirst={paging.goFirst}
+            onPrev={paging.goPrev}
+            onNext={paging.goNext}
+            onLast={paging.goLast}
+            onJump={paging.jumpTo}
+          />
         </div>
       )}
 
-      {/* 详情弹窗 */}
-      <Modal
-        open={!!detailItem}
-        title={
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-            <span>视频记录详情</span>
-            <button className="agnes-modal-close-btn" onClick={() => setDetailItem(null)}>✕</button>
-          </div>
-        }
-        onClose={() => setDetailItem(null)}
-        typewriter={false}
-        footer={null}
-        width={520}
-      >
-        {detailItem && (
-          <div className="agnes-detail-popup-body">
-            {detailItem.url ? (
-              <video
-                className="agnes-detail-video"
-                src={detailItem.url}
-                poster={detailItem.coverUrl || undefined}
-                controls
-              />
-            ) : (
-              <div className="agnes-history-thumb-placeholder" style={{ width: '100%', height: 200 }}>
-                {detailItem.status === 'generating' ? '⏳ 生成中' : detailItem.status === 'failed' ? '⚠️ 生成失败' : '⛔ 已中断'}
-                {detailItem.failReason ? `（${detailItem.failReason}）` : ''}
-              </div>
-            )}
-            {detailItem.status && detailItem.status !== 'success' && (
-              <div className="agnes-detail-field">
-                <span className="agnes-detail-label">状态：</span>
-                <span className="agnes-detail-value">
-                  {detailItem.status === 'generating' ? '⏳ 生成中' : detailItem.status === 'failed' ? `⚠️ 失败：${detailItem.failReason || '未知原因'}` : '⛔ 已中断'}
-                </span>
-              </div>
-            )}
-
-            <div className="agnes-detail-field agnes-detail-prompt-field">
-              <div className="agnes-detail-prompt-header">
-                <span className="agnes-detail-label">提示词：</span>
-                <Button size="small" onClick={copyDetailPrompt}>复制</Button>
-              </div>
-              <div className="agnes-detail-value agnes-detail-value-long">{detailItem.prompt}</div>
-            </div>
-
-            <div className="agnes-detail-field">
-              <span className="agnes-detail-label">模型：</span>
-              <span className="agnes-detail-value">{detailItem.model}</span>
-            </div>
-            <div className="agnes-detail-field">
-              <span className="agnes-detail-label">尺寸：</span>
-              <span className="agnes-detail-value">
-                {detailItem.size}
-                {(() => {
-                  const o = getOrientation(detailItem.size)
-                  return o ? <span className={`agnes-orientation-badge agnes-orientation-${o}`} style={{ marginLeft: 8 }}>{ORIENTATION_LABELS[o].icon} {ORIENTATION_LABELS[o].text}</span> : null
-                })()}
-              </span>
-            </div>
-            <div className="agnes-detail-field">
-              <span className="agnes-detail-label">时长：</span>
-              <span className="agnes-detail-value">{detailItem.duration} 秒</span>
-            </div>
-            <div className="agnes-detail-field">
-              <span className="agnes-detail-label">帧率：</span>
-              <span className="agnes-detail-value">{detailItem.fps} FPS</span>
-            </div>
-            <div className="agnes-detail-field">
-              <span className="agnes-detail-label">输出模式：</span>
-              <span className="agnes-detail-value">{detailItem.quality === 'quality' ? '质量优先' : '速度优先'}</span>
-            </div>
-            <div className="agnes-detail-field">
-              <span className="agnes-detail-label">音效：</span>
-              <span className="agnes-detail-value">{detailItem.withAudio ? '已生成' : '无'}</span>
-            </div>
-            {detailItem.isKeyframeMode && (
-              <div className="agnes-detail-field">
-                <span className="agnes-detail-label">模式：</span>
-                <span className="agnes-detail-value">首尾帧模式</span>
-              </div>
-            )}
-            {detailItem.refImageUrls && detailItem.refImageUrls.length > 0 && (
-              <div className="agnes-detail-field">
-                <span className="agnes-detail-label">参考图：</span>
-                <div className="agnes-detail-ref-image-list">
-                  {detailItem.refImageUrls.map((url, idx) => (
-                    <img
-                      key={idx}
-                      className="agnes-detail-ref-image"
-                      src={url}
-                      alt={`ref-${idx}`}
-                      onClick={() => setPreviewSrc(url)}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-            <div className="agnes-detail-field">
-              <span className="agnes-detail-label">任务 ID：</span>
-              <span className="agnes-detail-value" style={{ fontSize: '12px', wordBreak: 'break-all' }}>{detailItem.taskId}</span>
-            </div>
-            <div className="agnes-detail-field">
-              <span className="agnes-detail-label">生成时间：</span>
-              <span className="agnes-detail-value">{formatTime(detailItem.time)}</span>
-            </div>
-
-            {!!detailItem.responseData && (
-              <div className="agnes-detail-section">
-                <div className="agnes-detail-section-title">接口返回数据</div>
-                <div className="agnes-detail-json-area">
-                  {formatResponseData(detailItem.responseData)}
-                </div>
-              </div>
-            )}
-
-            {/* 操作按钮 */}
-            <div className="agnes-detail-actions">
-              <Button type="primary" onClick={usePrompt}>使用此配置</Button>
-              <Button onClick={downloadDetailVideo}>下载视频</Button>
-              <Button onClick={copyDetailUrl}>复制地址</Button>
-            </div>
-          </div>
-        )}
-      </Modal>
       <ImagePreview src={previewSrc} onClose={() => setPreviewSrc('')} />
+      <HistoryDetail
+        record={detailRecord}
+        recordType={'zhipuVideo' as HistoryRecordType}
+        onClose={() => setDetailRecord(null)}
+      />
     </div>
   )
 }

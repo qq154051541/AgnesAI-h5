@@ -1,0 +1,379 @@
+﻿/* ===== 表单通用 ===== */
+.agnes-form-group {
+  margin-bottom: var(--agnes-space-lg);
+  min-width: 0;
+}
+
+.agnes-form-row {
+  display: flex;
+  gap: var(--agnes-space-md);
+}
+
+.agnes-form-row > .agnes-form-group {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Select 组件宽度适配 */
+.agnes-form-group [class*='animal-wrapper'] {
+  display: block !important;
+  width: 100% !important;
+}
+
+/* Select 下拉面板：强制向下展开，避免左右被遮挡 */
+.agnes-form-group [class*='animal-dropdown'] {
+  left: 0 !important;
+  right: auto !important;
+  top: 100% !important;
+  bottom: auto !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  margin-top: 6px !important;
+  margin-bottom: 0 !important;
+  transform: none !important;
+  z-index: 9999 !important;
+}
+
+.agnes-label-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: var(--agnes-space-sm);
+}
+
+.agnes-label-text {
+  font-size: var(--agnes-font-base);
+  font-weight: 600;
+  color: var(--agnes-text);
+  white-space: nowrap;
+}
+
+.agnes-label-required {
+  color: var(--agnes-error);
+  font-size: var(--agnes-font-base);
+}
+
+.agnes-label-optional {
+  font-size: var(--agnes-font-sm);
+  color: var(--agnes-text-secondary);
+  margin-left: 4px;
+  white-space: nowrap;
+}
+
+
+/* ===== 2.1 Flash 尺寸选择器（档位 + 宽高比滑动） ===== */
+.agnes-size-picker-21 {
+  border: 1px solid var(--agnes-border);
+  border-radius: var(--agnes-radius-sm);
+  overflow: hidden;
+  background: var(--agnes-bg-card);
+}
+
+/* 档位按钮行 */
+.agnes-tier-row {
+  display: flex;
+  gap: 0;
+  padding: 0;
+  background: var(--agnes-bg-secondary);
+  border-bottom: 1px solid var(--agnes-border);
+}
+
+.agnes-tier-btn {
+  flex: 1;
+  padding: 10px 0;
+  border: none;
+  background: transparent;
+  font-size: var(--agnes-font-base);
+  font-weight: 600;
+  color: var(--agnes-text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.agnes-tier-btn:hover {
+  color: var(--agnes-text);
+  background: var(--agnes-bg-hover);
+}
+
+.agnes-tier-btn-active {
+  color: var(--agnes-primary);
+  background: var(--agnes-bg-card);
+}
+
+.agnes-tier-btn-active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 20%;
+  right: 20%;
+  height: 2px;
+  background: var(--agnes-primary);
+  border-radius: 2px 2px 0 0;
+}
+
+/* 宽高比滚动区域 */
+.agnes-ratio-scroll {
+  max-height: 160px;
+  overflow-y: auto;
+  padding: 8px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 8px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.agnes-ratio-scroll::-webkit-scrollbar {
+  width: 5px;
+}
+
+.agnes-ratio-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.agnes-ratio-scroll::-webkit-scrollbar-thumb {
+  background: var(--agnes-border-strong);
+  border-radius: 3px;
+}
+
+/* 单个宽高比选项 */
+.agnes-ratio-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: var(--agnes-radius-xs);
+  border: 1px solid var(--agnes-border);
+  background: var(--agnes-bg-card);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.agnes-ratio-item:hover {
+  border-color: var(--agnes-border-hover);
+  background: var(--agnes-primary-bg-soft);
+}
+
+.agnes-ratio-item-active {
+  border-color: var(--agnes-primary);
+  background: var(--agnes-primary-bg);
+}
+
+/* 宽高比预览框 */
+.agnes-ratio-preview-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+}
+
+.agnes-ratio-preview {
+  border: 2px solid var(--agnes-text-muted);
+  border-radius: 3px;
+  background: var(--agnes-bg-secondary);
+  transition: border-color 0.15s ease;
+}
+
+.agnes-ratio-item:hover .agnes-ratio-preview {
+  border-color: var(--agnes-border-hover);
+}
+
+.agnes-ratio-item-active .agnes-ratio-preview {
+  border-color: var(--agnes-primary);
+  background: var(--agnes-primary-bg);
+}
+
+/* 宽高比文字信息 */
+.agnes-ratio-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.agnes-ratio-label {
+  font-size: var(--agnes-font-base);
+  font-weight: 600;
+  color: var(--agnes-text);
+  line-height: 1.2;
+}
+
+.agnes-ratio-item-active .agnes-ratio-label {
+  color: var(--agnes-primary);
+}
+
+.agnes-ratio-pixels {
+  font-size: 11px;
+  color: var(--agnes-text-muted);
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.agnes-prompt-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 6px;
+}
+
+
+/* ===== 文本域 ===== */
+.agnes-textarea {
+  width: 100%;
+  min-height: 120px;
+  padding: var(--agnes-space-md) var(--agnes-space-lg);
+  font-size: var(--agnes-font-base);
+  font-family: inherit;
+  color: var(--agnes-text);
+  background: var(--agnes-bg-card);
+  border: 2px solid var(--agnes-border);
+  border-radius: var(--agnes-radius-base);
+  resize: vertical;
+  outline: none;
+  transition: border-color var(--agnes-transition), box-shadow var(--agnes-transition);
+  line-height: 1.6;
+}
+
+.agnes-textarea:focus {
+  border-color: var(--agnes-primary);
+  box-shadow: 0 0 0 3px var(--agnes-primary-bg-soft);
+}
+
+.agnes-textarea::placeholder {
+  color: var(--agnes-text-muted);
+}
+
+
+/* ===== 参考图区域 ===== */
+.agnes-ref-input-row {
+  display: flex;
+  gap: var(--agnes-space-sm);
+  align-items: center;
+}
+
+.agnes-ref-input-row > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.agnes-ref-input {
+  min-height: auto !important;
+  height: var(--animal-height-base, 40px) !important;
+  padding: var(--agnes-space-sm) var(--agnes-space-md) !important;
+}
+
+.agnes-ref-tips {
+  font-size: var(--agnes-font-sm);
+  color: var(--agnes-text-secondary);
+  margin-top: var(--agnes-space-sm);
+  line-height: 1.5;
+}
+
+.agnes-ref-preview-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.agnes-ref-preview-wrap {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  transition: transform var(--agnes-transition-bounce);
+}
+
+.agnes-ref-preview-wrap:hover {
+  transform: scale(1.05);
+}
+
+.agnes-ref-preview-image {
+  width: 80px;
+  height: 80px;
+  border-radius: var(--agnes-radius-sm);
+  object-fit: cover;
+  border: 2px solid var(--agnes-border);
+  cursor: pointer;
+  transition: border-color var(--agnes-transition);
+}
+
+.agnes-ref-preview-wrap:hover .agnes-ref-preview-image {
+  border-color: var(--agnes-primary);
+}
+
+/* 参考音频项（reference 模式） */
+.agnes-ref-audio-item {
+  width: auto;
+  height: auto;
+  padding: 6px 12px;
+  border-radius: var(--agnes-radius-sm);
+  border: 2px solid var(--agnes-border);
+  background: var(--agnes-surface);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.agnes-ref-audio-label {
+  font-size: 13px;
+  color: var(--agnes-text);
+  white-space: nowrap;
+}
+
+.agnes-ref-preview-delete {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 22px;
+  height: 22px;
+  background: var(--agnes-error);
+  border: 2px solid #fff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 11px;
+  color: #fff;
+  font-weight: bold;
+  box-shadow: var(--agnes-shadow-sm);
+  z-index: 1;
+  transition: transform var(--agnes-transition-fast);
+}
+
+.agnes-ref-preview-delete:hover {
+  transform: scale(1.15);
+  background: var(--agnes-error-hover);
+}
+
+
+/* ===== 关键帧模式 ===== */
+.agnes-ref-mode-row {
+  margin-bottom: var(--agnes-space-sm);
+  display: flex;
+  align-items: center;
+  gap: var(--agnes-space-sm);
+  flex-wrap: wrap;
+}
+
+.agnes-ref-mode-tip {
+  font-size: var(--agnes-font-sm);
+  color: var(--agnes-text-secondary);
+  white-space: nowrap;
+}
+
+
+/* ===== 生成按钮区 ===== */
+.agnes-generate-btn-wrapper {
+  margin-top: var(--agnes-space-sm);
+}
+
+.agnes-generate-btn-wrapper [class*='animal-btn'] {
+  box-shadow: var(--agnes-shadow-primary-sm);
+}
+
+

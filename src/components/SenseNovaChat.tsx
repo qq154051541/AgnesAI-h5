@@ -20,6 +20,9 @@ import {
   formatTime,
   fileToJpegDataUri
 } from '../utils/helpers'
+import { useHistory } from '../hooks/useHistory'
+import { useHistoryPagination } from '../hooks/useHistoryPagination'
+import HistoryPagination from './HistoryPagination'
 import ImagePreview from './ImagePreview'
 
 interface SenseNovaChatProps {
@@ -64,7 +67,6 @@ export default function SenseNovaChat({
   const isDeepSeek = modelValue === 'deepseek-v4-flash'
   const isFlashLite = modelValue === 'sensenova-6.7-flash-lite'
 
-  /* ===== 聊天状态 ===== */
   const [chatMessages, setChatMessages] = useState<SenseNovaChatMessage[]>([])
   const [chatInput, setChatInput] = useState('')
   const [systemPrompt, setSystemPrompt] = useState('')
@@ -76,14 +78,8 @@ export default function SenseNovaChat({
   const [streamingReasoning, setStreamingReasoning] = useState('')
   const [isStreaming, setIsStreaming] = useState(false)
   const [showReasoning, setShowReasoning] = useState(true)
-
-  /* ===== 历史记录 ===== */
-  const [chatHistory, setChatHistory] = useState<SenseNovaChatHistoryItem[]>([])
-  const [historyPage, setHistoryPage] = useState(1)
-  const [historyJumpPage, setHistoryJumpPage] = useState('')
   const [previewSrc, setPreviewSrc] = useState('')
 
-  /* ===== Refs ===== */
   const abortStreamRef = useRef<(() => void) | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const chatScrollRef = useRef<HTMLDivElement>(null)
@@ -94,10 +90,10 @@ export default function SenseNovaChat({
   const systemPromptKey = getSystemPromptKey(modelValue)
   const sessionIdKey = `${chatMessagesKey}-session-id`
 
-  /* ===== 初始化 ===== */
+  const historyCtrl = useHistory<SenseNovaChatHistoryItem>(historyKey)
+  const paging = useHistoryPagination(historyCtrl.history, PAGE_SIZE)
+
   useEffect(() => {
-    const savedHistory = getStorage<SenseNovaChatHistoryItem[]>(historyKey)
-    if (savedHistory) setChatHistory(savedHistory)
     const savedMessages = getStorage<SenseNovaChatMessage[]>(chatMessagesKey)
     if (savedMessages) setChatMessages(savedMessages)
     const savedSystemPrompt = getStorage<string>(systemPromptKey)
@@ -107,14 +103,12 @@ export default function SenseNovaChat({
     }
     const savedSessionId = getStorage<string>(sessionIdKey)
     if (savedSessionId) currentSessionIdRef.current = savedSessionId
-  }, [historyKey, chatMessagesKey, systemPromptKey, sessionIdKey])
+  }, [chatMessagesKey, systemPromptKey, sessionIdKey])
 
-  /* ===== 持久化对话内容 ===== */
   useEffect(() => {
     setStorage(chatMessagesKey, chatMessages)
   }, [chatMessages, chatMessagesKey])
 
-  /* ===== 持久化系统提示词 ===== */
   useEffect(() => {
     setStorage(systemPromptKey, systemPrompt)
   }, [systemPrompt, systemPromptKey])
@@ -129,15 +123,6 @@ export default function SenseNovaChat({
     }
   }, [chatMessages, streamingContent, streamingReasoning])
 
-  /* ===== 工具方法 ===== */
-  const saveChatHistory = useCallback(
-    (items: SenseNovaChatHistoryItem[]) => {
-      setStorage(historyKey, items)
-    },
-    [historyKey]
-  )
-
-  /* ===== 聊天功能 ===== */
   const handleSendMessage = useCallback(() => {
     if (isStreaming) return
     if (!apiKey.trim()) {
@@ -246,18 +231,16 @@ export default function SenseNovaChat({
 
           const sessionId = currentSessionIdRef.current
           if (sessionId) {
-            // 更新当前会话的历史记录（连续对话合并为一条）
-            setChatHistory((prev) => {
+            historyCtrl.setHistory((prev) => {
               const updated = prev.map((item) =>
                 item.id === sessionId
                   ? { ...item, messages: allMessages, time: Date.now() }
                   : item
               )
-              saveChatHistory(updated)
+              historyCtrl.saveHistory(updated)
               return updated
             })
           } else {
-            // 创建新的会话历史记录
             const newId = `chat-${Date.now()}`
             currentSessionIdRef.current = newId
             setStorage(sessionIdKey, newId)
@@ -268,9 +251,9 @@ export default function SenseNovaChat({
               reasoningEffort: reasoningEffort || 'none',
               time: Date.now()
             }
-            setChatHistory((prev) => {
+            historyCtrl.setHistory((prev) => {
               const updated = [historyItem, ...prev].slice(0, 50)
-              saveChatHistory(updated)
+              historyCtrl.saveHistory(updated)
               return updated
             })
           }
@@ -291,16 +274,15 @@ export default function SenseNovaChat({
             const allMessages = [...chatMessages, userMsg, assistantMsg]
             setChatMessages((prev) => [...prev, assistantMsg])
 
-            // 出错时也保存部分对话到历史记录
             const sessionId = currentSessionIdRef.current
             if (sessionId) {
-              setChatHistory((prev) => {
+              historyCtrl.setHistory((prev) => {
                 const updated = prev.map((item) =>
                   item.id === sessionId
                     ? { ...item, messages: allMessages, time: Date.now() }
                     : item
                 )
-                saveChatHistory(updated)
+                historyCtrl.saveHistory(updated)
                 return updated
               })
             } else {
@@ -314,9 +296,9 @@ export default function SenseNovaChat({
                 reasoningEffort: reasoningEffort || 'none',
                 time: Date.now()
               }
-              setChatHistory((prev) => {
+              historyCtrl.setHistory((prev) => {
                 const updated = [historyItem, ...prev].slice(0, 50)
-                saveChatHistory(updated)
+                historyCtrl.saveHistory(updated)
                 return updated
               })
             }
@@ -329,7 +311,7 @@ export default function SenseNovaChat({
   }, [
     isStreaming, apiKey, chatInput, chatImageUrl, systemPrompt,
     chatMessages, modelValue, isDeepSeek, reasoningEffortIndex,
-    onError, saveChatHistory, sessionIdKey
+    onError, historyCtrl, sessionIdKey
   ])
 
   const stopStreaming = useCallback(() => {
@@ -364,7 +346,6 @@ export default function SenseNovaChat({
     Notification[ok ? 'success' : 'error'](ok ? '已复制' : '复制失败')
   }, [])
 
-  /* ===== 图片输入（Flash-Lite） ===== */
   const addChatImageUrl = useCallback(() => {
     const url = chatImageInput.trim()
     if (!url) return
@@ -384,7 +365,6 @@ export default function SenseNovaChat({
       setChatImageUrl(url)
       Notification.success('上传成功')
     } catch {
-      // 上传失败时转 JPEG Data URI（自动处理 HEIC 等格式）
       try {
         const dataUri = await fileToJpegDataUri(file)
         setChatImageUrl(dataUri)
@@ -395,37 +375,6 @@ export default function SenseNovaChat({
     }
     e.target.value = ''
   }, [])
-
-  /* ===== 历史记录操作 ===== */
-  const pagedChatHistory = chatHistory.slice(
-    (historyPage - 1) * PAGE_SIZE,
-    historyPage * PAGE_SIZE
-  )
-  const historyTotalPages = Math.ceil(chatHistory.length / PAGE_SIZE)
-
-  const clearHistory = useCallback(() => {
-    setChatHistory([])
-    saveChatHistory([])
-    currentSessionIdRef.current = null
-    setStorage(sessionIdKey, null)
-    setHistoryPage(1)
-    setHistoryJumpPage('')
-    Notification.success('已清空历史记录')
-  }, [saveChatHistory, sessionIdKey])
-
-  const deleteChatHistory = useCallback((id: string) => {
-    setChatHistory((prev) => {
-      const updated = prev.filter((item) => item.id !== id)
-      saveChatHistory(updated)
-      return updated
-    })
-    if (currentSessionIdRef.current === id) {
-      currentSessionIdRef.current = null
-      setStorage(sessionIdKey, null)
-      setChatMessages([])
-      setStorage(chatMessagesKey, [])
-    }
-  }, [saveChatHistory, sessionIdKey, chatMessagesKey])
 
   const viewChatHistory = useCallback((item: SenseNovaChatHistoryItem) => {
     setChatMessages(item.messages)
@@ -438,17 +387,16 @@ export default function SenseNovaChat({
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [sessionIdKey])
 
-  const jumpHistoryPage = useCallback(() => {
-    const page = parseInt(historyJumpPage)
-    if (isNaN(page) || page < 1 || page > historyTotalPages) {
-      Notification.warning('请输入有效页码')
-      return
+  const deleteChatHistory = useCallback((id: string) => {
+    historyCtrl.deleteHistory(id)
+    if (currentSessionIdRef.current === id) {
+      currentSessionIdRef.current = null
+      setStorage(sessionIdKey, null)
+      setChatMessages([])
+      setStorage(chatMessagesKey, [])
     }
-    setHistoryPage(page)
-    setHistoryJumpPage('')
-  }, [historyJumpPage, historyTotalPages])
+  }, [historyCtrl, sessionIdKey, chatMessagesKey])
 
-  /* ===== 渲染 ===== */
   return (
     <div>
       <input
@@ -459,12 +407,10 @@ export default function SenseNovaChat({
         onChange={handleFileUpload}
       />
 
-      {/* 模型描述 */}
       <div className="sensenova-model-desc">
         {modelDescription}
       </div>
 
-      {/* 系统提示词（可折叠） */}
       <div className="agnes-form-group">
         <div className="agnes-label-row">
           <span className="agnes-label-icon">📝</span>
@@ -487,7 +433,6 @@ export default function SenseNovaChat({
         )}
       </div>
 
-      {/* DeepSeek V4 推理力度选择 */}
       {isDeepSeek && (
         <div className="agnes-form-group">
           <div className="agnes-label-row">
@@ -508,7 +453,6 @@ export default function SenseNovaChat({
         </div>
       )}
 
-      {/* Flash-Lite 图片输入 */}
       {isFlashLite && (
         <div className="agnes-form-group">
           <div className="agnes-label-row">
@@ -546,7 +490,6 @@ export default function SenseNovaChat({
         </div>
       )}
 
-      {/* 聊天消息区域 */}
       {chatMessages.length > 0 || isStreaming ? (
         <div className="sensenova-chat-container" ref={chatScrollRef}>
           {chatMessages.map((msg) => (
@@ -631,7 +574,6 @@ export default function SenseNovaChat({
         </div>
       )}
 
-      {/* 输入区域 */}
       <div className="sensenova-chat-input-area">
         <textarea
           className="agnes-textarea sensenova-chat-input"
@@ -676,20 +618,18 @@ export default function SenseNovaChat({
         </div>
       </div>
 
-      {/* 错误提示 */}
       {errorMsg && <div className="agnes-error-box">{errorMsg}</div>}
 
-      {/* 聊天历史 */}
-      {chatHistory.length > 0 && (
+      {historyCtrl.history.length > 0 && (
         <div className="agnes-history-box">
           <div className="agnes-history-header">
             <span className="agnes-history-title">💬 对话历史</span>
-            <Button size="small" type="dashed" danger onClick={clearHistory}>
+            <Button size="small" type="dashed" danger onClick={() => { paging.reset(); historyCtrl.clearHistory() }}>
               清空
             </Button>
           </div>
           <div className="agnes-history-list">
-            {pagedChatHistory.map((item) => (
+            {paging.pagedItems.map((item) => (
               <div className="agnes-history-item" key={item.id}>
                 <div
                   className="agnes-history-info"
@@ -715,37 +655,17 @@ export default function SenseNovaChat({
             ))}
           </div>
 
-          {historyTotalPages > 1 && (
-            <div className="agnes-history-pagination">
-              <Button size="small" disabled={historyPage <= 1} onClick={() => setHistoryPage(1)}>
-                首页
-              </Button>
-              <Button size="small" disabled={historyPage <= 1} onClick={() => setHistoryPage((p) => p - 1)}>
-                上一页
-              </Button>
-              <span className="agnes-page-info">{historyPage} / {historyTotalPages}</span>
-              <Button size="small" disabled={historyPage >= historyTotalPages} onClick={() => setHistoryPage((p) => p + 1)}>
-                下一页
-              </Button>
-              <Button size="small" disabled={historyPage >= historyTotalPages} onClick={() => setHistoryPage(historyTotalPages)}>
-                尾页
-              </Button>
-              {historyTotalPages > 3 && (
-                <div className="agnes-page-jump">
-                  <input
-                    className="agnes-page-jump-input"
-                    type="number"
-                    value={historyJumpPage}
-                    maxLength={4}
-                    placeholder="页码"
-                    onChange={(e) => setHistoryJumpPage(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && jumpHistoryPage()}
-                  />
-                  <Button size="small" onClick={jumpHistoryPage}>跳转</Button>
-                </div>
-              )}
-            </div>
-          )}
+          <HistoryPagination
+            page={paging.page}
+            totalPages={paging.totalPages}
+            jumpInput={paging.jumpInput}
+            onJumpInputChange={paging.setJumpInput}
+            onFirst={paging.goFirst}
+            onPrev={paging.goPrev}
+            onNext={paging.goNext}
+            onLast={paging.goLast}
+            onJump={paging.jumpTo}
+          />
         </div>
       )}
 

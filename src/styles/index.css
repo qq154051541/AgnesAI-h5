@@ -1,0 +1,21 @@
+﻿/* Agnes AI H5 全局样式（按职责拆分） */
+/* 聚合入口：被 src/main.tsx 引用 */
+
+@import './parts/01-tokens.css';
+@import './parts/02-theme-dark.css';
+@import './parts/03-base.css';
+@import './parts/04-layout.css';
+@import './parts/05-apikey.css';
+@import './parts/06-home.css';
+@import './parts/07-feedback.css';
+@import './parts/08-form.css';
+@import './parts/09-loading.css';
+@import './parts/10-result.css';
+@import './parts/11-history.css';
+@import './parts/12-detail.css';
+@import './parts/13-i2p.css';
+@import './parts/14-footer.css';
+@import './parts/15-modal.css';
+@import './parts/16-platform.css';
+@import './parts/17-responsive.css';
+

@@ -1,0 +1,135 @@
+﻿/* ===== 图片预览弹窗 ===== */
+.agnes-image-preview-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.82);
+  backdrop-filter: blur(4px);
+  animation: agnes-preview-fade-in 0.2s ease;
+}
+
+.agnes-image-preview-img {
+  max-width: 90vw;
+  max-height: 85vh;
+  border-radius: var(--agnes-radius-base);
+  object-fit: contain;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  animation: agnes-preview-zoom-in 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes agnes-preview-zoom-in {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.agnes-image-preview-close {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  width: 42px;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  font-size: 18px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all var(--agnes-transition);
+  z-index: 10001;
+  backdrop-filter: blur(4px);
+}
+
+.agnes-image-preview-close:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: rotate(90deg) scale(1.05);
+}
+
+@keyframes agnes-preview-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.agnes-image-preview-nav {
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 46px;
+  height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  font-size: 28px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all var(--agnes-transition);
+  z-index: 10001;
+  user-select: none;
+  backdrop-filter: blur(4px);
+}
+
+.agnes-image-preview-nav:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-50%) scale(1.1);
+}
+
+.agnes-image-preview-nav:active {
+  transform: translateY(-50%) scale(0.95);
+}
+
+.agnes-image-preview-prev {
+  left: 16px;
+}
+
+.agnes-image-preview-next {
+  right: 16px;
+}
+
+.agnes-image-preview-indicator {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 16px;
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: var(--agnes-radius-full);
+  z-index: 10001;
+  backdrop-filter: blur(4px);
+}
+
+
+/* ===== Modal 关闭按钮 ===== */
+.agnes-modal-close-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  font-size: 18px;
+  color: var(--agnes-text-secondary);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all var(--agnes-transition);
+  flex-shrink: 0;
+}
+
+.agnes-modal-close-btn:hover {
+  background: var(--agnes-error-bg);
+  color: var(--agnes-error);
+  transform: rotate(90deg);
+}
+
+

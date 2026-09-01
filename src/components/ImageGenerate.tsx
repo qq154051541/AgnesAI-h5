@@ -1,12 +1,26 @@
 import { useState, useEffect, useCallback, useRef, forwardRef, useImperativeHandle } from 'react'
-import { Button, Select, Card, Modal, Notification } from 'animal-island-ui'
+import { Button, Select, Notification } from 'animal-island-ui'
 import { MODELS, SIZES, IMAGE_COUNTS, STORAGE_KEYS } from '../config/api'
 import { generateImage, uploadToImgbb } from '../services/api'
-import type { RequestResult } from '../types'
-import type { ImageHistoryItem } from '../types'
-import { getStorage, setStorage, copyToClipboard, downloadFile, formatTime, truncateText, formatResponseData, fileToJpegDataUri, normalizeHistoryOnLoad, getOrientation, ORIENTATION_LABELS } from '../utils/helpers'
+import type { RequestResult, ImageHistoryItem } from '../types'
+import {
+  setStorage,
+  copyToClipboard,
+  downloadFile,
+  formatTime,
+  truncateText,
+  fileToJpegDataUri,
+  getOrientation,
+  ORIENTATION_LABELS
+} from '../utils/helpers'
 import { useStageHint } from '../hooks/useStageHint'
+import { useHistoryPagination } from '../hooks/useHistoryPagination'
+import { useHistory } from '../hooks/useHistory'
+import HistoryPagination from './HistoryPagination'
+import HistoryDetail from './HistoryDetail'
+import type { HistoryRecordType } from './HistoryDetail'
 import ImagePreview from './ImagePreview'
+
 
 export interface ImageGenerateHandle {
   setPrompt: (text: string) => void
@@ -20,6 +34,7 @@ interface ImageGenerateProps {
 }
 
 const PAGE_SIZE = 10
+const TIERS = ['1K', '2K', '3K', '4K'] as const
 
 const ImageGenerate = forwardRef<ImageGenerateHandle, ImageGenerateProps>(
   ({ apiKey, errorMsg, onError, onLoadingChange }, ref) => {
@@ -33,124 +48,48 @@ const ImageGenerate = forwardRef<ImageGenerateHandle, ImageGenerateProps>(
     const [isLoading, setIsLoading] = useState(false)
     const [refImageInput, setRefImageInput] = useState('')
     const [refImageUrls, setRefImageUrls] = useState<string[]>([])
-    const [history, setHistory] = useState<ImageHistoryItem[]>([])
-    const [historyPage, setHistoryPage] = useState(1)
-    const [historyJumpPage, setHistoryJumpPage] = useState('')
-    const [detailItem, setDetailItem] = useState<ImageHistoryItem | null>(null)
-    const [detailSelectedIndexes, setDetailSelectedIndexes] = useState<number[]>([])
-    const [isDetailSelectMode, setIsDetailSelectMode] = useState(false)
+
     const [completedCount, setCompletedCount] = useState(0)
     const [totalCount, setTotalCount] = useState(0)
     const [previewSrc, setPreviewSrc] = useState('')
     const [previewIndex, setPreviewIndex] = useState(0)
     const [previewImages, setPreviewImages] = useState<string[] | undefined>(undefined)
+    const [detailRecord, setDetailRecord] = useState<ImageHistoryItem | null>(null)
 
     const requestsRef = useRef<RequestResult[]>([])
     const fileInputRef = useRef<HTMLInputElement>(null)
-    /** 标记当前任务是否被手动终止（终止后不再覆盖错误提示） */
     const stopRequestedRef = useRef(false)
-    // 加载阶段提示（随等待时长递进）
     const { hint: stageHint, elapsed } = useStageHint(isLoading)
+
+    const historyCtrl = useHistory<ImageHistoryItem>(STORAGE_KEYS.IMAGE_HISTORY)
+    const paging = useHistoryPagination(historyCtrl.history, PAGE_SIZE)
 
     useImperativeHandle(ref, () => ({
       setPrompt: (text: string) => setPrompt(text)
     }))
 
-    // 根据当前模型过滤可用尺寸（model 字段支持单个模型或模型数组）
-    const currentModel = MODELS[modelIndex].value
-    const availableSizes = SIZES.filter(
-      (s) => !s.model || (Array.isArray(s.model) ? s.model.includes(currentModel) : s.model === currentModel)
-    )
-    // 档位式尺寸模型（2.1 / 2.5）：档位 + 宽高比选择
-    const TIER_MODELS = ['agnes-image-2.1-flash', 'agnes-image-2.5-flash']
-    const isTierModel = TIER_MODELS.includes(currentModel)
-
-    const TIERS_21 = ['1K', '2K', '3K', '4K'] as const
-    const currentTier = isTierModel ? (availableSizes[sizeIndex]?.value || '2K') : ''
-    const tierSizes = isTierModel ? availableSizes.filter((s) => s.value === currentTier) : []
-    // 3K/4K 档位限制只能生成 1 张
-    const isMaxTier = currentTier === '3K' || currentTier === '4K'
-    const imageCount = isMaxTier ? 1 : IMAGE_COUNTS[countIndex].value
-
-    const pagedHistory = history.slice(
-      (historyPage - 1) * PAGE_SIZE,
-      historyPage * PAGE_SIZE
-    )
-    const historyTotalPages = Math.ceil(history.length / PAGE_SIZE)
-
-    useEffect(() => {
-      const savedHistory = getStorage<ImageHistoryItem[]>(STORAGE_KEYS.IMAGE_HISTORY)
-      if (savedHistory) {
-        // 上次会话遗留的「生成中」记录统一标记为已中断
-        const fixed = normalizeHistoryOnLoad(savedHistory)
-        setHistory(fixed)
-        saveHistoryRef.current?.(fixed)
-      }
-    }, [])
-
-    // saveHistory 的 ref 化，供初始化 effect 使用
-    const saveHistoryRef = useRef<((items: ImageHistoryItem[]) => void) | null>(null)
-
     useEffect(() => {
       onLoadingChange(isLoading)
     }, [isLoading, onLoadingChange])
 
-    const saveHistory = useCallback((items: ImageHistoryItem[]) => {
-      setStorage(STORAGE_KEYS.IMAGE_HISTORY, items)
+    const currentModel = MODELS[modelIndex].value
+    const availableSizes = SIZES.filter(
+      (s) => !s.model || (Array.isArray(s.model) ? s.model.includes(currentModel) : s.model === currentModel)
+    )
+    const isTierModel = true // 当前仅 2.1/2.5，均为档位模型
+    const currentTier = availableSizes[sizeIndex]?.value || '2K'
+    const tierSizes = availableSizes.filter((s) => s.value === currentTier)
+    const isMaxTier = currentTier === '3K' || currentTier === '4K'
+    const imageCount = isMaxTier ? 1 : IMAGE_COUNTS[countIndex].value
+
+    const downloadSingleImage = useCallback((url: string, options?: { silent?: boolean }) => {
+      downloadFile(url, `agnes-ai-${Date.now()}.png`, options)
     }, [])
-    saveHistoryRef.current = saveHistory
-
-    /**
-     * 任务开始时立即写入一条「生成中」历史记录，
-     * 防止任务进行中切换 tab / 刷新页面导致任务无痕迹地丢失。
-     */
-    const startTaskRecord = useCallback(
-      (promptText: string, model: string, sizeVal: string, ratioVal: string | undefined, refImgs: string[]): string => {
-        const record: ImageHistoryItem = {
-          id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-          url: '',
-          urls: [],
-          prompt: promptText,
-          model,
-          size: sizeVal,
-          ratio: ratioVal,
-          refImageUrls: refImgs,
-          time: Date.now(),
-          responseData: null,
-          status: 'generating'
-        }
-        setHistory((prev) => {
-          const updated = [record, ...prev].slice(0, 50)
-          saveHistory(updated)
-          return updated
-        })
-        return record.id
-      },
-      [saveHistory]
-    )
-
-    /** 任务结束后回写详细结果（成功 / 失败 / 中断） */
-    const finishTaskRecord = useCallback(
-      (id: string, patch: Partial<ImageHistoryItem>) => {
-        setHistory((prev) => {
-          const updated = prev.map((it) => (it.id === id ? { ...it, ...patch } : it))
-          saveHistory(updated)
-          return updated
-        })
-      },
-      [saveHistory]
-    )
 
     const handleGenerate = useCallback(() => {
       if (isLoading) return
-      if (!apiKey.trim()) {
-        onError('请输入 API Key')
-        return
-      }
-      if (!prompt.trim()) {
-        onError('请输入提示词')
-        return
-      }
+      if (!apiKey.trim()) { onError('请输入 API Key'); return }
+      if (!prompt.trim()) { onError('请输入提示词'); return }
 
       setStorage(STORAGE_KEYS.API_KEY, apiKey.trim())
       setIsLoading(true)
@@ -166,13 +105,22 @@ const ImageGenerate = forwardRef<ImageGenerateHandle, ImageGenerateProps>(
       const size = sizeItem.value
       const ratio = sizeItem.ratio
 
-      // 请求发起后立即记录一条「生成中」历史
-      const taskRecordId = startTaskRecord(prompt.trim(), model, size, ratio, refImageUrls)
+      const taskRecordId = historyCtrl.startTaskRecord({
+        url: '',
+        urls: [],
+        prompt: prompt.trim(),
+        model,
+        size,
+        ratio,
+        refImageUrls,
+        responseData: null
+      } as unknown as Omit<ImageHistoryItem, 'id' | 'time' | 'status'>)
 
       const errorMessages: string[] = []
+      const expected = imageCount
 
       const sendRequest = (i: number) => {
-        if (i >= imageCount) return
+        if (i >= expected) return
         const request = generateImage(apiKey.trim(), prompt.trim(), model, size, refImageUrls, 1, ratio)
         requestsRef.current.push(request)
 
@@ -195,42 +143,38 @@ const ImageGenerate = forwardRef<ImageGenerateHandle, ImageGenerateProps>(
           .catch((err) => {
             const errMsg = err?.errMsg || err?.message || '请求超时或网络异常'
             errorMessages.push(errMsg)
-            if (!stopRequestedRef.current) {
-              onError(errMsg)
-            }
+            if (!stopRequestedRef.current) onError(errMsg)
           })
           .finally(() => {
             setCompletedCount((prev) => {
               const next = prev + 1
-              if (next >= imageCount) {
+              if (next >= expected) {
                 setIsLoading(false)
                 requestsRef.current = []
                 setImageUrls((currentUrls) => {
                   const detail = errorMessages.length > 0 ? [...new Set(errorMessages)].join('；') : ''
                   if (currentUrls.length === 0) {
-                    // 全部失败 / 被手动终止：回写失败或中断记录
                     const wasStopped = stopRequestedRef.current
                     const reason = wasStopped
                       ? '已手动终止'
                       : '所有图片生成均失败' + (detail ? '：' + detail : '')
-                    finishTaskRecord(taskRecordId, {
-                      status: wasStopped ? 'interrupted' : 'failed',
-                      failReason: reason
-                    })
+                    historyCtrl.finishTaskRecord(taskRecordId, {
+                        status: wasStopped ? 'interrupted' : 'failed',
+                        failReason: reason
+                      } as Partial<ImageHistoryItem>)
                     if (!wasStopped) onError(reason)
                   } else {
-                    // 成功（含部分成功 / 手动终止后保留已完成图片）
                     const responseCopy = { data: currentUrls.map((u) => ({ url: u })) }
-                    finishTaskRecord(taskRecordId, {
-                      status: 'success',
-                      url: currentUrls[0],
-                      urls: currentUrls.slice(),
-                      responseData: stopRequestedRef.current
-                        ? { ...responseCopy, note: `已手动终止，保留已完成 ${currentUrls.length} 张` }
-                        : responseCopy
-                    })
+                    historyCtrl.finishTaskRecord(taskRecordId, {
+                        status: 'success',
+                        url: currentUrls[0],
+                        urls: currentUrls.slice(),
+                        responseData: stopRequestedRef.current
+                          ? { ...responseCopy, note: `已手动终止，保留已完成 ${currentUrls.length} 张` }
+                          : responseCopy
+                      } as Partial<ImageHistoryItem>)
                     if (detail) {
-                      onError(`部分图片生成失败（成功 ${currentUrls.length}/${imageCount}）：${detail}`)
+                      onError(`部分图片生成失败（成功 ${currentUrls.length}/${expected}）：${detail}`)
                     }
                   }
                   return currentUrls
@@ -242,10 +186,10 @@ const ImageGenerate = forwardRef<ImageGenerateHandle, ImageGenerateProps>(
       }
 
       sendRequest(0)
-      for (let i = 1; i < imageCount; i++) {
+      for (let i = 1; i < expected; i++) {
         setTimeout(() => sendRequest(i), i * 5000)
       }
-    }, [isLoading, apiKey, prompt, imageCount, modelIndex, sizeIndex, availableSizes, refImageUrls, onError, startTaskRecord, finishTaskRecord])
+    }, [isLoading, apiKey, prompt, imageCount, modelIndex, sizeIndex, availableSizes, refImageUrls, onError, historyCtrl])
 
     const stopImageGenerate = useCallback(() => {
       stopRequestedRef.current = true
@@ -260,16 +204,11 @@ const ImageGenerate = forwardRef<ImageGenerateHandle, ImageGenerateProps>(
       Notification[ok ? 'success' : 'error'](ok ? '已复制提示词' : '复制失败')
     }, [prompt])
 
-    const downloadSingleImage = useCallback((url: string, options?: { silent?: boolean }) => {
-      downloadFile(url, `agnes-ai-${Date.now()}.png`, options)
-    }, [])
-
     const handleDownload = useCallback(() => {
       if (imageUrls.length > 0) downloadSingleImage(imageUrls[0])
     }, [imageUrls, downloadSingleImage])
 
     const handleDownloadAll = useCallback(() => {
-      // 批量下载走静默模式，避免连环弹窗，最后统一提示
       imageUrls.forEach((url, idx) => {
         setTimeout(() => downloadSingleImage(url, { silent: true }), idx * 500)
       })
@@ -282,15 +221,15 @@ const ImageGenerate = forwardRef<ImageGenerateHandle, ImageGenerateProps>(
       Notification[ok ? 'success' : 'error'](ok ? '已复制图片地址' : '复制失败')
     }, [imageUrls])
 
-const resetImage = useCallback(() => {
-setImageUrls([])
-setSelectedImageIndexes([])
-setIsSelectMode(false)
-setPrompt('')
-setRefImageInput('')
-setRefImageUrls([])
-onError('')
-}, [onError])
+    const resetImage = useCallback(() => {
+      setImageUrls([])
+      setSelectedImageIndexes([])
+      setIsSelectMode(false)
+      setPrompt('')
+      setRefImageInput('')
+      setRefImageUrls([])
+      onError('')
+    }, [onError])
 
     const toggleSelectMode = useCallback(() => {
       setIsSelectMode((prev) => {
@@ -333,6 +272,7 @@ onError('')
       setSelectedImageIndexes([])
     }, [selectedImageIndexes, imageUrls, downloadSingleImage])
 
+
     const addRefImageUrl = useCallback(() => {
       const safe = refImageInput.replace(/[^a-zA-Z0-9\-._~:/?#@!$&'()*+,;=%]/g, '')
       const match = safe.match(/https?:\/\/[a-zA-Z0-9\-._~:/?#@!$&'()*+,;=%]+/)
@@ -353,16 +293,15 @@ onError('')
         const url = await uploadToImgbb(file)
         setRefImageUrls((prev) => [...prev, url])
         Notification.success('上传成功')
-    } catch {
-      // URL 上传失败时，转 JPEG Data URI（自动处理 HEIC 等格式）
-      try {
-        const dataUri = await fileToJpegDataUri(file)
-        setRefImageUrls((prev) => [...prev, dataUri])
-        Notification.warning('URL 上传失败，已转用本地图片')
       } catch {
-        Notification.error('图片格式不支持，请使用 JPG 或 PNG 格式')
+        try {
+          const dataUri = await fileToJpegDataUri(file)
+          setRefImageUrls((prev) => [...prev, dataUri])
+          Notification.warning('URL 上传失败，已转用本地图片')
+        } catch {
+          Notification.error('图片格式不支持，请使用 JPG 或 PNG 格式')
+        }
       }
-    }
       e.target.value = ''
     }, [])
 
@@ -370,131 +309,6 @@ onError('')
       setRefImageUrls((prev) => prev.filter((_, i) => i !== index))
     }, [])
 
-    const deleteHistory = useCallback(
-      (id: string) => {
-        setHistory((prev) => {
-          const updated = prev.filter((item) => item.id !== id)
-          saveHistory(updated)
-          return updated
-        })
-      },
-      [saveHistory]
-    )
-
-    const clearHistory = useCallback(() => {
-      setHistory([])
-      setHistoryPage(1)
-      setHistoryJumpPage('')
-      saveHistory([])
-      Notification.success('已清空历史记录')
-    }, [saveHistory])
-
-    const jumpHistoryPage = useCallback(() => {
-      const page = parseInt(historyJumpPage)
-      if (isNaN(page) || page < 1 || page > historyTotalPages) {
-        Notification.warning('请输入有效页码')
-        return
-      }
-      setHistoryPage(page)
-      setHistoryJumpPage('')
-    }, [historyJumpPage, historyTotalPages])
-
-
-    const showDetail = useCallback((item: ImageHistoryItem) => {
-      setDetailItem(item)
-      setIsDetailSelectMode(false)
-      setDetailSelectedIndexes([])
-    }, [])
-
-    const usePrompt = useCallback(() => {
-      if (!detailItem) return
-      setPrompt(detailItem.prompt)
-      if (detailItem.model) {
-        const idx = MODELS.findIndex((m) => m.value === detailItem.model)
-        if (idx >= 0) setModelIndex(idx)
-      }
-      if (detailItem.size) {
-        // 同时匹配 size 和 ratio（档位式尺寸可能有多个相同 value）
-        const idx = availableSizes.findIndex(
-          (s) => s.value === detailItem.size &&
-                 (s.ratio || '') === (detailItem.ratio || '')
-        )
-        if (idx >= 0) setSizeIndex(idx)
-      }
-      setRefImageUrls(detailItem.refImageUrls || [])
-      setDetailItem(null)
-      window.scrollTo({ top: 0, behavior: 'smooth' })
-    }, [detailItem, availableSizes])
-
-    const downloadDetailImage = useCallback(() => {
-      if (!detailItem) return
-      const urls = detailItem.urls || [detailItem.url]
-      urls.forEach((url, idx) => {
-        setTimeout(() => downloadSingleImage(url), idx * 500)
-      })
-    }, [detailItem, downloadSingleImage])
-
-    const copyDetailPrompt = useCallback(async () => {
-      if (!detailItem?.prompt) return
-      const ok = await copyToClipboard(detailItem.prompt)
-      Notification[ok ? 'success' : 'error'](ok ? '已复制提示词' : '复制失败')
-    }, [detailItem])
-
-    const toggleDetailSelectMode = useCallback(() => {
-      setIsDetailSelectMode((prev) => {
-        if (prev) setDetailSelectedIndexes([])
-        return !prev
-      })
-    }, [])
-
-    const onDetailGridClick = useCallback(
-      (idx: number) => {
-        if (isDetailSelectMode) {
-          setDetailSelectedIndexes((prev) =>
-            prev.includes(idx) ? prev.filter((i) => i !== idx) : [...prev, idx]
-          )
-        } else if (detailItem) {
-          const urls = detailItem.urls || [detailItem.url]
-          setPreviewImages(urls.length > 1 ? urls : undefined)
-          setPreviewIndex(idx)
-          setPreviewSrc(urls[idx])
-        }
-      },
-      [isDetailSelectMode, detailItem]
-    )
-
-    const detailSelectAll = useCallback(() => {
-      if (!detailItem?.urls) return
-      setDetailSelectedIndexes((prev) =>
-        prev.length === detailItem.urls.length ? [] : detailItem.urls!.map((_, i) => i)
-      )
-    }, [detailItem])
-
-    const downloadDetailSelected = useCallback(() => {
-      if (!detailItem?.urls || detailSelectedIndexes.length === 0) {
-        Notification.warning('请先选择图片')
-        return
-      }
-      detailSelectedIndexes.forEach((idx, i) => {
-        setTimeout(() => downloadSingleImage(detailItem.urls![idx], { silent: true }), i * 500)
-      })
-      Notification.success(`已发起批量下载，共 ${detailSelectedIndexes.length} 个文件`)
-      setIsDetailSelectMode(false)
-      setDetailSelectedIndexes([])
-    }, [detailItem, detailSelectedIndexes, downloadSingleImage])
-
-    const copyDetailSelectedUrls = useCallback(async () => {
-      if (!detailItem?.urls) return
-      const urls = detailSelectedIndexes
-        .map((i) => detailItem.urls![i])
-        .filter((u) => u && !u.startsWith('data:'))
-      if (urls.length === 0) {
-        Notification.warning('无有效地址')
-        return
-      }
-      const ok = await copyToClipboard(urls.join(';'))
-      Notification[ok ? 'success' : 'error'](ok ? `已复制${urls.length}个地址` : '复制失败')
-    }, [detailItem, detailSelectedIndexes])
 
     return (
       <div>
@@ -506,7 +320,6 @@ onError('')
           onChange={handleFileUpload}
         />
 
-        {/* 模型选择 */}
         <div className="agnes-form-group">
           <div className="agnes-label-row">
             <span className="agnes-label-icon">⚙️</span>
@@ -515,101 +328,65 @@ onError('')
           </div>
           <Select
             value={String(modelIndex)}
-            onChange={(key) => {
-              setModelIndex(Number(key))
-              setSizeIndex(0)
-            }}
+            onChange={(key) => { setModelIndex(Number(key)); setSizeIndex(0) }}
             options={MODELS.map((m, i) => ({ key: String(i), label: m.label }))}
             placeholder="选择模型"
           />
         </div>
 
-        {/* 尺寸与数量 */}
-        {isTierModel ? (
-          <div className="agnes-form-group">
-            <div className="agnes-label-row">
-              <span className="agnes-label-icon">📐</span>
-              <span className="agnes-label-text">尺寸</span>
-              <span className="agnes-label-required">*</span>
+        <div className="agnes-form-group">
+          <div className="agnes-label-row">
+            <span className="agnes-label-icon">📐</span>
+            <span className="agnes-label-text">尺寸</span>
+            <span className="agnes-label-required">*</span>
+          </div>
+          <div className="agnes-size-picker-21">
+            <div className="agnes-tier-row">
+              {TIERS.map((tier) => (
+                <button
+                  key={tier}
+                  className={`agnes-tier-btn ${currentTier === tier ? 'agnes-tier-btn-active' : ''}`}
+                  onClick={() => {
+                    const idx = availableSizes.findIndex((s) => s.value === tier)
+                    if (idx >= 0) setSizeIndex(idx)
+                    if (tier === '3K' || tier === '4K') setCountIndex(0)
+                  }}
+                >
+                  {tier}
+                </button>
+              ))}
             </div>
-            {/* 2.1 / 2.5 Flash：档位 + 宽高比滑动选择 */}
-            <div className="agnes-size-picker-21">
-              <div className="agnes-tier-row">
-                {TIERS_21.map((tier) => (
-                  <button
-                    key={tier}
-                    className={`agnes-tier-btn ${currentTier === tier ? 'agnes-tier-btn-active' : ''}`}
-                    onClick={() => {
-                      const idx = availableSizes.findIndex((s) => s.value === tier)
-                      if (idx >= 0) setSizeIndex(idx)
-                      // 切换到 3K/4K 档位时强制数量为 1 张
-                      if (tier === '3K' || tier === '4K') setCountIndex(0)
-                    }}
+            <div className="agnes-ratio-scroll">
+              {tierSizes.map((s) => {
+                const idx = availableSizes.indexOf(s)
+                const isActive = idx === sizeIndex
+                const [rw, rh] = (s.ratio || '1:1').split(':').map(Number)
+                const maxDim = 30
+                const previewW = rw >= rh ? maxDim : Math.round((rw / rh) * maxDim)
+                const previewH = rh >= rw ? maxDim : Math.round((rh / rw) * maxDim)
+                return (
+                  <div
+                    key={s.ratio}
+                    className={`agnes-ratio-item ${isActive ? 'agnes-ratio-item-active' : ''}`}
+                    onClick={() => setSizeIndex(idx)}
                   >
-                    {tier}
-                  </button>
-                ))}
-              </div>
-              <div className="agnes-ratio-scroll">
-                {tierSizes.map((s) => {
-                  const idx = availableSizes.indexOf(s)
-                  const isActive = idx === sizeIndex
-                  const [rw, rh] = (s.ratio || '1:1').split(':').map(Number)
-                  const maxDim = 30
-                  const previewW = rw >= rh ? maxDim : Math.round((rw / rh) * maxDim)
-                  const previewH = rh >= rw ? maxDim : Math.round((rh / rw) * maxDim)
-                  return (
-                    <div
-                      key={s.ratio}
-                      className={`agnes-ratio-item ${isActive ? 'agnes-ratio-item-active' : ''}`}
-                      onClick={() => setSizeIndex(idx)}
-                    >
-                      <div className="agnes-ratio-preview-wrap">
-                        <div
-                          className="agnes-ratio-preview"
-                          style={{ width: `${previewW}px`, height: `${previewH}px` }}
-                        />
-                      </div>
-                      <div className="agnes-ratio-info">
-                        <span className="agnes-ratio-label">{s.ratio}</span>
-                        <span className="agnes-ratio-pixels">{s.label.split(' ').pop()?.replace(/[（）]/g, '')}</span>
-                      </div>
+                    <div className="agnes-ratio-preview-wrap">
+                      <div
+                        className="agnes-ratio-preview"
+                        style={{ width: `${previewW}px`, height: `${previewH}px` }}
+                      />
                     </div>
-                  )
-                })}
-              </div>
+                    <div className="agnes-ratio-info">
+                      <span className="agnes-ratio-label">{s.ratio}</span>
+                      <span className="agnes-ratio-pixels">{s.label.split(' ').pop()?.replace(/[（）]/g, '')}</span>
+                    </div>
+                  </div>
+                )
+              })}
             </div>
-          </div>
-        ) : (
-        <div className="agnes-form-row">
-          <div className="agnes-form-group">
-            <div className="agnes-label-row">
-              <span className="agnes-label-icon">📐</span>
-              <span className="agnes-label-text">尺寸</span>
-              <span className="agnes-label-required">*</span>
-            </div>
-            <Select
-              value={String(sizeIndex)}
-              onChange={(key) => setSizeIndex(Number(key))}
-              options={availableSizes.map((s, i) => ({ key: String(i), label: s.label }))}
-              placeholder="选择尺寸"
-            />
-          </div>
-          <div className="agnes-form-group">
-            <div className="agnes-label-row">
-              <span className="agnes-label-icon">🔢</span>
-              <span className="agnes-label-text">数量</span>
-            </div>
-            <Select
-              value={String(countIndex)}
-              onChange={(key) => setCountIndex(Number(key))}
-              options={IMAGE_COUNTS.map((c, i) => ({ key: String(i), label: c.label }))}
-              placeholder="选择数量"
-            />
           </div>
         </div>
-        )}
-        {/* 2.1 / 2.5 模型时数量单独一行 */}
+
         {isTierModel && (
           <div className="agnes-form-group">
             <div className="agnes-label-row">
@@ -627,7 +404,6 @@ onError('')
           </div>
         )}
 
-        {/* 提示词 */}
         <div className="agnes-form-group">
           <div className="agnes-label-row">
             <span className="agnes-label-icon">✨</span>
@@ -648,7 +424,6 @@ onError('')
           />
         </div>
 
-        {/* 参考图 */}
         <div className="agnes-form-group">
           <div className="agnes-label-row">
             <span className="agnes-label-icon">🖼️</span>
@@ -656,9 +431,9 @@ onError('')
             <span className="agnes-label-optional">可选，支持多张</span>
           </div>
           <div className="agnes-ref-input-row">
-          <input
-            className="agnes-textarea agnes-ref-input"
-            value={refImageInput}
+            <input
+              className="agnes-textarea agnes-ref-input"
+              value={refImageInput}
               onChange={(e) => setRefImageInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && addRefImageUrl()}
               placeholder="输入图片 URL 后点击添加"
@@ -679,7 +454,6 @@ onError('')
           )}
         </div>
 
-        {/* 生成按钮 */}
         <div className="agnes-generate-btn-wrapper">
           <Button
             type="primary"
@@ -689,16 +463,12 @@ onError('')
             disabled={isLoading}
             onClick={handleGenerate}
           >
-            {isLoading ? '生成中...' : `✦ 生成图片${imageCount > 1 ? ' ×' + imageCount : ''}`}
+            {isLoading ? '生成中...' : '✦ 生成图片' + (imageCount > 1 ? ' ×' + imageCount : '')}
           </Button>
         </div>
 
-        {/* 错误提示 */}
-        {errorMsg && (
-          <div className="agnes-error-box">{errorMsg}</div>
-        )}
+        {errorMsg && <div className="agnes-error-box">{errorMsg}</div>}
 
-        {/* 加载状态 */}
         {isLoading && (
           <div className="agnes-loading-box">
             <div className="agnes-spinner" />
@@ -724,7 +494,6 @@ onError('')
           </div>
         )}
 
-        {/* 图片展示区 */}
         {imageUrls.length > 0 && (
           <div className="agnes-result-box">
             <div className="agnes-result-header">
@@ -761,7 +530,6 @@ onError('')
               </div>
             )}
 
-            {/* 选择模式操作栏 */}
             {isSelectMode && imageUrls.length > 1 && (
               <div className="agnes-select-actions">
                 <Button onClick={selectAllImages}>
@@ -773,7 +541,6 @@ onError('')
               </div>
             )}
 
-            {/* 普通操作栏 */}
             {!isSelectMode && (
               <div className="agnes-result-actions">
                 {imageUrls.length > 1 && (
@@ -803,34 +570,32 @@ onError('')
           </div>
         )}
 
-        {/* 历史记录 */}
-        {history.length > 0 && (
+        {historyCtrl.history.length > 0 && (
           <div className="agnes-history-box">
-            <div className="agnes-history-header">
+            <div className="agnes-header-row">
               <span className="agnes-history-title">📋 图片历史</span>
-              <Button size="small" type="dashed" danger onClick={clearHistory}>
+              <Button size="small" type="dashed" danger onClick={() => { historyCtrl.clearHistory(); paging.reset() }}>
                 清空
               </Button>
             </div>
             <div className="agnes-history-list">
-              {pagedHistory.map((item) => (
-                <div className="agnes-history-item" key={item.id}>
+              {paging.pagedItems.map((item) => (
+                <div
+                  className="agnes-history-item"
+                  key={item.id}
+                  onClick={() => setDetailRecord(item)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setDetailRecord(item) } }}
+                >
                   {item.url || (item.urls && item.urls.length > 0) ? (
-                    <img
-                      className="agnes-history-thumb"
-                      src={item.url || item.urls![0]}
-                      alt="thumb"
-
-                    />
+                    <img className="agnes-history-thumb" src={item.url || item.urls![0]} alt="thumb" />
                   ) : (
-                    <div
-                      className="agnes-history-thumb agnes-history-thumb-placeholder"
-                      onClick={() => (item.status === 'generating' ? Notification.warning('任务仍在生成中...') : undefined)}
-                    >
+                    <div className="agnes-history-thumb agnes-history-thumb-placeholder">
                       {item.status === 'generating' ? '⏳' : '⛔'}
                     </div>
                   )}
-                  <div className="agnes-history-info" onClick={() => showDetail(item)}>
+                  <div className="agnes-history-info">
                     <div className="agnes-history-prompt">{truncateText(item.prompt, 30)}</div>
                     <div className="agnes-history-tags">
                       {item.status === 'generating' && <span className="agnes-history-tag">⏳ 生成中</span>}
@@ -848,170 +613,38 @@ onError('')
                     </div>
                     <div className="agnes-history-meta">{formatTime(item.time)}</div>
                   </div>
-                  <div className="agnes-history-delete-btn" onClick={() => deleteHistory(item.id)}>
-                    ✕
-                  </div>
+                  <div
+                    className="agnes-history-delete-btn"
+                    onClick={(e) => { e.stopPropagation(); historyCtrl.deleteHistory(item.id) }}
+                  >✕</div>
                 </div>
               ))}
             </div>
-
-            {/* 分页 */}
-            {historyTotalPages > 1 && (
-              <div className="agnes-history-pagination">
-                <Button size="small" disabled={historyPage <= 1} onClick={() => setHistoryPage(1)}>
-                  首页
-                </Button>
-                <Button size="small" disabled={historyPage <= 1} onClick={() => setHistoryPage((p) => p - 1)}>
-                  上一页
-                </Button>
-                <span className="agnes-page-info">{historyPage} / {historyTotalPages}</span>
-                <Button size="small" disabled={historyPage >= historyTotalPages} onClick={() => setHistoryPage((p) => p + 1)}>
-                  下一页
-                </Button>
-                <Button size="small" disabled={historyPage >= historyTotalPages} onClick={() => setHistoryPage(historyTotalPages)}>
-                  尾页
-                </Button>
-                {historyTotalPages > 3 && (
-                  <div className="agnes-page-jump">
-                    <input
-                      className="agnes-page-jump-input"
-                      type="number"
-                      value={historyJumpPage}
-                      maxLength={4}
-                      placeholder="页码"
-                      onChange={(e) => setHistoryJumpPage(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && jumpHistoryPage()}
-                    />
-                    <Button size="small" onClick={jumpHistoryPage}>跳转</Button>
-                  </div>
-                )}
-              </div>
-            )}
+            <HistoryPagination
+              page={paging.page}
+              totalPages={paging.totalPages}
+              jumpInput={paging.jumpInput}
+              onJumpInputChange={paging.setJumpInput}
+              onFirst={paging.goFirst}
+              onPrev={paging.goPrev}
+              onNext={paging.goNext}
+              onLast={paging.goLast}
+              onJump={paging.jumpTo}
+            />
           </div>
         )}
 
-        {/* 详情弹窗 */}
-        <Modal
-          open={!!detailItem}
-          title={
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-              <span>图片记录详情</span>
-              <button className="agnes-modal-close-btn" onClick={() => setDetailItem(null)}>✕</button>
-            </div>
-          }
-          onClose={() => setDetailItem(null)}
-          typewriter={false}
-          footer={null}
-          width={520}
-        >
-          {detailItem && (
-            <div className="agnes-detail-popup-body">
-              {detailItem.urls && detailItem.urls.length > 1 ? (
-                <div className="agnes-detail-grid">
-                  {detailItem.urls.map((u, idx) => (
-                    <div className="agnes-detail-grid-item" key={idx} onClick={() => onDetailGridClick(idx)}>
-                      <img className="agnes-detail-grid-image" src={u} alt={`detail-${idx}`} />
-                      {isDetailSelectMode && (
-                        <div className={`agnes-detail-grid-check ${detailSelectedIndexes.includes(idx) ? 'agnes-detail-grid-checked' : ''}`}>
-                          {detailSelectedIndexes.includes(idx) ? '✓' : ''}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <img className="agnes-detail-image" src={detailItem.url} alt="detail" />
-              )}
-
-              <div className="agnes-detail-field agnes-detail-prompt-field">
-                <div className="agnes-detail-prompt-header">
-                  <span className="agnes-detail-label">提示词：</span>
-                  <Button size="small" onClick={copyDetailPrompt}>复制</Button>
-                </div>
-                <div className="agnes-detail-value agnes-detail-value-long">{detailItem.prompt}</div>
-              </div>
-
-              <div className="agnes-detail-field">
-                <span className="agnes-detail-label">模型：</span>
-                <span className="agnes-detail-value">{detailItem.model}</span>
-              </div>
-              <div className="agnes-detail-field">
-                <span className="agnes-detail-label">尺寸：</span>
-                <span className="agnes-detail-value">
-                  {detailItem.size}{detailItem.ratio ? ` (${detailItem.ratio})` : ''}
-                  {(() => {
-                    const o = getOrientation(detailItem.size, detailItem.ratio)
-                    return o ? <span className={`agnes-orientation-badge agnes-orientation-${o}`} style={{ marginLeft: 8 }}>{ORIENTATION_LABELS[o].icon} {ORIENTATION_LABELS[o].text}</span> : null
-                  })()}
-                </span>
-              </div>
-              {detailItem.urls && detailItem.urls.length > 1 && (
-                <div className="agnes-detail-field">
-                  <span className="agnes-detail-label">数量：</span>
-                  <span className="agnes-detail-value">{detailItem.urls.length} 张</span>
-                </div>
-              )}
-              {detailItem.refImageUrls && detailItem.refImageUrls.length > 0 && (
-                <div className="agnes-detail-field">
-                  <span className="agnes-detail-label">参考图：</span>
-                  <div className="agnes-detail-ref-image-list">
-                    {detailItem.refImageUrls.map((url, idx) => (
-                      <img
-                        key={idx}
-                        className="agnes-detail-ref-image"
-                        src={url}
-                        alt={`ref-${idx}`}
-                        onClick={() => setPreviewSrc(url)}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
-              <div className="agnes-detail-field">
-                <span className="agnes-detail-label">生成时间：</span>
-                <span className="agnes-detail-value">{formatTime(detailItem.time)}</span>
-              </div>
-
-              {!!detailItem.responseData && (
-                <div className="agnes-detail-section">
-                  <div className="agnes-detail-section-title">接口返回数据</div>
-                  <div className="agnes-detail-json-area">
-                    {formatResponseData(detailItem.responseData)}
-                  </div>
-                </div>
-              )}
-
-            {/* 操作按钮 */}
-            <div className="agnes-detail-actions">
-              <Button type="primary" onClick={usePrompt}>使用此提示词</Button>
-                {!isDetailSelectMode && (
-                  <Button onClick={downloadDetailImage}>
-                    {detailItem.urls && detailItem.urls.length > 1 ? '全部下载' : '下载图片'}
-                  </Button>
-                )}
-                {isDetailSelectMode && (
-                  <>
-                    <Button onClick={detailSelectAll}>
-                      {detailItem.urls && detailSelectedIndexes.length === detailItem.urls.length ? '取消全选' : '全选'}
-                    </Button>
-                    <Button type="primary" onClick={downloadDetailSelected}>
-                      下载选中（{detailSelectedIndexes.length}）
-                    </Button>
-                    <Button onClick={copyDetailSelectedUrls}>复制选中地址</Button>
-                    <Button onClick={() => { setIsDetailSelectMode(false); setDetailSelectedIndexes([]) }}>
-                      取消选择
-                    </Button>
-                  </>
-                )}
-                {!isDetailSelectMode && detailItem.urls && detailItem.urls.length > 1 && (
-                  <Button onClick={toggleDetailSelectMode}>选择下载/复制地址</Button>
-                )}
-              </div>
-            </div>
-          )}
-        </Modal>
-
-      <ImagePreview src={previewSrc} images={previewImages} initialIndex={previewIndex} onClose={() => setPreviewSrc('')} />
+      <ImagePreview
+        src={previewSrc}
+        images={previewImages}
+        initialIndex={previewIndex}
+        onClose={() => setPreviewSrc('')}
+      />
+      <HistoryDetail
+        record={detailRecord}
+        recordType={'image' as HistoryRecordType}
+        onClose={() => setDetailRecord(null)}
+      />
       </div>
     )
   }

@@ -26,7 +26,7 @@ export const API_PATHS = {
 
 /** 模型配置 */
 export const MODELS = [
-  { value: 'agnes-image-2.0-flash', label: 'Agnes Image 2.0 Flash' },
+
   { value: 'agnes-image-2.1-flash', label: 'Agnes Image 2.1 Flash' },
   { value: 'agnes-image-2.5-flash', label: 'Agnes Image 2.5 Flash' }
 ] as const
@@ -43,19 +43,9 @@ export interface SizeItem {
 }
 
 /** 图片尺寸配置
- * 2.0 模型使用精确尺寸（如 1024x1024）
  * 2.1 / 2.5 模型使用档位+宽高比（如 size="2K" ratio="16:9"），输出更可预期
  */
 export const SIZES: SizeItem[] = [
-  // ===== 2.0 Flash 精确尺寸 =====
-  { value: '720x1280', label: '720×1280 竖屏（9:16）📱 竖屏' },
-  { value: '1280x720', label: '1280×720 横屏（16:9）📺 横屏' },
-  { value: '1024x1024', label: '1024×1024 （1:1）方形 ⬛ 方形' },
-  { value: '512x512', label: '512×512 (小方形) ⬛ 方形' },
-  { value: '768x1344', label: '768×1344 (竖屏) 📱 竖屏' },
-  { value: '1344x768', label: '1344×768 (横屏) 📺 横屏' },
-  { value: '1792x1024', label: '1792×1024 横屏（最大横版）📺 横屏' },
-  { value: '1024x1792', label: '1024×1792 竖屏（最大竖版）📱 竖屏' },
   // ===== 2.1 / 2.5 Flash 档位 + 宽高比 =====
   // 1K 档位
   { value: '1K', ratio: '1:1', label: '1K 1024×1024（1:1）⬛ 方形', model: ['agnes-image-2.1-flash', 'agnes-image-2.5-flash'] },

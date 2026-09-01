@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Button, Select, Modal, Notification } from 'animal-island-ui'
+import { Button, Select, Notification } from 'animal-island-ui'
 import {
   VIDEO_FLASH_MODES,
   VIDEO_FLASH_ASPECT_RATIOS,
@@ -10,18 +10,19 @@ import {
 import { createVideoTaskFlash, queryVideoTaskFlash, uploadToImgbb } from '../services/api'
 import type { RequestResult, ApiResponse, VideoFlashMode, VideoFlashHistoryItem } from '../types'
 import {
-  getStorage,
-  setStorage,
   copyToClipboard,
   downloadFile,
   formatTime,
   truncateText,
-  formatResponseData,
   fileToJpegDataUri,
-  normalizeHistoryOnLoad,
   getOrientationFromRatio,
   ORIENTATION_LABELS
 } from '../utils/helpers'
+import { useHistoryPagination } from '../hooks/useHistoryPagination'
+import { useHistory } from '../hooks/useHistory'
+import HistoryPagination from './HistoryPagination'
+import HistoryDetail from './HistoryDetail'
+import type { HistoryRecordType } from './HistoryDetail'
 import ImagePreview from './ImagePreview'
 
 interface VideoGenerateFlashProps {
@@ -32,6 +33,7 @@ interface VideoGenerateFlashProps {
 }
 
 const PAGE_SIZE = 10
+const POLL_TIMEOUT_MS = 30 * 60 * 1000
 
 export default function VideoGenerateFlash({ apiKey, errorMsg, onError, onLoadingChange }: VideoGenerateFlashProps) {
   const [modeIndex, setModeIndex] = useState(0)
@@ -45,148 +47,76 @@ export default function VideoGenerateFlash({ apiKey, errorMsg, onError, onLoadin
   const [audioInput, setAudioInput] = useState('')
   const [audioUrls, setAudioUrls] = useState<string[]>([])
   const [videoUrl, setVideoUrl] = useState('')
-  const [videoTaskId, setVideoTaskId] = useState('')
+  const [, setVideoTaskId] = useState('')
+
   const [videoStatus, setVideoStatus] = useState('')
   const [videoProgress, setVideoProgress] = useState(0)
   const [isLoading, setIsLoading] = useState(false)
-  const [history, setHistory] = useState<VideoFlashHistoryItem[]>([])
-  const [historyPage, setHistoryPage] = useState(1)
-  const [historyJumpPage, setHistoryJumpPage] = useState('')
-  const [detailItem, setDetailItem] = useState<VideoFlashHistoryItem | null>(null)
   const [previewSrc, setPreviewSrc] = useState('')
+  const [detailRecord, setDetailRecord] = useState<VideoFlashHistoryItem | null>(null)
 
   const requestRef = useRef<RequestResult<ApiResponse> | null>(null)
-  const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const pollStartedAtRef = useRef<number>(0)
   const firstFrameInputRef = useRef<HTMLInputElement>(null)
   const lastFrameInputRef = useRef<HTMLInputElement>(null)
   const refImageInputRef = useRef<HTMLInputElement>(null)
-  /** 当前进行中任务对应的历史记录 ID */
   const currentTaskRecordIdRef = useRef<string | null>(null)
-  /** saveHistory 的 ref 化，供初始化 effect 使用 */
-  const saveHistoryRef = useRef<((items: VideoFlashHistoryItem[]) => void) | null>(null)
 
   const mode = VIDEO_FLASH_MODES[modeIndex].value as VideoFlashMode
-  const pagedHistory = history.slice(
-    (historyPage - 1) * PAGE_SIZE,
-    historyPage * PAGE_SIZE
-  )
-  const historyTotalPages = Math.ceil(history.length / PAGE_SIZE)
 
-  useEffect(() => {
-    const savedHistory = getStorage<VideoFlashHistoryItem[]>(STORAGE_KEYS.VIDEO_HISTORY_FLASH)
-    if (savedHistory) {
-      // 上次会话遗留的「生成中」记录统一标记为已中断
-      const fixed = normalizeHistoryOnLoad(savedHistory)
-      setHistory(fixed)
-      saveHistoryRef.current?.(fixed)
-    }
-  }, [])
+  const historyCtrl = useHistory<VideoFlashHistoryItem>(STORAGE_KEYS.VIDEO_HISTORY_FLASH)
+  const paging = useHistoryPagination(historyCtrl.history, PAGE_SIZE)
 
   useEffect(() => {
     onLoadingChange(isLoading)
   }, [isLoading, onLoadingChange])
 
-  // 清理轮询定时器
   useEffect(() => {
     return () => {
-      if (pollTimerRef.current) {
-        clearInterval(pollTimerRef.current)
-        pollTimerRef.current = null
-      }
+      if (pollTimerRef.current) clearTimeout(pollTimerRef.current)
     }
   }, [])
 
-  const saveHistory = useCallback((items: VideoFlashHistoryItem[]) => {
-    setStorage(STORAGE_KEYS.VIDEO_HISTORY_FLASH, items)
-  }, [])
-  saveHistoryRef.current = saveHistory
-
-  /**
-   * 任务开始时立即写入一条「生成中」历史记录，
-   * 防止任务进行中切换 tab / 刷新页面导致任务无痕迹地丢失。
-   */
-  const startTaskRecord = useCallback(
-    (
-      promptText: string,
-      flashMode: VideoFlashMode,
-      seconds: string,
-      aspectRatio: string,
-      firstFrameUrl: string,
-      lastFrameUrl: string,
-      images: string[],
-      audios: string[],
-      mIndex: number,
-      aIndex: number,
-      dIndex: number
-    ): string => {
-      const record: VideoFlashHistoryItem = {
-        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        url: '',
-        prompt: promptText,
-        mode: flashMode,
-        seconds,
-        aspectRatio,
-        firstFrame: firstFrameUrl || undefined,
-        lastFrame: lastFrameUrl || undefined,
-        images,
-        audios,
-        modeIndex: mIndex,
-        aspectRatioIndex: aIndex,
-        durationIndex: dIndex,
-        time: Date.now(),
-        responseData: null,
-        status: 'generating'
-      }
-      setHistory((prev) => {
-        const updated = [record, ...prev].slice(0, 50)
-        saveHistory(updated)
-        return updated
-      })
-      return record.id
-    },
-    [saveHistory]
-  )
-
-  /** 任务结束后回写详细结果（成功 / 失败 / 中断） */
-  const finishTaskRecord = useCallback(
-    (id: string, patch: Partial<VideoFlashHistoryItem>) => {
-      setHistory((prev) => {
-        const updated = prev.map((it) => (it.id === id ? { ...it, ...patch } : it))
-        saveHistory(updated)
-        return updated
-      })
-    },
-    [saveHistory]
-  )
-
   const stopPolling = useCallback(() => {
     if (pollTimerRef.current) {
-      clearInterval(pollTimerRef.current)
+      clearTimeout(pollTimerRef.current)
       pollTimerRef.current = null
     }
   }, [])
 
   const startPolling = useCallback((videoId: string) => {
     stopPolling()
-    pollTimerRef.current = setInterval(() => {
+    pollStartedAtRef.current = Date.now()
+
+    const tick = () => {
       if (!videoId) return
+      if (Date.now() - pollStartedAtRef.current > POLL_TIMEOUT_MS) {
+        stopPolling()
+        setIsLoading(false)
+        const recordId = currentTaskRecordIdRef.current
+        currentTaskRecordIdRef.current = null
+        const reason = '轮询超时（30 分钟未完成）'
+        if (recordId) historyCtrl.finishTaskRecord(recordId, { status: 'failed', failReason: reason })
+        onError(reason)
+        return
+      }
+
       requestRef.current = queryVideoTaskFlash(apiKey.trim(), videoId)
       requestRef.current.promise
         .then((res) => {
           if (res.statusCode === 200) {
             const data = res.data as Record<string, unknown>
-            // 优先使用 status，回退到 internal_status
             const status = (data.status as string) || (data.internal_status as string) || ''
-            // 优先使用 progress，回退到 internal_progress
-            const progress =
-              (data.progress as number) ?? (data.internal_progress as number) ?? 0
+            const progress = (data.progress as number) ?? (data.internal_progress as number) ?? 0
             setVideoProgress(progress)
 
             if (status === 'completed') {
               stopPolling()
               setIsLoading(false)
-              // 视频地址在 remixed_from_video_id 字段
-              const rawUrl = String(data.remixed_from_video_id || data.url || '').trim()
+              // 视频地址位于 metadata.url，不再兼容 remixed_from_video_id 字段
+              const metadata = (data.metadata as Record<string, unknown>) || {}
+              const rawUrl = String(metadata.url || '').trim()
               const cleanUrl = rawUrl.replace(/^[\s`]+|[\s`]+$/g, '')
               const recordId = currentTaskRecordIdRef.current
               if (cleanUrl) {
@@ -196,29 +126,30 @@ export default function VideoGenerateFlash({ apiKey, errorMsg, onError, onLoadin
                 Notification.success('视频生成完成')
                 if (recordId) {
                   currentTaskRecordIdRef.current = null
-                  finishTaskRecord(recordId, { url: cleanUrl, responseData: data, status: 'success' })
+                  historyCtrl.finishTaskRecord(recordId, { url: cleanUrl, responseData: data, status: 'success' })
                 }
               } else {
                 onError('视频生成完成但未获取到视频地址')
                 if (recordId) {
                   currentTaskRecordIdRef.current = null
-                  finishTaskRecord(recordId, { status: 'failed', failReason: '任务完成但未获取到视频地址' })
+                  historyCtrl.finishTaskRecord(recordId, { status: 'failed', failReason: '任务完成但未获取到视频地址' })
                 }
               }
-            } else if (status === 'failed') {
+              return
+            }
+            if (status === 'failed') {
               stopPolling()
               setIsLoading(false)
-              const errMsg =
-                (data.error as string) ||
-                (data.error as { message?: string })?.message ||
-                '未知错误'
+              const errMsg = (data.error as string) || (data.error as { message?: string })?.message || '未知错误'
               onError('视频生成失败: ' + errMsg)
               const recordId = currentTaskRecordIdRef.current
               if (recordId) {
                 currentTaskRecordIdRef.current = null
-                finishTaskRecord(recordId, { status: 'failed', failReason: errMsg })
+                historyCtrl.finishTaskRecord(recordId, { status: 'failed', failReason: errMsg })
               }
-            } else if (status === 'in_progress' || status === 'processing') {
+              return
+            }
+            if (status === 'in_progress' || status === 'processing') {
               setVideoStatus(progress > 0 ? `生成中 ${progress}%` : '生成中...')
             } else if (status === 'queued' || status === 'pending') {
               setVideoStatus('排队中...')
@@ -227,24 +158,20 @@ export default function VideoGenerateFlash({ apiKey, errorMsg, onError, onLoadin
             }
           }
         })
-        .catch(() => {
-          // 轮询失败不中断，继续尝试
+        .catch(() => { /* ignore */ })
+        .finally(() => {
+          if (pollTimerRef.current) pollTimerRef.current = setTimeout(tick, 10000)
         })
-    }, 10000)
-  }, [apiKey, stopPolling, finishTaskRecord, onError])
+    }
+
+    pollTimerRef.current = setTimeout(tick, 0)
+  }, [apiKey, stopPolling, historyCtrl, onError])
 
   const handleGenerate = useCallback(() => {
     if (isLoading) return
-    if (!apiKey.trim()) {
-      onError('请输入 API Key')
-      return
-    }
-    if (!prompt.trim()) {
-      onError('请输入视频描述')
-      return
-    }
+    if (!apiKey.trim()) { onError('请输入 API Key'); return }
+    if (!prompt.trim()) { onError('请输入视频描述'); return }
 
-    // 模式专用校验
     if (mode === 'keyframe') {
       if (!firstFrame.trim() && !lastFrame.trim()) {
         onError('首尾帧模式需要至少提供首帧或尾帧图片 URL')
@@ -261,7 +188,7 @@ export default function VideoGenerateFlash({ apiKey, errorMsg, onError, onLoadin
       }
     }
 
-    setStorage(STORAGE_KEYS.API_KEY, apiKey.trim())
+
     onError('')
     setVideoUrl('')
     setVideoProgress(0)
@@ -271,20 +198,22 @@ export default function VideoGenerateFlash({ apiKey, errorMsg, onError, onLoadin
     const seconds = VIDEO_FLASH_DURATIONS[durationIndex].value
     const aspectRatio = VIDEO_FLASH_ASPECT_RATIOS[aspectRatioIndex].value
 
-    // 请求开始立即写入「生成中」历史记录，防止切换 tab 导致任务丢失
-    currentTaskRecordIdRef.current = startTaskRecord(
-      prompt.trim(),
+    const recordInput: Omit<VideoFlashHistoryItem, 'id' | 'time' | 'status'> = {
+      url: '',
+      prompt: prompt.trim(),
       mode,
       seconds,
       aspectRatio,
-      mode === 'keyframe' ? firstFrame.trim() : '',
-      mode === 'keyframe' ? lastFrame.trim() : '',
-      mode === 'reference' ? refImageUrls : [],
-      mode === 'reference' ? audioUrls : [],
+      firstFrame: mode === 'keyframe' ? firstFrame.trim() || undefined : undefined,
+      lastFrame: mode === 'keyframe' ? lastFrame.trim() || undefined : undefined,
+      images: mode === 'reference' ? refImageUrls : [],
+      audios: mode === 'reference' ? audioUrls : [],
       modeIndex,
       aspectRatioIndex,
-      durationIndex
-    )
+      durationIndex,
+      responseData: null
+    } as Omit<VideoFlashHistoryItem, 'id' | 'time' | 'status'>
+    currentTaskRecordIdRef.current = historyCtrl.startTaskRecord(recordInput)
 
     requestRef.current = createVideoTaskFlash(apiKey.trim(), {
       prompt: prompt.trim(),
@@ -312,7 +241,7 @@ export default function VideoGenerateFlash({ apiKey, errorMsg, onError, onLoadin
             onError('未获取到任务 ID')
             if (recordId) {
               currentTaskRecordIdRef.current = null
-              finishTaskRecord(recordId, { status: 'failed', failReason: '未获取到任务 ID' })
+              historyCtrl.finishTaskRecord(recordId, { status: 'failed', failReason: '未获取到任务 ID' })
             }
           }
         } else {
@@ -326,7 +255,7 @@ export default function VideoGenerateFlash({ apiKey, errorMsg, onError, onLoadin
           onError('创建视频任务失败: ' + errMsg)
           if (recordId) {
             currentTaskRecordIdRef.current = null
-            finishTaskRecord(recordId, { status: 'failed', failReason: errMsg })
+            historyCtrl.finishTaskRecord(recordId, { status: 'failed', failReason: errMsg })
           }
         }
       })
@@ -337,18 +266,14 @@ export default function VideoGenerateFlash({ apiKey, errorMsg, onError, onLoadin
         const recordId = currentTaskRecordIdRef.current
         currentTaskRecordIdRef.current = null
         if (recordId) {
-          finishTaskRecord(recordId, { status: 'failed', failReason: '网络请求失败' + (msg ? '：' + msg : '') })
+          historyCtrl.finishTaskRecord(recordId, { status: 'failed', failReason: '网络请求失败' + (msg ? '：' + msg : '') })
         }
       })
-  }, [isLoading, apiKey, prompt, mode, modeIndex, aspectRatioIndex, durationIndex, firstFrame, lastFrame, refImageUrls, audioUrls, onError, startPolling, startTaskRecord, finishTaskRecord])
+  }, [isLoading, apiKey, prompt, mode, modeIndex, aspectRatioIndex, durationIndex, firstFrame, lastFrame, refImageUrls, audioUrls, onError, startPolling, historyCtrl])
 
   const stopGenerate = useCallback(() => {
     if (requestRef.current) {
-      try {
-        requestRef.current.abort()
-      } catch {
-        // 忽略 abort 错误
-      }
+      try { requestRef.current.abort() } catch { /* ignore */ }
       requestRef.current = null
     }
     stopPolling()
@@ -357,10 +282,10 @@ export default function VideoGenerateFlash({ apiKey, errorMsg, onError, onLoadin
     const taskId = currentTaskRecordIdRef.current
     if (taskId) {
       currentTaskRecordIdRef.current = null
-      finishTaskRecord(taskId, { status: 'interrupted', failReason: '已手动终止' })
+      historyCtrl.finishTaskRecord(taskId, { status: 'interrupted', failReason: '已手动终止' })
     }
     onError('已终止生成')
-  }, [stopPolling, onError, finishTaskRecord])
+  }, [stopPolling, onError, historyCtrl])
 
   const handleCopyPrompt = useCallback(async () => {
     const ok = await copyToClipboard(prompt)
@@ -393,7 +318,6 @@ export default function VideoGenerateFlash({ apiKey, errorMsg, onError, onLoadin
     onError('')
   }, [stopPolling, onError])
 
-  /** 通用：清理 URL 输入 */
   const sanitizeUrl = useCallback((raw: string) => {
     const safe = raw.replace(/[^a-zA-Z0-9\-._~:/?#@!$&'()*+,;=%]/g, '')
     const match = safe.match(/https?:\/\/[a-zA-Z0-9\-._~:/?#@!$&'()*+,;=%]+/)
@@ -411,9 +335,7 @@ export default function VideoGenerateFlash({ apiKey, errorMsg, onError, onLoadin
     setRefImageInput('')
   }, [refImageInput, refImageUrls, sanitizeUrl])
 
-  const uploadRefImage = useCallback(() => {
-    refImageInputRef.current?.click()
-  }, [])
+  const uploadRefImage = useCallback(() => { refImageInputRef.current?.click() }, [])
 
   const handleRefImageUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -428,7 +350,6 @@ export default function VideoGenerateFlash({ apiKey, errorMsg, onError, onLoadin
       setRefImageUrls((prev) => [...prev, url])
       Notification.success('上传成功')
     } catch {
-      // URL 上传失败时，转 JPEG Data URI（自动处理 HEIC 等格式）
       try {
         const dataUri = await fileToJpegDataUri(file)
         setRefImageUrls((prev) => [...prev, dataUri])
@@ -444,11 +365,7 @@ export default function VideoGenerateFlash({ apiKey, errorMsg, onError, onLoadin
     setRefImageUrls((prev) => prev.filter((_, i) => i !== index))
   }, [])
 
-  /** 首帧/尾帧上传（keyframe 模式） */
-  const handleFrameUpload = useCallback(async (
-    e: React.ChangeEvent<HTMLInputElement>,
-    target: 'first' | 'last'
-  ) => {
+  const handleFrameUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>, target: 'first' | 'last') => {
     const file = e.target.files?.[0]
     if (!file) return
     try {
@@ -480,68 +397,6 @@ export default function VideoGenerateFlash({ apiKey, errorMsg, onError, onLoadin
     setAudioUrls((prev) => prev.filter((_, i) => i !== index))
   }, [])
 
-  const deleteHistory = useCallback(
-    (id: string) => {
-      setHistory((prev) => {
-        const updated = prev.filter((item) => item.id !== id)
-        saveHistory(updated)
-        return updated
-      })
-    },
-    [saveHistory]
-  )
-
-  const clearHistory = useCallback(() => {
-    setHistory([])
-    setHistoryPage(1)
-    setHistoryJumpPage('')
-    saveHistory([])
-    Notification.success('已清空历史记录')
-  }, [saveHistory])
-
-  const jumpHistoryPage = useCallback(() => {
-    const page = parseInt(historyJumpPage)
-    if (isNaN(page) || page < 1 || page > historyTotalPages) {
-      Notification.warning('请输入有效页码')
-      return
-    }
-    setHistoryPage(page)
-    setHistoryJumpPage('')
-  }, [historyJumpPage, historyTotalPages])
-
-
-  const usePrompt = useCallback(() => {
-    if (!detailItem) return
-    setPrompt(detailItem.prompt)
-    if (detailItem.modeIndex !== undefined) setModeIndex(detailItem.modeIndex)
-    if (detailItem.aspectRatioIndex !== undefined) setAspectRatioIndex(detailItem.aspectRatioIndex)
-    if (detailItem.durationIndex !== undefined) setDurationIndex(detailItem.durationIndex)
-    setFirstFrame(detailItem.firstFrame || '')
-    setLastFrame(detailItem.lastFrame || '')
-    setRefImageUrls(detailItem.images || [])
-    setAudioUrls(detailItem.audios || [])
-    setDetailItem(null)
-    window.scrollTo({ top: 0, behavior: 'smooth' })
-  }, [detailItem])
-
-  const copyDetailPrompt = useCallback(async () => {
-    if (!detailItem?.prompt) return
-    const ok = await copyToClipboard(detailItem.prompt)
-    Notification[ok ? 'success' : 'error'](ok ? '已复制提示词' : '复制失败')
-  }, [detailItem])
-
-  const copyDetailUrl = useCallback(async () => {
-    if (!detailItem?.url) return
-    const ok = await copyToClipboard(detailItem.url)
-    Notification[ok ? 'success' : 'error'](ok ? '已复制视频地址' : '复制失败')
-  }, [detailItem])
-
-  const downloadDetailVideo = useCallback(() => {
-    if (!detailItem?.url) return
-    downloadFile(detailItem.url, `agnes-video-flash-${Date.now()}.mp4`)
-  }, [detailItem])
-
-
   return (
     <div>
       <input
@@ -566,7 +421,6 @@ export default function VideoGenerateFlash({ apiKey, errorMsg, onError, onLoadin
         onChange={handleRefImageUpload}
       />
 
-      {/* ===== 配置卡片：模式 ===== */}
       <div className="agnes-flash-card">
         <div className="agnes-flash-card-header">
           <span className="agnes-label-icon">🎬</span>
@@ -590,7 +444,6 @@ export default function VideoGenerateFlash({ apiKey, errorMsg, onError, onLoadin
           ))}
         </div>
 
-        {/* 画幅 + 时长 */}
         <div className="agnes-attr-row">
           <div className="agnes-attr-block">
             <div className="agnes-attr-label">
@@ -623,7 +476,6 @@ export default function VideoGenerateFlash({ apiKey, errorMsg, onError, onLoadin
         </div>
       </div>
 
-      {/* ===== 提示词卡片 ===== */}
       <div className="agnes-flash-card">
         <div className="agnes-flash-card-header">
           <span className="agnes-label-icon">✨</span>
@@ -651,7 +503,6 @@ export default function VideoGenerateFlash({ apiKey, errorMsg, onError, onLoadin
         />
       </div>
 
-      {/* keyframe 模式：首尾帧卡片 */}
       {mode === 'keyframe' && (
         <div className="agnes-flash-card">
           <div className="agnes-flash-card-header">
@@ -714,7 +565,6 @@ export default function VideoGenerateFlash({ apiKey, errorMsg, onError, onLoadin
         </div>
       )}
 
-      {/* reference 模式：参考图 + 参考音频卡片 */}
       {mode === 'reference' && (
         <div className="agnes-flash-card">
           <div className="agnes-flash-card-header">
@@ -792,7 +642,6 @@ export default function VideoGenerateFlash({ apiKey, errorMsg, onError, onLoadin
         </div>
       )}
 
-      {/* 生成按钮 */}
       <div className="agnes-generate-btn-wrapper">
         <Button
           type="primary"
@@ -806,43 +655,28 @@ export default function VideoGenerateFlash({ apiKey, errorMsg, onError, onLoadin
         </Button>
       </div>
 
-      {/* 错误提示 */}
-      {errorMsg && (
-        <div className="agnes-error-box">{errorMsg}</div>
-      )}
+      {errorMsg && <div className="agnes-error-box">{errorMsg}</div>}
 
-      {/* 加载状态 */}
       {isLoading && (
         <div className="agnes-loading-box">
           <div className="agnes-spinner" />
           <div className="agnes-loading-text agnes-loading-dots">视频生成中，预计需要 1-5 分钟</div>
           {videoProgress > 0 && (
             <div className="agnes-video-progress-bar" style={{ width: '100%' }}>
-              <div
-                className="agnes-video-progress-fill"
-                style={{ width: `${videoProgress}%` }}
-              />
+              <div className="agnes-video-progress-fill" style={{ width: `${videoProgress}%` }} />
             </div>
           )}
           {videoStatus && <div className="agnes-loading-status">{videoStatus}</div>}
-          <Button type="dashed" danger size="small" onClick={stopGenerate}>
-            终止生成
-          </Button>
+          <Button type="dashed" danger size="small" onClick={stopGenerate}>终止生成</Button>
         </div>
       )}
 
-      {/* 视频展示区 */}
       {videoUrl && (
         <div className="agnes-result-box">
           <div className="agnes-result-header">
             <span className="agnes-result-title">🎬 视频结果</span>
           </div>
-          <video
-            className="agnes-result-image"
-            src={videoUrl}
-            controls
-            autoPlay
-          />
+          <video className="agnes-result-image" src={videoUrl} controls autoPlay />
           <div className="agnes-result-actions">
             <div className="agnes-result-action-btn" onClick={handleDownload}>
               <span className="agnes-result-action-icon">⬇</span>
@@ -860,38 +694,37 @@ export default function VideoGenerateFlash({ apiKey, errorMsg, onError, onLoadin
         </div>
       )}
 
-      {/* 历史记录 */}
-      {history.length > 0 && (
+      {historyCtrl.history.length > 0 && (
         <div className="agnes-history-box">
-          <div className="agnes-history-header">
+          <div className="agnes-header-row">
             <span className="agnes-history-title">🎬 Flash 视频历史</span>
-            <Button size="small" type="dashed" danger onClick={clearHistory}>
+            <Button size="small" type="dashed" danger onClick={() => { historyCtrl.clearHistory(); paging.reset() }}>
               清空
             </Button>
           </div>
           <div className="agnes-history-list">
-            {pagedHistory.map((item) => (
-              <div className="agnes-history-item" key={item.id}>
+            {paging.pagedItems.map((item) => (
+              <div
+                className="agnes-history-item"
+                key={item.id}
+                onClick={() => setDetailRecord(item)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setDetailRecord(item) } }}
+              >
                 {item.url ? (
                   <div className="agnes-history-video-thumb-wrap">
-                    <video
-                      className="agnes-history-video-thumb"
-                      src={item.url}
-                      muted
-                    />
+                    <video className="agnes-history-video-thumb" src={item.url} muted />
                     <div className="agnes-history-video-play-icon">
                       <span className="agnes-history-video-play">▶</span>
                     </div>
                   </div>
                 ) : (
-                  <div
-                    className="agnes-history-thumb agnes-history-thumb-placeholder"
-                    onClick={() => (item.status === 'generating' ? Notification.warning('任务仍在生成中...') : setDetailItem(item))}
-                  >
+                  <div className="agnes-history-thumb agnes-history-thumb-placeholder">
                     {item.status === 'generating' ? '⏳' : '⛔'}
                   </div>
                 )}
-                <div className="agnes-history-info" onClick={() => setDetailItem(item)}>
+                <div className="agnes-history-info">
                   <div className="agnes-history-prompt">{truncateText(item.prompt, 20)}</div>
                   <div className="agnes-history-tags">
                     {item.status === 'generating' && <span className="agnes-history-tag">⏳ 生成中</span>}
@@ -907,181 +740,33 @@ export default function VideoGenerateFlash({ apiKey, errorMsg, onError, onLoadin
                   </div>
                   <div className="agnes-history-meta">{formatTime(item.time)}</div>
                 </div>
-                <div className="agnes-history-delete-btn" onClick={() => deleteHistory(item.id)}>
-                  ✕
-                </div>
+                <div
+                  className="agnes-history-delete-btn"
+                  onClick={(e) => { e.stopPropagation(); historyCtrl.deleteHistory(item.id) }}
+                >✕</div>
               </div>
             ))}
           </div>
-
-          {/* 分页 */}
-          {historyTotalPages > 1 && (
-            <div className="agnes-history-pagination">
-              <Button size="small" disabled={historyPage <= 1} onClick={() => setHistoryPage(1)}>
-                首页
-              </Button>
-              <Button size="small" disabled={historyPage <= 1} onClick={() => setHistoryPage((p) => p - 1)}>
-                上一页
-              </Button>
-              <span className="agnes-page-info">{historyPage} / {historyTotalPages}</span>
-              <Button size="small" disabled={historyPage >= historyTotalPages} onClick={() => setHistoryPage((p) => p + 1)}>
-                下一页
-              </Button>
-              <Button size="small" disabled={historyPage >= historyTotalPages} onClick={() => setHistoryPage(historyTotalPages)}>
-                尾页
-              </Button>
-              {historyTotalPages > 3 && (
-                <div className="agnes-page-jump">
-                  <input
-                    className="agnes-page-jump-input"
-                    type="number"
-                    value={historyJumpPage}
-                    maxLength={4}
-                    placeholder="页码"
-                    onChange={(e) => setHistoryJumpPage(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && jumpHistoryPage()}
-                  />
-                  <Button size="small" onClick={jumpHistoryPage}>跳转</Button>
-                </div>
-              )}
-            </div>
-          )}
+          <HistoryPagination
+            page={paging.page}
+            totalPages={paging.totalPages}
+            jumpInput={paging.jumpInput}
+            onJumpInputChange={paging.setJumpInput}
+            onFirst={paging.goFirst}
+            onPrev={paging.goPrev}
+            onNext={paging.goNext}
+            onLast={paging.goLast}
+            onJump={paging.jumpTo}
+          />
         </div>
       )}
 
-      {/* 详情弹窗 */}
-      <Modal
-        open={!!detailItem}
-        title={
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-            <span>Flash 视频记录详情</span>
-            <button className="agnes-modal-close-btn" onClick={() => setDetailItem(null)}>✕</button>
-          </div>
-        }
-        onClose={() => setDetailItem(null)}
-        typewriter={false}
-        footer={null}
-        width={520}
-      >
-        {detailItem && (
-          <div className="agnes-detail-popup-body">
-            {detailItem.url ? (
-              <video
-                className="agnes-detail-video"
-                src={detailItem.url}
-                controls
-              />
-            ) : (
-              <div className="agnes-history-thumb-placeholder" style={{ width: '100%', height: 200 }}>
-                {detailItem.status === 'generating' ? '⏳ 生成中' : detailItem.status === 'failed' ? '⚠️ 生成失败' : '⛔ 已中断'}
-                {detailItem.failReason ? `（${detailItem.failReason}）` : ''}
-              </div>
-            )}
-            {detailItem.status && detailItem.status !== 'success' && (
-              <div className="agnes-detail-field">
-                <span className="agnes-detail-label">状态：</span>
-                <span className="agnes-detail-value">
-                  {detailItem.status === 'generating' ? '⏳ 生成中' : detailItem.status === 'failed' ? `⚠️ 失败：${detailItem.failReason || '未知原因'}` : '⛔ 已中断'}
-                </span>
-              </div>
-            )}
-
-            <div className="agnes-detail-field agnes-detail-prompt-field">
-              <div className="agnes-detail-prompt-header">
-                <span className="agnes-detail-label">提示词：</span>
-                <Button size="small" onClick={copyDetailPrompt}>复制</Button>
-              </div>
-              <div className="agnes-detail-value agnes-detail-value-long">{detailItem.prompt}</div>
-            </div>
-
-            <div className="agnes-detail-field">
-              <span className="agnes-detail-label">模式：</span>
-              <span className="agnes-detail-value">{detailItem.mode}</span>
-            </div>
-            <div className="agnes-detail-field">
-              <span className="agnes-detail-label">画幅：</span>
-              <span className="agnes-detail-value">
-                {detailItem.aspectRatio}
-                {(() => {
-                  const o = getOrientationFromRatio(detailItem.aspectRatio)
-                  return o ? <span className={`agnes-orientation-badge agnes-orientation-${o}`} style={{ marginLeft: 8 }}>{ORIENTATION_LABELS[o].icon} {ORIENTATION_LABELS[o].text}</span> : null
-                })()}
-              </span>
-            </div>
-            <div className="agnes-detail-field">
-              <span className="agnes-detail-label">时长：</span>
-              <span className="agnes-detail-value">{detailItem.seconds} 秒</span>
-            </div>
-            {detailItem.firstFrame && (
-              <div className="agnes-detail-field">
-                <span className="agnes-detail-label">首帧：</span>
-                <img
-                  className="agnes-detail-ref-image"
-                  src={detailItem.firstFrame}
-                  alt="first-frame"
-                  onClick={() => setPreviewSrc(detailItem.firstFrame!)}
-                />
-              </div>
-            )}
-            {detailItem.lastFrame && (
-              <div className="agnes-detail-field">
-                <span className="agnes-detail-label">尾帧：</span>
-                <img
-                  className="agnes-detail-ref-image"
-                  src={detailItem.lastFrame}
-                  alt="last-frame"
-                  onClick={() => setPreviewSrc(detailItem.lastFrame!)}
-                />
-              </div>
-            )}
-            {detailItem.images && detailItem.images.length > 0 && (
-              <div className="agnes-detail-field">
-                <span className="agnes-detail-label">参考图：</span>
-                <div className="agnes-detail-ref-image-list">
-                  {detailItem.images.map((url, idx) => (
-                    <img
-                      key={idx}
-                      className="agnes-detail-ref-image"
-                      src={url}
-                      alt={`ref-${idx}`}
-                      onClick={() => setPreviewSrc(url)}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-            {detailItem.audios && detailItem.audios.length > 0 && (
-              <div className="agnes-detail-field">
-                <span className="agnes-detail-label">参考音频：</span>
-                <div className="agnes-detail-value">
-                  {detailItem.audios.map((_, idx) => `Audio ${idx + 1}`).join('、')}
-                </div>
-              </div>
-            )}
-            <div className="agnes-detail-field">
-              <span className="agnes-detail-label">生成时间：</span>
-              <span className="agnes-detail-value">{formatTime(detailItem.time)}</span>
-            </div>
-
-            {!!detailItem.responseData && (
-              <div className="agnes-detail-section">
-                <div className="agnes-detail-section-title">接口返回数据</div>
-                <div className="agnes-detail-json-area">
-                  {formatResponseData(detailItem.responseData)}
-                </div>
-              </div>
-            )}
-
-            {/* 操作按钮 */}
-            <div className="agnes-detail-actions">
-              <Button type="primary" onClick={usePrompt}>使用此提示词</Button>
-              <Button onClick={downloadDetailVideo}>下载视频</Button>
-              <Button onClick={copyDetailUrl}>复制地址</Button>
-            </div>
-          </div>
-        )}
-      </Modal>
       <ImagePreview src={previewSrc} onClose={() => setPreviewSrc('')} />
+      <HistoryDetail
+        record={detailRecord}
+        recordType={'videoFlash' as HistoryRecordType}
+        onClose={() => setDetailRecord(null)}
+      />
     </div>
   )
 }

@@ -1,10 +1,20 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Button, Modal, Notification } from 'animal-island-ui'
+import { Button, Notification } from 'animal-island-ui'
 import { STORAGE_KEYS } from '../config/api'
 import { imageToPrompt, uploadToImgbb } from '../services/api'
-import type { RequestResult, ApiResponse } from '../types'
-import type { Img2PromptHistoryItem } from '../types'
-import { getStorage, setStorage, copyToClipboard, formatTime, truncateText, fileToJpegDataUri } from '../utils/helpers'
+import type { RequestResult, ApiResponse, Img2PromptHistoryItem } from '../types'
+import {
+  setStorage,
+  copyToClipboard,
+  formatTime,
+  truncateText,
+  fileToJpegDataUri
+} from '../utils/helpers'
+import { useHistory } from '../hooks/useHistory'
+import { useHistoryPagination } from '../hooks/useHistoryPagination'
+import HistoryPagination from './HistoryPagination'
+import HistoryDetail from './HistoryDetail'
+import type { HistoryRecordType } from './HistoryDetail'
 import ImagePreview from './ImagePreview'
 
 interface Img2PromptProps {
@@ -19,65 +29,47 @@ const PAGE_SIZE = 10
 
 export default function Img2Prompt({ apiKey, errorMsg, onError, onLoadingChange, onUsePrompt }: Img2PromptProps) {
   const [imageUrl, setImageUrl] = useState('')
-  /** 随请求发送的 Data URI（上传文件时本地生成，规避服务端回源拉取图床 URL 失败）；手填 URL 时为空 */
   const [imageDataUri, setImageDataUri] = useState('')
   const [imageInput, setImageInput] = useState('')
   const [lang, setLang] = useState<'en' | 'zh'>('en')
   const [result, setResult] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const [history, setHistory] = useState<Img2PromptHistoryItem[]>([])
-  const [historyPage, setHistoryPage] = useState(1)
-  const [historyJumpPage, setHistoryJumpPage] = useState('')
-  const [detailItem, setDetailItem] = useState<Img2PromptHistoryItem | null>(null)
   const [previewSrc, setPreviewSrc] = useState('')
+  const [detailRecord, setDetailRecord] = useState<Img2PromptHistoryItem | null>(null)
 
   const requestRef = useRef<RequestResult<ApiResponse> | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const pagedHistory = history.slice(
-    (historyPage - 1) * PAGE_SIZE,
-    historyPage * PAGE_SIZE
-  )
-  const historyTotalPages = Math.ceil(history.length / PAGE_SIZE)
-
-  useEffect(() => {
-    const savedHistory = getStorage<Img2PromptHistoryItem[]>(STORAGE_KEYS.IMG2PROMPT_HISTORY)
-    if (savedHistory) {
-      setHistory(savedHistory)
-    }
-  }, [])
+  const historyCtrl = useHistory<Img2PromptHistoryItem>(STORAGE_KEYS.IMG2PROMPT_HISTORY)
+  const paging = useHistoryPagination(historyCtrl.history, PAGE_SIZE)
 
   useEffect(() => {
     onLoadingChange(isLoading)
   }, [isLoading, onLoadingChange])
 
-  const saveHistory = useCallback((items: Img2PromptHistoryItem[]) => {
-    setStorage(STORAGE_KEYS.IMG2PROMPT_HISTORY, items)
-  }, [])
-
   const addToHistory = useCallback(
     (promptText: string, imgUrl: string, langCode: string) => {
       const record: Img2PromptHistoryItem = {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         prompt: promptText,
-        // Data URI 体积大，不写入历史以免撑爆 localStorage；历史缩略图与详情仅支持 URL 图片
         imageUrl: imgUrl.startsWith('data:') ? '' : imgUrl,
         lang: langCode,
-        time: Date.now()
-      }
-      setHistory((prev) => {
+        time: Date.now(),
+        status: 'success'
+      } as Img2PromptHistoryItem
+      historyCtrl.setHistory((prev) => {
         const updated = [record, ...prev].slice(0, 50)
-        saveHistory(updated)
+        historyCtrl.saveHistory(updated)
         return updated
       })
     },
-    [saveHistory]
+    [historyCtrl]
   )
 
   const addImageUrl = useCallback(() => {
     const url = imageInput.trim()
     if (!url) return
     setImageUrl(url)
-    // 手填 URL 无对应 Data URI，请求将直接使用该 URL
     setImageDataUri('')
     setImageInput('')
   }, [imageInput])
@@ -89,8 +81,6 @@ export default function Img2Prompt({ apiKey, errorMsg, onError, onLoadingChange,
   const handleFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    // 本地先生成 Data URI（自动等比缩放、处理 HEIC），随请求内嵌发送，
-    // 规避服务端回源拉取图床 URL 失败（如 imgbb 连接被重置导致 500 upstream_error）
     let dataUri = ''
     try {
       dataUri = await fileToJpegDataUri(file)
@@ -101,12 +91,10 @@ export default function Img2Prompt({ apiKey, errorMsg, onError, onLoadingChange,
     }
     try {
       const url = await uploadToImgbb(file)
-      // 前端展示 / 历史记录用 imgbb 链接，API 请求用 Data URI
       setImageUrl(url)
       setImageDataUri(dataUri)
       Notification.success('上传成功')
     } catch {
-      // 图床上传失败：展示与请求均使用本地 Data URI
       setImageUrl(dataUri)
       setImageDataUri(dataUri)
       Notification.warning('图床上传失败，已使用本地图片')
@@ -130,7 +118,6 @@ export default function Img2Prompt({ apiKey, errorMsg, onError, onLoadingChange,
     setResult('')
     setIsLoading(true)
 
-    // 请求优先使用上传时本地生成的 Data URI，无则使用输入的图片 URL
     const requestImageUrl = (imageDataUri || imageUrl).trim()
     requestRef.current = imageToPrompt(apiKey.trim(), requestImageUrl, lang)
     requestRef.current.promise
@@ -151,7 +138,6 @@ export default function Img2Prompt({ apiKey, errorMsg, onError, onLoadingChange,
             (data?.error as { message?: string })?.message ||
             (typeof data === 'string' ? data : JSON.stringify(data)) ||
             `请求失败 (${res.statusCode})`
-          // 服务端回源拉取图片 URL 失败（图床可能拒绝外部访问），引导改用本地上传
           if (/loading IMAGE data|ImageData|Connection reset|upstream_error/i.test(errMsg)) {
             onError('服务端无法访问该图片地址（图床可能拒绝外部访问），请点击「上传」选择本地图片后重试')
           } else {
@@ -187,62 +173,10 @@ export default function Img2Prompt({ apiKey, errorMsg, onError, onLoadingChange,
     onUsePrompt(result)
   }, [result, onUsePrompt])
 
-  const deleteHistory = useCallback(
-    (index: number) => {
-      const realIndex = (historyPage - 1) * PAGE_SIZE + index
-      setHistory((prev) => {
-        const updated = prev.filter((_, i) => i !== realIndex)
-        saveHistory(updated)
-        return updated
-      })
-    },
-    [historyPage, saveHistory]
-  )
-
-  const clearHistory = useCallback(() => {
-    setHistory([])
-    setHistoryPage(1)
-    setHistoryJumpPage('')
-    saveHistory([])
-    Notification.success('已清空')
-  }, [saveHistory])
-
-  const jumpHistoryPage = useCallback(() => {
-    const page = parseInt(historyJumpPage)
-    if (isNaN(page) || page < 1 || page > historyTotalPages) {
-      Notification.warning('请输入有效页码')
-      return
-    }
-    setHistoryPage(page)
-    setHistoryJumpPage('')
-  }, [historyJumpPage, historyTotalPages])
-
   const copyHistoryPrompt = useCallback(async (item: Img2PromptHistoryItem) => {
     const ok = await copyToClipboard(item.prompt)
     Notification[ok ? 'success' : 'error'](ok ? '已复制提示词' : '复制失败')
   }, [])
-
-  const useDetailPrompt = useCallback(() => {
-    if (!detailItem) return
-    onUsePrompt(detailItem.prompt)
-    setDetailItem(null)
-  }, [detailItem, onUsePrompt])
-
-  const copyDetailPrompt = useCallback(async () => {
-    if (!detailItem?.prompt) return
-    const ok = await copyToClipboard(detailItem.prompt)
-    Notification[ok ? 'success' : 'error'](ok ? '已复制提示词' : '复制失败')
-  }, [detailItem])
-
-  const reuseDetail = useCallback(() => {
-    if (!detailItem) return
-    setImageUrl(detailItem.imageUrl)
-    // 历史记录仅存 URL，重新分析时请求将使用该 URL
-    setImageDataUri('')
-    setLang((detailItem.lang as 'en' | 'zh') || 'en')
-    setDetailItem(null)
-    Notification.info('已填入，点击生成')
-  }, [detailItem])
 
   return (
     <div>
@@ -318,8 +252,6 @@ export default function Img2Prompt({ apiKey, errorMsg, onError, onLoadingChange,
         </div>
       </div>
 
-
-      {/* 生成按钮 */}
       <div className="agnes-generate-btn-wrapper">
         <Button
           type="primary"
@@ -333,12 +265,10 @@ export default function Img2Prompt({ apiKey, errorMsg, onError, onLoadingChange,
         </Button>
       </div>
 
-      {/* 错误提示 */}
       {errorMsg && (
         <div className="agnes-error-box">{errorMsg}</div>
       )}
 
-      {/* 加载状态 */}
       {isLoading && (
         <div className="agnes-loading-box">
           <div className="agnes-spinner" />
@@ -349,7 +279,6 @@ export default function Img2Prompt({ apiKey, errorMsg, onError, onLoadingChange,
         </div>
       )}
 
-      {/* 结果展示 */}
       {result && (
         <div className="agnes-result-box">
           <div className="agnes-result-header">
@@ -376,22 +305,25 @@ export default function Img2Prompt({ apiKey, errorMsg, onError, onLoadingChange,
       )}
 
       {/* 历史记录 */}
-      {history.length > 0 && (
+      {historyCtrl.history.length > 0 && (
         <div className="agnes-history-box">
           <div className="agnes-history-header">
             <span className="agnes-history-title">🔍 提示词历史</span>
-            <Button size="small" type="dashed" danger onClick={clearHistory}>
+            <Button size="small" type="dashed" danger onClick={() => { paging.reset(); historyCtrl.clearHistory() }}>
               清空
             </Button>
           </div>
           <div className="agnes-history-list">
-            {pagedHistory.map((item, index) => (
-              <div className="agnes-history-item" key={index}>
-                {/* 缩略图区域 */}
-                <div
-                  className="agnes-history-video-thumb-wrap"
-                  onClick={() => setDetailItem(item)}
-                >
+            {paging.pagedItems.map((item) => (
+              <div
+                className="agnes-history-item"
+                key={item.id}
+                onClick={() => setDetailRecord(item)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setDetailRecord(item) } }}
+              >
+                <div className="agnes-history-video-thumb-wrap">
                   {item.imageUrl && !item.imageUrl.startsWith('data:') ? (
                     <img
                       className="agnes-history-thumb"
@@ -408,28 +340,23 @@ export default function Img2Prompt({ apiKey, errorMsg, onError, onLoadingChange,
                   </span>
                 </div>
 
-                {/* 内容区域 */}
-                <div
-                  className="agnes-history-info"
-                  onClick={() => setDetailItem(item)}
-                >
+                <div className="agnes-history-info">
                   <div className="agnes-history-prompt agnes-history-prompt-multi">
                     {truncateText(item.prompt, 100)}
                   </div>
                   <div className="agnes-history-meta">{formatTime(item.time)}</div>
                 </div>
 
-                {/* 操作按钮 */}
                 <div className="agnes-history-actions">
                   <div
                     className="agnes-history-action-btn"
-                    onClick={() => copyHistoryPrompt(item)}
+                    onClick={(e) => { e.stopPropagation(); copyHistoryPrompt(item) }}
                   >
                     📋
                   </div>
                   <div
                     className="agnes-history-action-btn"
-                    onClick={() => deleteHistory(index)}
+                    onClick={(e) => { e.stopPropagation(); historyCtrl.deleteHistory(item.id) }}
                   >
                     🗑️
                   </div>
@@ -438,92 +365,26 @@ export default function Img2Prompt({ apiKey, errorMsg, onError, onLoadingChange,
             ))}
           </div>
 
-          {/* 分页 */}
-          {historyTotalPages > 1 && (
-            <div className="agnes-history-pagination">
-              <Button size="small" disabled={historyPage <= 1} onClick={() => setHistoryPage(1)}>
-                首页
-              </Button>
-              <Button size="small" disabled={historyPage <= 1} onClick={() => setHistoryPage((p) => p - 1)}>
-                上一页
-              </Button>
-              <span className="agnes-page-info">{historyPage} / {historyTotalPages}</span>
-              <Button size="small" disabled={historyPage >= historyTotalPages} onClick={() => setHistoryPage((p) => p + 1)}>
-                下一页
-              </Button>
-              <Button size="small" disabled={historyPage >= historyTotalPages} onClick={() => setHistoryPage(historyTotalPages)}>
-                尾页
-              </Button>
-              {historyTotalPages > 3 && (
-                <div className="agnes-page-jump">
-                  <input
-                    className="agnes-page-jump-input"
-                    type="number"
-                    value={historyJumpPage}
-                    maxLength={4}
-                    placeholder="页码"
-                    onChange={(e) => setHistoryJumpPage(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && jumpHistoryPage()}
-                  />
-                  <Button size="small" onClick={jumpHistoryPage}>跳转</Button>
-                </div>
-              )}
-            </div>
-          )}
+          <HistoryPagination
+            page={paging.page}
+            totalPages={paging.totalPages}
+            jumpInput={paging.jumpInput}
+            onJumpInputChange={paging.setJumpInput}
+            onFirst={paging.goFirst}
+            onPrev={paging.goPrev}
+            onNext={paging.goNext}
+            onLast={paging.goLast}
+            onJump={paging.jumpTo}
+          />
         </div>
       )}
 
-      {/* 详情弹窗 */}
-      <Modal
-        open={!!detailItem}
-        title={
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-            <span>提示词记录详情</span>
-            <button className="agnes-modal-close-btn" onClick={() => setDetailItem(null)}>✕</button>
-          </div>
-        }
-        onClose={() => setDetailItem(null)}
-        typewriter={false}
-        footer={null}
-        width={520}
-      >
-        {detailItem && (
-          <div className="agnes-detail-popup-body">
-            {detailItem.imageUrl && !detailItem.imageUrl.startsWith('data:') && (
-              <img
-                className="agnes-detail-image"
-                src={detailItem.imageUrl}
-                alt="detail"
-                onClick={() => setPreviewSrc(detailItem.imageUrl)}
-              />
-            )}
-
-            <div className="agnes-detail-field agnes-detail-prompt-field">
-              <div className="agnes-detail-prompt-header">
-                <span className="agnes-detail-label">提示词：</span>
-                <Button size="small" onClick={copyDetailPrompt}>复制</Button>
-              </div>
-              <div className="agnes-detail-value agnes-detail-value-long">{detailItem.prompt}</div>
-            </div>
-
-            <div className="agnes-detail-field">
-              <span className="agnes-detail-label">语言：</span>
-              <span className="agnes-detail-value">{detailItem.lang === 'zh' ? '中文' : 'English'}</span>
-            </div>
-            <div className="agnes-detail-field">
-              <span className="agnes-detail-label">生成时间：</span>
-              <span className="agnes-detail-value">{formatTime(detailItem.time)}</span>
-            </div>
-
-            {/* 操作按钮 */}
-            <div className="agnes-detail-actions">
-              <Button type="primary" onClick={useDetailPrompt}>用于图片生成</Button>
-              <Button onClick={reuseDetail}>重新分析</Button>
-            </div>
-          </div>
-        )}
-      </Modal>
       <ImagePreview src={previewSrc} onClose={() => setPreviewSrc('')} />
+      <HistoryDetail
+        record={detailRecord}
+        recordType={'img2prompt' as HistoryRecordType}
+        onClose={() => setDetailRecord(null)}
+      />
     </div>
   )
 }

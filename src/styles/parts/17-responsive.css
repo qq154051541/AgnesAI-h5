@@ -1,0 +1,240 @@
+﻿/* ===== 响应式 ===== */
+/* 平板 */
+@media (max-width: 768px) {
+  .agnes-page {
+    max-width: 100%;
+  }
+}
+
+/* 手机 */
+@media (max-width: 480px) {
+  .agnes-header {
+    padding: var(--agnes-space-md) var(--agnes-space-sm) 10px;
+  }
+
+  .agnes-header-inner {
+    padding: var(--agnes-space-md);
+    gap: var(--agnes-space-md);
+    border-radius: var(--agnes-radius-lg);
+  }
+
+  .agnes-logo {
+    width: 56px;
+    height: 56px;
+    border-radius: var(--agnes-radius-sm);
+  }
+
+  .agnes-title {
+    font-size: 22px;
+  }
+
+  .agnes-title-divider {
+    height: 16px;
+  }
+
+  .agnes-title-en {
+    font-size: 13px;
+  }
+
+  .agnes-subtitle {
+    font-size: var(--agnes-font-sm);
+    letter-spacing: 2px;
+  }
+
+  .agnes-main {
+    padding: 0 var(--agnes-space-sm);
+  }
+
+  .agnes-result-grid-item {
+    width: calc(33.333% - 6px);
+  }
+
+  .agnes-history-item {
+    padding: var(--agnes-space-sm);
+  }
+
+  .agnes-history-thumb,
+  .agnes-history-video-thumb-wrap {
+    width: 50px;
+    height: 50px;
+  }
+
+  .agnes-history-video-thumb {
+    width: 50px;
+    height: 50px;
+  }
+
+  .agnes-history-thumb-grid {
+    width: 78px;
+    height: 78px;
+  }
+
+  .agnes-history-action-btn {
+    width: 24px;
+    height: 24px;
+    font-size: var(--agnes-font-xs);
+  }
+
+  .sensenova-chat-container {
+    max-height: 400px;
+  }
+
+  .sensenova-chat-avatar {
+    width: 32px;
+    height: 32px;
+    font-size: 16px;
+  }
+
+  .sensenova-chat-empty {
+    padding: 40px var(--agnes-space-md);
+  }
+
+  .sensenova-reasoning-btn {
+    padding: 5px 12px;
+    font-size: 11px;
+  }
+
+  .agnes-home-card {
+    padding: var(--agnes-space-md);
+  }
+
+  .agnes-home-card-icon {
+    width: 48px;
+    height: 48px;
+    font-size: 24px;
+  }
+
+  .agnes-home-card-title {
+    font-size: var(--agnes-font-base);
+  }
+
+  .agnes-home-card-subtitle {
+    font-size: 11px;
+  }
+
+  .agnes-home-card-tag {
+    font-size: 9px;
+    padding: 1px 6px;
+  }
+
+  .agnes-home-title {
+    font-size: 19px;
+  }
+
+  .agnes-home-desc {
+    font-size: 11px;
+  }
+
+  .agnes-result-action-btn {
+    min-width: 70px;
+    padding: 8px var(--agnes-space-md);
+  }
+}
+
+/* 超小屏 */
+@media (max-width: 360px) {
+  .agnes-home-card-tags {
+    display: none;
+  }
+
+  .agnes-home-card-subtitle {
+    font-size: 10px;
+  }
+
+  .agnes-result-grid-item {
+    width: calc(50% - 4px);
+  }
+
+  .agnes-detail-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* 减少动画偏好 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ========================================
+   画幅方向标识（竖屏 / 横屏 / 方形 / 超宽）
+   用于尺寸/画幅旁边的徽标与历史 tag
+   ======================================== */
+
+.agnes-orientation-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+  line-height: 1.4;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.agnes-orientation-badge .agnes-orientation-icon {
+  font-size: 13px;
+  line-height: 1;
+}
+
+.agnes-orientation-tag {
+  cursor: default;
+}
+
+.agnes-orientation-portrait {
+  color: #b3531c;
+  background: linear-gradient(135deg, #fff1e3 0%, #ffe0c4 100%);
+  border-color: #f4c79a;
+}
+
+.agnes-orientation-landscape {
+  color: #2c5b3f;
+  background: linear-gradient(135deg, #e8f5ec 0%, #cfe9d7 100%);
+  border-color: #9bc8a8;
+}
+
+.agnes-orientation-square {
+  color: #5d4a2f;
+  background: linear-gradient(135deg, #f5efe1 0%, #e8dec5 100%);
+  border-color: #c8b78c;
+}
+
+.agnes-orientation-ultrawide {
+  color: #4a3a72;
+  background: linear-gradient(135deg, #efe9f7 0%, #dccff0 100%);
+  border-color: #b8a3d8;
+}
+
+[data-theme='dark'] .agnes-orientation-portrait {
+  color: #ffd1a8;
+  background: rgba(217, 119, 38, 0.18);
+  border-color: rgba(217, 119, 38, 0.45);
+}
+
+[data-theme='dark'] .agnes-orientation-landscape {
+  color: #a8e0b8;
+  background: rgba(74, 158, 102, 0.18);
+  border-color: rgba(74, 158, 102, 0.45);
+}
+
+[data-theme='dark'] .agnes-orientation-square {
+  color: #d8c89a;
+  background: rgba(170, 140, 80, 0.18);
+  border-color: rgba(170, 140, 80, 0.45);
+}
+
+[data-theme='dark'] .agnes-orientation-ultrawide {
+  color: #d4b8f0;
+  background: rgba(140, 100, 200, 0.18);
+  border-color: rgba(140, 100, 200, 0.45);
+}
+

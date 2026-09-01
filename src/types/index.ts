@@ -98,10 +98,13 @@ export interface VideoFlashHistoryItem {
 
 /** 图转提示词历史记录 */
 export interface Img2PromptHistoryItem {
+  id: string
   prompt: string
   imageUrl: string
   lang: string
   time: number
+  status?: TaskStatus
+  failReason?: string
 }
 
 /** 请求结果（带 abort 能力） */

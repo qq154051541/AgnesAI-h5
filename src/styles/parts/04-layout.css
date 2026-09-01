@@ -1,0 +1,202 @@
+﻿/* ===== 页面布局 ===== */
+.agnes-page {
+  min-height: 100vh;
+  padding-bottom: 80px;
+  max-width: 720px;
+  margin: 0 auto;
+  position: relative;
+}
+
+
+/* ===== 头部 ===== */
+.agnes-header {
+  position: relative;
+  padding: var(--agnes-space-xl) var(--agnes-space-lg) var(--agnes-space-lg);
+}
+
+.agnes-header-inner {
+  display: flex;
+  align-items: center;
+  gap: var(--agnes-space-lg);
+  padding: var(--agnes-space-lg) var(--agnes-space-xl);
+  background: var(--agnes-bg-glass-strong);
+  border: 2px solid var(--agnes-border);
+  border-radius: var(--agnes-radius-xl);
+  box-shadow: var(--agnes-shadow-base);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: box-shadow var(--agnes-transition);
+}
+
+.agnes-header-inner:hover {
+  box-shadow: var(--agnes-shadow-lg);
+}
+
+.agnes-logo-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.agnes-logo-wrap::before {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  border-radius: var(--agnes-radius-lg);
+  background: var(--agnes-gradient-primary);
+  filter: blur(12px);
+  opacity: 0.35;
+  z-index: 0;
+  animation: agnes-logo-glow 4s ease-in-out infinite;
+}
+
+@keyframes agnes-logo-glow {
+  0%, 100% { opacity: 0.25; transform: scale(1); }
+  50% { opacity: 0.45; transform: scale(1.05); }
+}
+
+.agnes-logo {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  border-radius: var(--agnes-radius-base);
+  object-fit: contain;
+  z-index: 1;
+  box-shadow: var(--agnes-shadow-sm);
+}
+
+.agnes-header-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.agnes-github-link {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  color: var(--agnes-text-secondary);
+  background: transparent;
+  transition: all var(--agnes-transition);
+}
+
+.agnes-github-link:hover {
+  color: var(--agnes-primary);
+  background: var(--agnes-primary-bg);
+  transform: scale(1.08);
+}
+
+.agnes-github-link:active {
+  transform: scale(0.95);
+}
+
+/* 主题切换按钮 */
+.agnes-theme-toggle {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--agnes-text-secondary);
+  background: transparent;
+  transition: all var(--agnes-transition);
+}
+
+.agnes-theme-toggle:hover {
+  color: var(--agnes-primary);
+  background: var(--agnes-primary-bg);
+  transform: scale(1.08) rotate(15deg);
+}
+
+.agnes-theme-toggle:active {
+  transform: scale(0.95);
+}
+
+.agnes-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.agnes-title {
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1.2;
+  background: linear-gradient(135deg, var(--agnes-text) 0%, #6b5b4f 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.agnes-title-divider {
+  width: 1px;
+  height: 20px;
+  background: linear-gradient(180deg, transparent, var(--agnes-text-muted), transparent);
+  flex-shrink: 0;
+}
+
+.agnes-title-en {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--agnes-primary);
+  letter-spacing: 1.5px;
+}
+
+.agnes-subtitle {
+  font-size: 13px;
+  color: var(--agnes-text-secondary);
+  letter-spacing: 3px;
+  position: relative;
+  padding-left: 12px;
+  white-space: nowrap;
+}
+
+.agnes-subtitle::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--agnes-primary);
+  box-shadow: 0 0 8px rgba(25, 200, 185, 0.6);
+  animation: agnes-dot-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes agnes-dot-pulse {
+  0%, 100% { box-shadow: 0 0 6px rgba(25, 200, 185, 0.4); }
+  50% { box-shadow: 0 0 12px rgba(25, 200, 185, 0.8); }
+}
+
+.agnes-header-deco {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 120px;
+  height: 3px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, transparent, var(--agnes-primary), transparent);
+  opacity: 0.45;
+}
+
+
+/* ===== 主内容区 ===== */
+.agnes-main {
+  padding: 0 var(--agnes-space-lg);
+}
+
+

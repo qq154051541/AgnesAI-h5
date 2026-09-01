@@ -2,7 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import 'animal-island-ui/style'
 import App from './App'
-import './styles/App.css'
+import './styles/index.css'
 import { STORAGE_KEYS } from './config/api'
 
 // 渲染前同步主题，避免首屏浅色闪烁

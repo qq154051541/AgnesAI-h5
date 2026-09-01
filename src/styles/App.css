@@ -237,6 +237,15 @@
 :root[data-theme='dark'] [class*='animal-input-']::placeholder {
   color: var(--agnes-text-muted) !important;
 }
+/* ApiKey 输入框 wrapper 在暗色下的背景与边框 */
+:root[data-theme='dark'] .agnes-apikey-input-row [class*='animal-wrapper-'] {
+  background: var(--agnes-bg-card) !important;
+  border-color: var(--agnes-border) !important;
+}
+:root[data-theme='dark'] .agnes-apikey-input-row [class*='animal-wrapper-']:focus-within {
+  border-color: var(--agnes-primary) !important;
+  box-shadow: 0 0 0 3px var(--agnes-primary-bg) !important;
+}
 
 /* 暗黑模式：Select 触发器 */
 :root[data-theme='dark'] [class*='animal-trigger-'] {
@@ -2244,13 +2253,7 @@ body {
   border-radius: var(--agnes-radius-sm);
   object-fit: cover;
   flex-shrink: 0;
-  cursor: pointer;
   border: 2px solid var(--agnes-border);
-  transition: transform var(--agnes-transition-fast);
-}
-
-.agnes-history-thumb:hover {
-  transform: scale(1.08);
 }
 
 .agnes-history-video-thumb-wrap {
@@ -2258,7 +2261,6 @@ body {
   width: 60px;
   height: 60px;
   flex-shrink: 0;
-  cursor: pointer;
 }
 
 .agnes-history-video-thumb {
@@ -2277,12 +2279,6 @@ body {
   justify-content: center;
   background: rgba(0, 0, 0, 0.28);
   border-radius: var(--agnes-radius-sm);
-  cursor: pointer;
-  transition: background var(--agnes-transition);
-}
-
-.agnes-history-video-thumb-wrap:hover .agnes-history-video-play-icon {
-  background: rgba(0, 0, 0, 0.42);
 }
 
 .agnes-history-video-play {
@@ -2315,13 +2311,7 @@ body {
   gap: 2px;
   border-radius: var(--agnes-radius-sm);
   overflow: hidden;
-  cursor: pointer;
   border: 2px solid var(--agnes-border);
-  transition: transform var(--agnes-transition-fast);
-}
-
-.agnes-history-thumb-grid:hover {
-  transform: scale(1.06);
 }
 
 .agnes-history-thumb-grid-item {
@@ -2334,7 +2324,6 @@ body {
 .agnes-history-info {
   flex: 1;
   overflow: hidden;
-  cursor: pointer;
   min-width: 0;
 }
 

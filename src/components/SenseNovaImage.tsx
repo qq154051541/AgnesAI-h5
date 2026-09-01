@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, forwardRef, useImperativeHandle } from 'react'
-import { Button, Select, Modal, Notification } from 'animal-island-ui'
+import { Button, Select, Notification } from 'animal-island-ui'
 import {
   SENSENOVA_U1_SIZES,
   SENSENOVA_STORAGE_KEYS
@@ -10,18 +10,19 @@ import {
 } from '../services/sensenova'
 import type { SenseNovaImageHistoryItem, RequestResult, ApiResponse } from '../types'
 import {
-  getStorage,
-  setStorage,
+
   copyToClipboard,
   downloadFile,
   formatTime,
   truncateText,
-  formatResponseData,
-  normalizeHistoryOnLoad,
   getOrientation,
   ORIENTATION_LABELS
 } from '../utils/helpers'
-import { useStageHint } from '../hooks/useStageHint'
+import { useHistory } from '../hooks/useHistory'
+import { useHistoryPagination } from '../hooks/useHistoryPagination'
+import HistoryPagination from './HistoryPagination'
+import HistoryDetail from './HistoryDetail'
+import type { HistoryRecordType } from './HistoryDetail'
 import ImagePreview from './ImagePreview'
 
 interface SenseNovaImageProps {
@@ -40,11 +41,10 @@ const PAGE_SIZE = 10
 
 const SenseNovaImage = forwardRef<SenseNovaImageHandle, SenseNovaImageProps>(
   ({ apiKey, errorMsg, onError, onLoadingChange }, ref) => {
-  /* ===== 暴露 setPrompt 给父组件（图转提示词 → 文生图） ===== */
   useImperativeHandle(ref, () => ({
     setPrompt: (text: string) => setImgPrompt(text)
   }))
-  /* ===== 图片生成状态 ===== */
+
   const [imgPrompt, setImgPrompt] = useState('')
   const [imgSizeIndex, setImgSizeIndex] = useState(0)
   const [imgCountIndex, setImgCountIndex] = useState(0)
@@ -53,91 +53,25 @@ const SenseNovaImage = forwardRef<SenseNovaImageHandle, SenseNovaImageProps>(
   const [isSelectMode, setIsSelectMode] = useState(false)
   const [selectedImageIndexes, setSelectedImageIndexes] = useState<number[]>([])
   const [completedCount, setCompletedCount] = useState(0)
-  // 加载阶段提示（随等待时长递进）
-  const { hint: stageHint, elapsed } = useStageHint(isLoading)
-
-  /* ===== Refs ===== */
-  const requestsRef = useRef<RequestResult<ApiResponse>[]>([])
-  const timersRef = useRef<ReturnType<typeof setTimeout>[]>([])
-  /** 标记当前任务是否被手动终止 */
-  const stopRequestedRef = useRef(false)
-  /** 当前进行中任务的历史记录 ID（用于终止时回写） */
-  const currentTaskIdRef = useRef<string | null>(null)
-  /** saveImageHistory 的 ref 化，供初始化 effect 使用 */
-  const saveImageHistoryRef = useRef<((items: SenseNovaImageHistoryItem[]) => void) | null>(null)
-
-  /* ===== 历史记录 ===== */
-  const [imageHistory, setImageHistory] = useState<SenseNovaImageHistoryItem[]>([])
-  const [historyPage, setHistoryPage] = useState(1)
-  const [historyJumpPage, setHistoryJumpPage] = useState('')
-  const [detailItem, setDetailItem] = useState<SenseNovaImageHistoryItem | null>(null)
   const [previewSrc, setPreviewSrc] = useState('')
   const [previewIndex, setPreviewIndex] = useState(0)
   const [previewImages, setPreviewImages] = useState<string[] | undefined>(undefined)
+  const [detailRecord, setDetailRecord] = useState<SenseNovaImageHistoryItem | null>(null)
+
+  const requestsRef = useRef<RequestResult<ApiResponse>[]>([])
+  const timersRef = useRef<ReturnType<typeof setTimeout>[]>([])
+  const stopRequestedRef = useRef(false)
+  const currentTaskIdRef = useRef<string | null>(null)
+
+  const historyCtrl = useHistory<SenseNovaImageHistoryItem>(SENSENOVA_STORAGE_KEYS.IMAGE_HISTORY)
+  const paging = useHistoryPagination(historyCtrl.history, PAGE_SIZE)
 
   const imageCount = IMAGE_COUNTS[imgCountIndex].value
-
-  /* ===== 初始化 ===== */
-  useEffect(() => {
-    const savedImg = getStorage<SenseNovaImageHistoryItem[]>(SENSENOVA_STORAGE_KEYS.IMAGE_HISTORY)
-    if (savedImg) {
-      // 上次会话遗留的「生成中」记录统一标记为已中断
-      const fixed = normalizeHistoryOnLoad(savedImg)
-      setImageHistory(fixed)
-      saveImageHistoryRef.current?.(fixed)
-    }
-  }, [])
 
   useEffect(() => {
     onLoadingChange(isLoading)
   }, [isLoading, onLoadingChange])
 
-  /* ===== 工具方法 ===== */
-  const saveImageHistory = useCallback((items: SenseNovaImageHistoryItem[]) => {
-    setStorage(SENSENOVA_STORAGE_KEYS.IMAGE_HISTORY, items)
-  }, [])
-  saveImageHistoryRef.current = saveImageHistory
-
-  /**
-   * 任务开始时立即写入一条「生成中」历史记录，
-   * 防止任务进行中切换 tab / 刷新页面导致任务无痕迹地丢失。
-   */
-  const startTaskRecord = useCallback(
-    (promptText: string, sizeVal: string): string => {
-      const record: SenseNovaImageHistoryItem = {
-        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        url: '',
-        urls: [],
-        prompt: promptText,
-        size: sizeVal,
-        model: 'sensenova-u1-fast',
-        time: Date.now(),
-        responseData: null,
-        status: 'generating'
-      }
-      setImageHistory((prev) => {
-        const updated = [record, ...prev].slice(0, 50)
-        saveImageHistory(updated)
-        return updated
-      })
-      return record.id
-    },
-    [saveImageHistory]
-  )
-
-  /** 任务结束后回写详细结果（成功 / 失败 / 中断） */
-  const finishTaskRecord = useCallback(
-    (id: string, patch: Partial<SenseNovaImageHistoryItem>) => {
-      setImageHistory((prev) => {
-        const updated = prev.map((it) => (it.id === id ? { ...it, ...patch } : it))
-        saveImageHistory(updated)
-        return updated
-      })
-    },
-    [saveImageHistory]
-  )
-
-  /* ===== 图片生成功能 ===== */
   const handleGenerateImage = useCallback(() => {
     if (isLoading) return
     if (!apiKey.trim()) {
@@ -163,8 +97,14 @@ const SenseNovaImage = forwardRef<SenseNovaImageHandle, SenseNovaImageProps>(
     const errorMessages: string[] = []
     const collectedUrls: string[] = []
 
-    // 请求发起后立即记录一条「生成中」历史
-    const taskRecordId = startTaskRecord(imgPrompt.trim(), size)
+    const taskRecordId = historyCtrl.startTaskRecord({
+      url: '',
+      urls: [],
+      prompt: imgPrompt.trim(),
+      size,
+      model: 'sensenova-u1-fast',
+      responseData: null
+    } as unknown as Omit<SenseNovaImageHistoryItem, 'id' | 'time' | 'status'>)
     currentTaskIdRef.current = taskRecordId
 
     const sendRequest = (i: number) => {
@@ -201,26 +141,24 @@ const SenseNovaImage = forwardRef<SenseNovaImageHandle, SenseNovaImageProps>(
 
               const detail = errorMessages.length > 0 ? [...new Set(errorMessages)].join('；') : ''
               if (collectedUrls.length === 0) {
-                // 全部失败 / 被手动终止
                 const wasStopped = stopRequestedRef.current
-                finishTaskRecord(taskRecordId, {
+                historyCtrl.finishTaskRecord(taskRecordId, {
                   status: wasStopped ? 'interrupted' : 'failed',
                   failReason: wasStopped ? '已手动终止' : '所有图片生成均失败' + (detail ? '：' + detail : '')
-                })
+                } as Partial<SenseNovaImageHistoryItem>)
                 if (!wasStopped) {
                   onError('所有图片生成均失败' + (detail ? '：' + detail : ''))
                 }
               } else {
-                // 成功（含部分成功 / 终止后保留已完成图片）
                 const responseCopy = { data: collectedUrls.map((u) => ({ url: u })) }
-                finishTaskRecord(taskRecordId, {
+                historyCtrl.finishTaskRecord(taskRecordId, {
                   status: 'success',
                   url: collectedUrls[0],
                   urls: collectedUrls.slice(),
                   responseData: stopRequestedRef.current
                     ? { ...responseCopy, note: `已手动终止，保留已完成 ${collectedUrls.length} 张` }
                     : responseCopy
-                })
+                } as Partial<SenseNovaImageHistoryItem>)
                 if (detail && !stopRequestedRef.current) {
                   onError(`部分图片生成失败（成功 ${collectedUrls.length}/${imageCount}）：${detail}`)
                 }
@@ -231,13 +169,12 @@ const SenseNovaImage = forwardRef<SenseNovaImageHandle, SenseNovaImageProps>(
         })
     }
 
-    // 第一张立即请求，后续每隔 5 秒发起
     sendRequest(0)
     for (let i = 1; i < imageCount; i++) {
       const timer = setTimeout(() => sendRequest(i), i * 5000)
       timersRef.current.push(timer)
     }
-  }, [isLoading, apiKey, imgPrompt, imgSizeIndex, imageCount, onError, saveImageHistory, startTaskRecord, finishTaskRecord])
+  }, [isLoading, apiKey, imgPrompt, imgSizeIndex, imageCount, onError, historyCtrl])
 
   const stopImageGenerate = useCallback(() => {
     stopRequestedRef.current = true
@@ -246,28 +183,26 @@ const SenseNovaImage = forwardRef<SenseNovaImageHandle, SenseNovaImageProps>(
     timersRef.current.forEach((t) => clearTimeout(t))
     timersRef.current = []
     setIsLoading(false)
-    // 终止时立即回写历史：已有部分结果则保留，否则标记为已中断
     const taskId = currentTaskIdRef.current
     if (taskId) {
       currentTaskIdRef.current = null
       setImgResultUrls((urls) => {
         if (urls.length > 0) {
-          finishTaskRecord(taskId, {
+          historyCtrl.finishTaskRecord(taskId, {
             status: 'success',
             url: urls[0],
             urls: [...urls],
             responseData: { data: urls.map((u: string) => ({ url: u })), note: `已手动终止，保留已完成 ${urls.length} 张` }
-          })
+          } as Partial<SenseNovaImageHistoryItem>)
         } else {
-          finishTaskRecord(taskId, { status: 'interrupted', failReason: '已手动终止' })
+          historyCtrl.finishTaskRecord(taskId, { status: 'interrupted', failReason: '已手动终止' })
         }
         return urls
       })
     }
     onError('已终止生成')
-  }, [onError, finishTaskRecord])
+  }, [onError, historyCtrl])
 
-  /* ===== 图片下载 ===== */
   const downloadSingleImage = useCallback((url: string) => {
     downloadFile(url, `sensenova-u1-${Date.now()}.png`)
   }, [])
@@ -285,7 +220,6 @@ const SenseNovaImage = forwardRef<SenseNovaImageHandle, SenseNovaImageProps>(
     Notification[ok ? 'success' : 'error'](ok ? `已复制${imgResultUrls.length}个地址` : '复制失败')
   }, [imgResultUrls])
 
-  /* ===== 选择模式 ===== */
   const toggleSelectMode = useCallback(() => {
     setIsSelectMode((prev) => {
       if (prev) setSelectedImageIndexes([])
@@ -324,72 +258,19 @@ const SenseNovaImage = forwardRef<SenseNovaImageHandle, SenseNovaImageProps>(
     setSelectedImageIndexes([])
   }, [selectedImageIndexes, imgResultUrls])
 
-const resetImages = useCallback(() => {
-setImgResultUrls([])
-setIsSelectMode(false)
-setSelectedImageIndexes([])
-onError('')
-}, [onError])
-
-  /* ===== 历史记录操作 ===== */
-  const pagedImageHistory = imageHistory.slice(
-    (historyPage - 1) * PAGE_SIZE,
-    historyPage * PAGE_SIZE
-  )
-  const historyTotalPages = Math.ceil(imageHistory.length / PAGE_SIZE)
-
-  const clearHistory = useCallback(() => {
-    setImageHistory([])
-    saveImageHistory([])
-    setHistoryPage(1)
-    setHistoryJumpPage('')
-    Notification.success('已清空历史记录')
-  }, [saveImageHistory])
-
-  const deleteImageHistory = useCallback((id: string) => {
-    setImageHistory((prev) => {
-      const updated = prev.filter((item) => item.id !== id)
-      saveImageHistory(updated)
-      return updated
-    })
-  }, [saveImageHistory])
-
-  const viewImageHistory = useCallback((item: SenseNovaImageHistoryItem) => {
-    const urls = item.urls && item.urls.length > 0 ? item.urls : item.url ? [item.url] : []
-    if (urls.length === 0) {
-      Notification.warning('该任务还没有生成结果')
-      return
-    }
-    setImgResultUrls(urls)
-    setImgPrompt(item.prompt)
-    const idx = SENSENOVA_U1_SIZES.findIndex((s) => s.value === item.size)
-    if (idx >= 0) setImgSizeIndex(idx)
-    const countIdx = IMAGE_COUNTS.findIndex((c) => c.value === urls.length)
-    if (countIdx >= 0) setImgCountIndex(countIdx)
+  const resetImages = useCallback(() => {
+    setImgResultUrls([])
     setIsSelectMode(false)
     setSelectedImageIndexes([])
-    window.scrollTo({ top: 0, behavior: 'smooth' })
-  }, [])
+    onError('')
+  }, [onError])
 
-  const jumpHistoryPage = useCallback(() => {
-    const page = parseInt(historyJumpPage)
-    if (isNaN(page) || page < 1 || page > historyTotalPages) {
-      Notification.warning('请输入有效页码')
-      return
-    }
-    setHistoryPage(page)
-    setHistoryJumpPage('')
-  }, [historyJumpPage, historyTotalPages])
-
-  /* ===== 渲染 ===== */
   return (
     <div>
-      {/* 模型描述 */}
       <div className="sensenova-model-desc">
         生图加速版，支持 2K 分辨率、11 种比例
       </div>
 
-      {/* 尺寸与数量 */}
       <div className="agnes-form-row">
         <div className="agnes-form-group">
           <div className="agnes-label-row">
@@ -422,7 +303,6 @@ onError('')
         </div>
       </div>
 
-      {/* 提示词 */}
       <div className="agnes-form-group">
         <div className="agnes-label-row">
           <span className="agnes-label-icon">✨</span>
@@ -450,7 +330,6 @@ onError('')
         </div>
       </div>
 
-      {/* 生成按钮 */}
       <div className="agnes-generate-btn-wrapper">
         <Button
           type="primary"
@@ -464,10 +343,8 @@ onError('')
         </Button>
       </div>
 
-      {/* 错误提示 */}
       {errorMsg && <div className="agnes-error-box">{errorMsg}</div>}
 
-      {/* 加载状态 */}
       {isLoading && (
         <div className="agnes-loading-box">
           <div className="agnes-spinner" />
@@ -482,7 +359,6 @@ onError('')
         </div>
       )}
 
-      {/* 结果展示 */}
       {imgResultUrls.length > 0 && (
         <div className="agnes-result-box">
           <div className="agnes-result-header">
@@ -519,7 +395,6 @@ onError('')
             </div>
           )}
 
-          {/* 选择模式操作栏 */}
           {isSelectMode && imgResultUrls.length > 1 && (
             <div className="agnes-select-actions">
               <Button onClick={selectAllImages}>
@@ -531,7 +406,6 @@ onError('')
             </div>
           )}
 
-          {/* 普通操作栏 */}
           {!isSelectMode && (
             <div className="agnes-result-actions">
               {imgResultUrls.length > 1 && (
@@ -565,33 +439,33 @@ onError('')
         </div>
       )}
 
-      {/* 图片历史 */}
-      {imageHistory.length > 0 && (
+      {historyCtrl.history.length > 0 && (
         <div className="agnes-history-box">
           <div className="agnes-history-header">
             <span className="agnes-history-title">📋 生图历史</span>
-            <Button size="small" type="dashed" danger onClick={clearHistory}>
+            <Button size="small" type="dashed" danger onClick={() => { paging.reset(); historyCtrl.clearHistory() }}>
               清空
             </Button>
           </div>
           <div className="agnes-history-list">
-            {pagedImageHistory.map((imgItem) => {
+            {paging.pagedItems.map((imgItem) => {
               const urls = (imgItem.urls && imgItem.urls.length > 0 ? imgItem.urls : [imgItem.url]).filter(Boolean)
               const isMulti = urls.length > 1
               return (
-                <div className="agnes-history-item" key={imgItem.id}>
+                <div
+                  className="agnes-history-item"
+                  key={imgItem.id}
+                  onClick={() => setDetailRecord(imgItem)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setDetailRecord(imgItem) } }}
+                >
                   {urls.length === 0 ? (
-                    <div
-                      className="agnes-history-thumb agnes-history-thumb-placeholder"
-                      onClick={() => (imgItem.status === 'generating' ? Notification.warning('任务仍在生成中...') : undefined)}
-                    >
+                    <div className="agnes-history-thumb agnes-history-thumb-placeholder">
                       {imgItem.status === 'generating' ? '⏳' : '⛔'}
                     </div>
                   ) : isMulti ? (
-                    <div
-                      className="agnes-history-thumb-grid"
-                      onClick={() => viewImageHistory(imgItem)}
-                    >
+                    <div className="agnes-history-thumb-grid">
                       {urls.slice(0, 9).map((url, idx) => (
                         <img
                           key={idx}
@@ -606,13 +480,9 @@ onError('')
                       className="agnes-history-thumb"
                       src={urls[0]}
                       alt="thumb"
-                      onClick={() => viewImageHistory(imgItem)}
                     />
                   )}
-                  <div
-                    className="agnes-history-info"
-                    onClick={() => setDetailItem(imgItem)}
-                  >
+                  <div className="agnes-history-info">
                     <div className="agnes-history-prompt">
                       {truncateText(imgItem.prompt, 30)}
                     </div>
@@ -634,7 +504,7 @@ onError('')
                   </div>
                   <div
                     className="agnes-history-delete-btn"
-                    onClick={() => deleteImageHistory(imgItem.id)}
+                    onClick={(e) => { e.stopPropagation(); historyCtrl.deleteHistory(imgItem.id) }}
                   >
                     ✕
                   </div>
@@ -643,163 +513,30 @@ onError('')
             })}
           </div>
 
-          {historyTotalPages > 1 && (
-            <div className="agnes-history-pagination">
-              <Button size="small" disabled={historyPage <= 1} onClick={() => setHistoryPage(1)}>
-                首页
-              </Button>
-              <Button size="small" disabled={historyPage <= 1} onClick={() => setHistoryPage((p) => p - 1)}>
-                上一页
-              </Button>
-              <span className="agnes-page-info">{historyPage} / {historyTotalPages}</span>
-              <Button size="small" disabled={historyPage >= historyTotalPages} onClick={() => setHistoryPage((p) => p + 1)}>
-                下一页
-              </Button>
-              <Button size="small" disabled={historyPage >= historyTotalPages} onClick={() => setHistoryPage(historyTotalPages)}>
-                尾页
-              </Button>
-              {historyTotalPages > 3 && (
-                <div className="agnes-page-jump">
-                  <input
-                    className="agnes-page-jump-input"
-                    type="number"
-                    value={historyJumpPage}
-                    maxLength={4}
-                    placeholder="页码"
-                    onChange={(e) => setHistoryJumpPage(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && jumpHistoryPage()}
-                  />
-                  <Button size="small" onClick={jumpHistoryPage}>跳转</Button>
-                </div>
-              )}
-            </div>
-          )}
+          <HistoryPagination
+            page={paging.page}
+            totalPages={paging.totalPages}
+            jumpInput={paging.jumpInput}
+            onJumpInputChange={paging.setJumpInput}
+            onFirst={paging.goFirst}
+            onPrev={paging.goPrev}
+            onNext={paging.goNext}
+            onLast={paging.goLast}
+            onJump={paging.jumpTo}
+          />
         </div>
       )}
-
-      {/* 详情弹窗 */}
-      <Modal
-        open={!!detailItem}
-        title={
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-            <span>生图记录详情</span>
-            <button className="agnes-modal-close-btn" onClick={() => setDetailItem(null)}>✕</button>
-          </div>
-        }
-        onClose={() => setDetailItem(null)}
-        typewriter={false}
-        footer={null}
-        width={520}
-      >
-        {detailItem && (
-          <div className="agnes-detail-popup-body">
-            {/* 多图网格 */}
-            {detailItem.urls && detailItem.urls.length > 1 ? (
-              <div className="agnes-detail-grid">
-                {detailItem.urls.map((url, idx) => (
-                  <img
-                    key={idx}
-                    className="agnes-detail-grid-image"
-                    src={url}
-                    alt={`detail-${idx}`}
-                    onClick={() => {
-                      setPreviewImages(detailItem.urls!.length > 1 ? detailItem.urls : undefined)
-                      setPreviewIndex(idx)
-                      setPreviewSrc(url)
-                    }}
-                  />
-                ))}
-              </div>
-            ) : (
-              <img
-                className="agnes-detail-image"
-                src={detailItem.url}
-                alt="detail"
-                onClick={() => setPreviewSrc(detailItem.url)}
-              />
-            )}
-            <div className="agnes-detail-field agnes-detail-prompt-field">
-              <div className="agnes-detail-prompt-header">
-                <span className="agnes-detail-label">描述：</span>
-                <Button size="small" onClick={async () => {
-                  const ok = await copyToClipboard(detailItem.prompt)
-                  Notification[ok ? 'success' : 'error'](ok ? '已复制' : '复制失败')
-                }}>复制</Button>
-              </div>
-              <div className="agnes-detail-value agnes-detail-value-long">{detailItem.prompt}</div>
-            </div>
-            <div className="agnes-detail-field">
-              <span className="agnes-detail-label">尺寸：</span>
-              <span className="agnes-detail-value">
-                {detailItem.size}
-                {(() => {
-                  const matched = SENSENOVA_U1_SIZES.find((s) => s.value === detailItem.size)
-                  const o = getOrientation(detailItem.size, matched?.ratio)
-                  return o ? <span className={`agnes-orientation-badge agnes-orientation-${o}`} style={{ marginLeft: 8 }}>{ORIENTATION_LABELS[o].icon} {ORIENTATION_LABELS[o].text}</span> : null
-                })()}
-              </span>
-            </div>
-            <div className="agnes-detail-field">
-              <span className="agnes-detail-label">模型：</span>
-              <span className="agnes-detail-value">{detailItem.model}</span>
-            </div>
-            <div className="agnes-detail-field">
-              <span className="agnes-detail-label">生成时间：</span>
-              <span className="agnes-detail-value">{formatTime(detailItem.time)}</span>
-            </div>
-            {!!detailItem.responseData && (
-              <div className="agnes-detail-section">
-                <div className="agnes-detail-section-title">接口返回数据</div>
-                <div className="agnes-detail-json-area">
-                  {formatResponseData(detailItem.responseData)}
-                </div>
-              </div>
-            )}
-            <div className="agnes-detail-actions">
-              <Button type="primary" onClick={() => {
-                setImgPrompt(detailItem.prompt)
-                const idx = SENSENOVA_U1_SIZES.findIndex((s) => s.value === detailItem.size)
-                if (idx >= 0) setImgSizeIndex(idx)
-                const urls = detailItem.urls || [detailItem.url]
-                const countIdx = IMAGE_COUNTS.findIndex((c) => c.value === urls.length)
-                if (countIdx >= 0) setImgCountIndex(countIdx)
-                setDetailItem(null)
-                window.scrollTo({ top: 0, behavior: 'smooth' })
-              }}>
-                使用此描述
-              </Button>
-              <Button onClick={() => {
-                const urls = detailItem.urls && detailItem.urls.length > 0 ? detailItem.urls : detailItem.url ? [detailItem.url] : []
-                if (urls.length === 0) {
-                  Notification.warning('该任务还没有生成结果')
-                  return
-                }
-                if (urls.length === 1) {
-                  downloadFile(urls[0], `sensenova-u1-${Date.now()}.png`)
-                } else {
-                  urls.forEach((url, idx) => {
-                    setTimeout(() => downloadFile(url, `sensenova-u1-${Date.now()}-${idx + 1}.png`, { silent: true }), idx * 500)
-                  })
-                  Notification.success(`已发起批量下载，共 ${urls.length} 个文件`)
-                }
-              }}>
-                下载图片
-              </Button>
-              <Button onClick={async () => {
-                const urls = detailItem.urls || [detailItem.url]
-                const ok = await copyToClipboard(urls.join(';'))
-                Notification[ok ? 'success' : 'error'](ok ? '已复制地址' : '复制失败')
-              }}>复制地址</Button>
-            </div>
-          </div>
-        )}
-      </Modal>
 
       <ImagePreview
         src={previewSrc}
         images={previewImages}
         initialIndex={previewIndex}
         onClose={() => { setPreviewSrc(''); setPreviewImages(undefined) }}
+      />
+      <HistoryDetail
+        record={detailRecord}
+        recordType={'image' as HistoryRecordType}
+        onClose={() => setDetailRecord(null)}
       />
     </div>
   )

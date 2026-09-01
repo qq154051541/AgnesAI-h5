@@ -1,0 +1,183 @@
+﻿/* ===== API Key 区域 ===== */
+.agnes-apikey-section {
+  margin-bottom: var(--agnes-space-lg);
+}
+
+/* 未配置状态：高亮引导边框 */
+.agnes-apikey-section-empty {
+  border-color: rgba(25, 200, 185, 0.4) !important;
+  box-shadow: var(--agnes-shadow-primary-sm) !important;
+}
+
+/* 未配置时的步骤引导 */
+.agnes-apikey-guide {
+  display: flex;
+  align-items: center;
+  gap: var(--agnes-space-sm);
+  margin-bottom: var(--agnes-space-md);
+  padding: var(--agnes-space-sm) var(--agnes-space-md);
+  background: var(--agnes-primary-bg-soft);
+  border: 1px dashed rgba(25, 200, 185, 0.35);
+  border-radius: var(--agnes-radius-sm);
+}
+
+.agnes-apikey-guide-badge {
+  flex-shrink: 0;
+  padding: 2px 10px;
+  font-size: var(--agnes-font-xs);
+  font-weight: 700;
+  color: #fff;
+  background: var(--agnes-gradient-primary);
+  border-radius: var(--agnes-radius-full);
+  box-shadow: var(--agnes-shadow-primary-sm);
+}
+
+.agnes-apikey-guide-text {
+  font-size: var(--agnes-font-sm);
+  font-weight: 600;
+  color: var(--agnes-primary-active);
+}
+
+/* 已配置折叠态：一行状态条 */
+.agnes-apikey-collapsed {
+  display: flex;
+  align-items: center;
+  gap: var(--agnes-space-sm);
+  margin-bottom: var(--agnes-space-lg);
+  padding: 10px var(--agnes-space-lg);
+  background: var(--agnes-bg-card);
+  border: 2px solid var(--agnes-border);
+  border-radius: var(--agnes-radius-base);
+  cursor: pointer;
+  transition: all var(--agnes-transition);
+}
+
+.agnes-apikey-collapsed:hover {
+  border-color: var(--agnes-primary);
+  box-shadow: var(--agnes-shadow-sm);
+}
+
+.agnes-apikey-collapsed:active {
+  transform: scale(0.99);
+}
+
+.agnes-apikey-status-icon {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--agnes-success);
+  border-radius: 50%;
+}
+
+.agnes-apikey-status-text {
+  flex-shrink: 0;
+  font-size: var(--agnes-font-sm);
+  font-weight: 600;
+  color: var(--agnes-text);
+  white-space: nowrap;
+}
+
+.agnes-apikey-mask {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--agnes-font-sm);
+  color: var(--agnes-text-muted);
+  font-family: 'Courier New', monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.agnes-apikey-edit {
+  flex-shrink: 0;
+  font-size: var(--agnes-font-sm);
+  font-weight: 600;
+  color: var(--agnes-primary);
+  transition: color var(--agnes-transition-fast);
+}
+
+.agnes-apikey-collapsed:hover .agnes-apikey-edit {
+  color: var(--agnes-primary-active);
+  text-decoration: underline;
+}
+
+/* 展开态的收起按钮 */
+.agnes-apikey-collapse {
+  margin-left: auto;
+  padding: 4px 10px;
+  border: none;
+  background: var(--agnes-bg-secondary);
+  border-radius: var(--agnes-radius-xs);
+  font-size: var(--agnes-font-sm);
+  color: var(--agnes-text-secondary);
+  cursor: pointer;
+  transition: all var(--agnes-transition-fast);
+  font-family: inherit;
+}
+
+.agnes-apikey-collapse:hover {
+  color: var(--agnes-primary);
+  background: var(--agnes-primary-bg);
+}
+
+.agnes-apikey-row {
+  display: flex;
+  align-items: center;
+  gap: var(--agnes-space-sm);
+  margin-bottom: 8px;
+}
+
+.agnes-label-icon {
+  font-size: var(--agnes-font-lg);
+  line-height: 1;
+}
+
+.agnes-apikey-label {
+  font-size: var(--agnes-font-base);
+  font-weight: 600;
+  color: var(--agnes-text);
+  white-space: nowrap;
+}
+
+.agnes-apikey-required {
+  color: var(--agnes-error);
+  font-size: var(--agnes-font-base);
+}
+
+.agnes-apikey-input-row {
+  display: flex;
+  gap: var(--agnes-space-sm);
+  align-items: center;
+}
+
+.agnes-apikey-input-row > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.agnes-apikey-tips {
+  font-size: var(--agnes-font-sm);
+  color: var(--agnes-text-secondary);
+  margin-top: 8px;
+  line-height: 1.6;
+}
+
+.agnes-apikey-tips-link {
+  color: var(--agnes-primary);
+  text-decoration: underline;
+  cursor: pointer;
+  font-weight: 600;
+  transition: color var(--agnes-transition-fast);
+}
+
+.agnes-apikey-tips-link:hover {
+  color: var(--agnes-primary-active);
+}
+
+

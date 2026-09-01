@@ -1,0 +1,344 @@
+﻿/* ===== SenseNova / Zhipu 通用样式 ===== */
+
+/* 模型描述与标签 */
+.sensenova-model-desc {
+  font-size: var(--agnes-font-sm);
+  color: var(--agnes-text-secondary);
+  margin-top: var(--agnes-space-sm);
+  margin-bottom: var(--agnes-space-md);
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 12px;
+  background: var(--agnes-primary-bg-soft);
+  border-radius: var(--agnes-radius-sm);
+  border-left: 3px solid var(--agnes-primary);
+  line-height: 1.6;
+}
+
+.sensenova-model-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  background: var(--agnes-primary-bg);
+  color: var(--agnes-primary);
+  border-radius: var(--agnes-radius-xs);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* 分段按钮组（推理力度 / 思考模式 / 音效） */
+.sensenova-reasoning-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.sensenova-reasoning-btn {
+  padding: 7px 16px;
+  border: 2px solid var(--agnes-border);
+  background: var(--agnes-bg-card);
+  border-radius: var(--agnes-radius-full);
+  font-size: var(--agnes-font-sm);
+  color: var(--agnes-text-secondary);
+  cursor: pointer;
+  transition: all var(--agnes-transition);
+  font-family: inherit;
+  font-weight: 500;
+}
+
+.sensenova-reasoning-btn:hover {
+  border-color: var(--agnes-primary);
+  color: var(--agnes-primary);
+  transform: translateY(-1px);
+}
+
+.sensenova-reasoning-btn:active {
+  transform: translateY(0);
+}
+
+.sensenova-reasoning-active {
+  background: var(--agnes-gradient-primary) !important;
+  border-color: var(--agnes-primary) !important;
+  color: #fff !important;
+  box-shadow: var(--agnes-shadow-primary-sm);
+}
+
+/* 聊天区域 */
+.sensenova-chat-container {
+  max-height: 500px;
+  overflow-y: auto;
+  padding: var(--agnes-space-md);
+  background: var(--agnes-bg-glass);
+  border: 2px solid var(--agnes-border);
+  border-radius: var(--agnes-radius-xl);
+  margin-bottom: var(--agnes-space-lg);
+  scroll-behavior: smooth;
+}
+
+.sensenova-chat-container::-webkit-scrollbar {
+  width: 4px;
+}
+
+.sensenova-chat-container::-webkit-scrollbar-thumb {
+  background: rgba(25, 200, 185, 0.3);
+  border-radius: 2px;
+}
+
+/* 聊天消息 */
+.sensenova-chat-msg {
+  display: flex;
+  gap: var(--agnes-space-sm);
+  margin-bottom: var(--agnes-space-md);
+  animation: agnes-msg-in 0.3s ease;
+}
+
+@keyframes agnes-msg-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.sensenova-chat-msg:last-child {
+  margin-bottom: 0;
+}
+
+.sensenova-chat-avatar {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  background: var(--agnes-bg-secondary);
+  border: 2px solid var(--agnes-border);
+}
+
+.sensenova-chat-user .sensenova-chat-avatar {
+  background: var(--agnes-primary-bg);
+  border-color: rgba(25, 200, 185, 0.25);
+}
+
+.sensenova-chat-assistant .sensenova-chat-avatar {
+  background: linear-gradient(135deg, var(--agnes-primary-bg), var(--agnes-bg-secondary));
+  border-color: rgba(25, 200, 185, 0.2);
+}
+
+.sensenova-chat-bubble {
+  flex: 1;
+  min-width: 0;
+  background: var(--agnes-bg-card);
+  border: 2px solid var(--agnes-border);
+  border-radius: var(--agnes-radius-base);
+  padding: var(--agnes-space-md) var(--agnes-space-lg);
+  overflow: hidden;
+}
+
+.sensenova-chat-user .sensenova-chat-bubble {
+  background: var(--agnes-primary-bg);
+  border-color: rgba(25, 200, 185, 0.2);
+}
+
+.sensenova-chat-msg-image {
+  width: 100%;
+  max-width: 200px;
+  border-radius: var(--agnes-radius-sm);
+  border: 2px solid var(--agnes-border);
+  margin-bottom: var(--agnes-space-sm);
+  cursor: pointer;
+  transition: transform var(--agnes-transition-fast);
+}
+
+.sensenova-chat-msg-image:hover {
+  transform: scale(1.02);
+}
+
+.sensenova-chat-text {
+  font-size: var(--agnes-font-base);
+  color: var(--agnes-text);
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* 思考过程 */
+.sensenova-chat-reasoning {
+  margin-bottom: var(--agnes-space-sm);
+  padding: var(--agnes-space-sm) var(--agnes-space-md);
+  background: var(--agnes-warning-bg);
+  border-left: 3px solid var(--agnes-warning);
+  border-radius: var(--agnes-radius-sm);
+}
+
+.sensenova-chat-reasoning-header {
+  font-size: 11px;
+  font-weight: 600;
+  color: #c48820;
+  margin-bottom: 4px;
+}
+
+.sensenova-chat-reasoning-text {
+  font-size: 12px;
+  color: var(--agnes-text-secondary);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+/* 消息元信息 */
+.sensenova-chat-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--agnes-space-sm);
+  margin-top: var(--agnes-space-sm);
+  font-size: 11px;
+  color: var(--agnes-text-muted);
+  flex-wrap: wrap;
+}
+
+.sensenova-chat-copy-btn {
+  cursor: pointer;
+  color: var(--agnes-primary);
+  transition: opacity var(--agnes-transition);
+  font-weight: 500;
+}
+
+.sensenova-chat-copy-btn:hover {
+  opacity: 0.7;
+}
+
+.sensenova-streaming-badge {
+  color: var(--agnes-primary);
+  font-weight: 600;
+}
+
+/* 加载动画（打字效果） */
+.sensenova-chat-loading {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  padding: 4px 0;
+}
+
+.sensenova-chat-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--agnes-primary);
+  animation: sensenova-dot-bounce 1.4s infinite ease-in-out both;
+}
+
+.sensenova-chat-dot:nth-child(1) {
+  animation-delay: -0.32s;
+}
+
+.sensenova-chat-dot:nth-child(2) {
+  animation-delay: -0.16s;
+}
+
+@keyframes sensenova-dot-bounce {
+  0%, 80%, 100% {
+    transform: scale(0.6);
+    opacity: 0.4;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* 空状态 */
+.sensenova-chat-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px var(--agnes-space-lg);
+  margin-bottom: var(--agnes-space-lg);
+  background: var(--agnes-bg-glass);
+  border: 2px dashed var(--agnes-border);
+  border-radius: var(--agnes-radius-xl);
+  gap: var(--agnes-space-sm);
+}
+
+.sensenova-chat-empty-icon {
+  font-size: 48px;
+  animation: agnes-float 3s ease-in-out infinite;
+}
+
+@keyframes agnes-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+.sensenova-chat-empty-text {
+  font-size: var(--agnes-font-lg);
+  font-weight: 700;
+  color: var(--agnes-text);
+}
+
+.sensenova-chat-empty-hint {
+  font-size: var(--agnes-font-sm);
+  color: var(--agnes-text-secondary);
+  text-align: center;
+  max-width: 300px;
+  line-height: 1.6;
+}
+
+/* 聊天输入区 */
+.sensenova-chat-input-area {
+  display: flex;
+  flex-direction: column;
+  gap: var(--agnes-space-sm);
+}
+
+.sensenova-chat-input {
+  min-height: 60px !important;
+  resize: none;
+}
+
+.sensenova-chat-input-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--agnes-space-sm);
+  align-items: center;
+}
+
+/* 聊天图片预览 */
+.sensenova-chat-image-preview {
+  position: relative;
+  display: inline-block;
+  max-width: 200px;
+  transition: transform var(--agnes-transition-bounce);
+}
+
+.sensenova-chat-image-preview:hover {
+  transform: scale(1.02);
+}
+
+.sensenova-chat-image-preview img {
+  width: 100%;
+  max-width: 200px;
+  border-radius: var(--agnes-radius-sm);
+  border: 2px solid var(--agnes-border);
+  cursor: pointer;
+  display: block;
+}
+
+/* U1 Fast URL 警告 */
+.sensenova-url-warning {
+  margin-top: var(--agnes-space-sm);
+  padding: var(--agnes-space-sm) var(--agnes-space-md);
+  background: var(--agnes-warning-bg);
+  border: 1px solid rgba(232, 169, 72, 0.3);
+  border-left: 3px solid var(--agnes-warning);
+  border-radius: var(--agnes-radius-sm);
+  font-size: 12px;
+  color: #c48820;
+  text-align: center;
+}
+
+

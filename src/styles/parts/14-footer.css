@@ -1,0 +1,9 @@
+﻿/* ===== 底部 ===== */
+.agnes-footer-text {
+  text-align: center;
+  padding: var(--agnes-space-lg);
+  font-size: var(--agnes-font-sm);
+  color: var(--agnes-text-muted);
+}
+
+

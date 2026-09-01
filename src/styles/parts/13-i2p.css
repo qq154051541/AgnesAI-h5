@@ -1,0 +1,102 @@
+﻿/* ===== 图转提示词专用 ===== */
+.agnes-img2prompt-preview-wrap {
+  position: relative;
+  width: 200px;
+  height: 200px;
+  margin-top: 10px;
+  transition: transform var(--agnes-transition-bounce);
+}
+
+.agnes-img2prompt-preview-wrap:hover {
+  transform: scale(1.02);
+}
+
+.agnes-img2prompt-preview {
+  width: 200px;
+  height: 200px;
+  border-radius: var(--agnes-radius-base);
+  object-fit: contain;
+  border: 2px solid var(--agnes-border);
+  cursor: pointer;
+  background: var(--agnes-bg-secondary);
+}
+
+.agnes-img2prompt-result-box {
+  background: var(--agnes-bg-card);
+  border: 2px solid var(--agnes-border);
+  border-radius: var(--agnes-radius-base);
+  padding: var(--agnes-space-lg);
+  margin-top: 10px;
+  position: relative;
+}
+
+.agnes-img2prompt-result-box::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 16px;
+  bottom: 16px;
+  width: 3px;
+  border-radius: 3px;
+  background: var(--agnes-gradient-primary);
+}
+
+.agnes-img2prompt-result-text {
+  font-size: var(--agnes-font-base);
+  color: var(--agnes-text);
+  line-height: 1.8;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.agnes-lang-badge {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  background: rgba(25, 200, 185, 0.92);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: var(--agnes-font-xs);
+  color: #fff;
+  font-weight: bold;
+  backdrop-filter: blur(2px);
+}
+
+
+/* ===== 语言切换 / 分段控件 ===== */
+.agnes-lang-switch {
+  display: flex;
+  background: var(--agnes-bg-glass);
+  border-radius: var(--agnes-radius-base);
+  padding: 4px;
+  border: 2px solid var(--agnes-border);
+  gap: 4px;
+}
+
+.agnes-lang-switch-btn {
+  flex: 1;
+  padding: var(--agnes-space-sm) 0;
+  border-radius: var(--agnes-radius-sm);
+  border: none;
+  cursor: pointer;
+  font-size: var(--agnes-font-base);
+  font-weight: normal;
+  color: var(--agnes-text-muted);
+  background: transparent;
+  transition: all var(--agnes-transition);
+  font-family: inherit;
+}
+
+.agnes-lang-switch-btn:hover:not(.agnes-lang-active) {
+  color: var(--agnes-text-secondary);
+  background: var(--agnes-bg-hover);
+}
+
+.agnes-lang-switch-btn.agnes-lang-active {
+  font-weight: bold;
+  color: var(--agnes-primary);
+  background: var(--agnes-bg-card);
+  box-shadow: var(--agnes-shadow-sm);
+}
+
+

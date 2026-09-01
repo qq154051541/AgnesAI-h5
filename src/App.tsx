@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react'
+import { useState, useCallback, useRef, useMemo } from 'react'
 import { Cursor, Drawer, Notification, Divider, Footer } from 'animal-island-ui'
 import KeepAliveTabs from './components/KeepAliveTabs'
 import type { KeepAliveTabItem } from './components/KeepAliveTabs'
@@ -16,179 +16,216 @@ import ZhipuImage from './components/ZhipuImage'
 import ZhipuVideo from './components/ZhipuVideo'
 import ZhipuImg2Prompt from './components/ZhipuImg2Prompt'
 import type { ZhipuImageHandle } from './components/ZhipuImage'
-import { STORAGE_KEYS } from './config/api'
 import { SENSENOVA_STORAGE_KEYS, SENSENOVA_MODELS } from './config/sensenova'
 import { ZHIPU_STORAGE_KEYS, ZHIPU_MODELS } from './config/zhipu'
-import { getStorage, setStorage } from './utils/helpers'
+import { useApiKey } from './hooks/useApiKey'
+import { useTheme } from './hooks/useTheme'
 
-type TabKey = 'image' | 'video' | 'videoFlash' | 'img2prompt'
+type AgnesTabKey = 'image' | 'video' | 'videoFlash' | 'img2prompt'
 type SenseNovaTabKey = 'flashlite' | 'deepseek' | 'u1image'
 type ZhipuTabKey = 'glm' | 'video' | 'cogview' | 'img2prompt'
+type DrawerKey = 'agnes' | 'sensenova' | 'zhipu'
+
+interface PlatformCard {
+  key: DrawerKey
+  icon: string
+  title: string
+  subtitle: string
+  tags: string[]
+  loading: boolean
+  ariaLabel: string
+}
+
+interface ApiKeyLink {
+  href: string
+  text: string
+}
+
+interface DrawerConfig {
+  key: DrawerKey
+  title: string
+  icon: string
+  apiKeyValue: string
+  onApiKeyChange: (v: string) => void
+  apiKeyLabel: string
+  apiKeyPlaceholder: string
+  platformUrl: string
+  platformName: string
+  steps: string
+}
+
+const PLATFORM_CARDS: PlatformCard[] = [
+  {
+    key: 'agnes',
+    icon: '🎨',
+    title: 'Agnes AI 创作工坊',
+    subtitle: '图片生成 · 视频生成 · Video 2.5 Flash · 图转提示词',
+    tags: ['🖼️ 图片生成', '🎬 视频生成', '🎥 Video 2.5 Flash', '🔍 图转提示词'],
+    loading: false,
+    ariaLabel: '进入 Agnes AI 创作工坊'
+  },
+  {
+    key: 'sensenova',
+    icon: '🧠',
+    title: 'SenseNova 实验室',
+    subtitle: '多模态对话 · 深度思考 · 信息图生成',
+    tags: ['⚡ Flash-Lite', '🧩 DeepSeek V4', '📊 U1 生图'],
+    loading: false,
+    ariaLabel: '进入 SenseNova 实验室'
+  },
+  {
+    key: 'zhipu',
+    icon: '🚀',
+    title: '智谱 AI 智能体',
+    subtitle: 'Agentic Coding · 文生图 · 视频生成 · 图转提示词',
+    tags: ['🚀 GLM-4.7-Flash', '🎨 CogView-3-Flash', '🎬 cogvideox-flash', '🔍 图转提示词'],
+    loading: false,
+    ariaLabel: '进入智谱 AI 智能体'
+  }
+]
+
+const API_KEY_LINKS: ApiKeyLink[] = [
+  { href: 'https://platform.agnes-ai.com/', text: '获取 Agnes AI API Key' },
+  { href: 'https://platform.sensenova.cn/', text: '获取 SenseNova API Key' },
+  { href: 'https://open.bigmodel.cn/', text: '获取智谱 AI API Key' }
+]
 
 export default function App() {
-  const [apiKey, setApiKey] = useState('')
-  const [theme, setTheme] = useState<'light' | 'dark'>(() =>
-    getStorage<string>(STORAGE_KEYS.THEME) === 'dark' ? 'dark' : 'light'
-  )
-  const [activeTab, setActiveTab] = useState<TabKey>('image')
-  const [errorMsgs, setErrorMsgs] = useState<Record<string, string>>({
-    image: '',
-    video: '',
-    videoFlash: '',
-    img2prompt: '',
-    sensenova: '',
-    zhipu: ''
+  const { theme, toggle: toggleTheme } = useTheme()
+
+  /* ===== API Keys（启动恢复 + 变更持久化） ===== */
+  const agnesKey = useApiKey('agnes_api_key')
+  const sensenovaKey = useApiKey(SENSENOVA_STORAGE_KEYS.API_KEY)
+  const zhipuKey = useApiKey(ZHIPU_STORAGE_KEYS.API_KEY)
+
+  /* ===== Tab / Loading / Drawer ===== */
+  const [agnesTab, setAgnesTab] = useState<AgnesTabKey>('image')
+  const [sensenovaTab, setSensenovaTab] = useState<SenseNovaTabKey>('flashlite')
+  const [zhipuTab, setZhipuTab] = useState<ZhipuTabKey>('glm')
+
+  const [errors, setErrors] = useState<Record<string, string>>({})
+  const setError = useCallback((tab: string, msg: string) => {
+    setErrors((prev) => ({ ...prev, [tab]: msg }))
+  }, [])
+
+  const [loading, setLoading] = useState<Record<string, boolean>>({})
+  const setLoadingFlag = useCallback((tab: string, val: boolean) => {
+    setLoading((prev) => ({ ...prev, [tab]: val }))
+  }, [])
+
+  const [drawerOpen, setDrawerOpen] = useState<Record<DrawerKey, boolean>>({
+    agnes: false,
+    sensenova: false,
+    zhipu: false
   })
-  const [imageLoading, setImageLoading] = useState(false)
-  const [videoLoading, setVideoLoading] = useState(false)
-  const [videoFlashLoading, setVideoFlashLoading] = useState(false)
-  const [img2promptLoading, setImg2promptLoading] = useState(false)
-  const [sensenovaFlashliteLoading, setSensenovaFlashliteLoading] = useState(false)
-  const [sensenovaDeepseekLoading, setSensenovaDeepseekLoading] = useState(false)
-  const [sensenovaImageLoading, setSensenovaImageLoading] = useState(false)
-  const [zhipuGlmLoading, setZhipuGlmLoading] = useState(false)
-  const [zhipuVideoLoading, setZhipuVideoLoading] = useState(false)
-  const [zhipuImageLoading, setZhipuImageLoading] = useState(false)
-  const [zhipuImg2PromptLoading, setZhipuImg2PromptLoading] = useState(false)
-
-  /* ===== SenseNova 状态 ===== */
-  const [sensenovaApiKey, setSensenovaApiKey] = useState('')
-  const [sensenovaActiveTab, setSensenovaActiveTab] = useState<SenseNovaTabKey>('flashlite')
-
-  /* ===== 智谱 AI 状态 ===== */
-  const [zhipuApiKey, setZhipuApiKey] = useState('')
-  const [zhipuActiveTab, setZhipuActiveTab] = useState<ZhipuTabKey>('glm')
-
-  /* 抽屉状态 */
-  const [agnesDrawerOpen, setAgnesDrawerOpen] = useState(false)
-  const [sensenovaDrawerOpen, setSensenovaDrawerOpen] = useState(false)
-  const [zhipuDrawerOpen, setZhipuDrawerOpen] = useState(false)
-
-const imageGenerateRef = useRef<{ setPrompt: (text: string) => void } | null>(null)
-const zhipuImageRef = useRef<ZhipuImageHandle | null>(null)
-const sensenovaImageRef = useRef<SenseNovaImageHandle | null>(null)
-
-  useEffect(() => {
-    const savedKey = getStorage<string>(STORAGE_KEYS.API_KEY)
-    if (savedKey) {
-      setApiKey(savedKey)
-    }
-    const savedSensenovaKey = getStorage<string>(SENSENOVA_STORAGE_KEYS.API_KEY)
-    if (savedSensenovaKey) {
-      setSensenovaApiKey(savedSensenovaKey)
-    }
-    const savedZhipuKey = getStorage<string>(ZHIPU_STORAGE_KEYS.API_KEY)
-    if (savedZhipuKey) {
-      setZhipuApiKey(savedZhipuKey)
-    }
+  const openDrawer = useCallback((k: DrawerKey) => {
+    setDrawerOpen((prev) => ({ ...prev, [k]: true }))
+  }, [])
+  const closeDrawer = useCallback((k: DrawerKey) => {
+    setDrawerOpen((prev) => ({ ...prev, [k]: false }))
   }, [])
 
-  // 主题同步到 <html data-theme> 与 localStorage
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme)
-    setStorage(STORAGE_KEYS.THEME, theme)
-  }, [theme])
+  /* 跨组件联动 ref */
+  const imageGenerateRef = useRef<{ setPrompt: (text: string) => void } | null>(null)
+  const zhipuImageRef = useRef<ZhipuImageHandle | null>(null)
+  const sensenovaImageRef = useRef<SenseNovaImageHandle | null>(null)
 
-  const onError = useCallback((tab: TabKey | 'sensenova' | 'zhipu', msg: string) => {
-    setErrorMsgs((prev) => ({ ...prev, [tab]: msg }))
+  /* ===== 稳定的 onError / onLoadingChange 集合（避免 inline 函数触发子组件 effect 死循环） ===== */
+  const sensenovaHandlers = useMemo(
+    () => ({
+      onError: (msg: string) => setError('sensenova', msg),
+      onLoadingFlashlite: (v: boolean) => setLoadingFlag('sensenovaFlashlite', v),
+      onLoadingDeepseek: (v: boolean) => setLoadingFlag('sensenovaDeepseek', v),
+      onLoadingImage: (v: boolean) => setLoadingFlag('sensenovaImage', v)
+    }),
+    [setError, setLoadingFlag]
+  )
+  const zhipuHandlers = useMemo(
+    () => ({
+      onError: (msg: string) => setError('zhipu', msg),
+      onLoadingGlm: (v: boolean) => setLoadingFlag('zhipuGlm', v),
+      onLoadingVideo: (v: boolean) => setLoadingFlag('zhipuVideo', v),
+      onLoadingImage: (v: boolean) => setLoadingFlag('zhipuImage', v),
+      onLoadingImg2Prompt: (v: boolean) => setLoadingFlag('zhipuImg2Prompt', v)
+    }),
+    [setError, setLoadingFlag]
+  )
+  const agnesHandlers = useMemo(
+    () => ({
+      onErrorImage: (msg: string) => setError('image', msg),
+      onLoadingImage: (v: boolean) => setLoadingFlag('image', v),
+      onErrorVideo: (msg: string) => setError('video', msg),
+      onLoadingVideo: (v: boolean) => setLoadingFlag('video', v),
+      onErrorVideoFlash: (msg: string) => setError('videoFlash', msg),
+      onLoadingVideoFlash: (v: boolean) => setLoadingFlag('videoFlash', v),
+      onErrorImg2Prompt: (msg: string) => setError('img2prompt', msg),
+      onLoadingImg2Prompt: (v: boolean) => setLoadingFlag('img2prompt', v)
+    }),
+    [setError, setLoadingFlag]
+  )
+
+  /* ===== 跨页面"使用此提示词"回调 ===== */
+  const usePromptInAgnes = useCallback((prompt: string) => {
+    setAgnesTab('image')
+    setTimeout(() => imageGenerateRef.current?.setPrompt(prompt), 100)
+    Notification.success('已填入图片提示词')
   }, [])
 
-  const handleUsePrompt = useCallback(
-    (prompt: string) => {
-      setActiveTab('image')
-      setTimeout(() => {
-        if (imageGenerateRef.current) {
-          imageGenerateRef.current.setPrompt(prompt)
-        }
-      }, 100)
-      Notification.success('已填入图片提示词')
-    },
-    []
+  const usePromptInZhipuCogview = useCallback((prompt: string) => {
+    setZhipuTab('cogview')
+    setTimeout(() => zhipuImageRef.current?.setPrompt(prompt), 100)
+    Notification.success('已填入 CogView-3-Flash 生图描述')
+  }, [])
+
+  const usePromptInSenseNovaU1 = useCallback((prompt: string) => {
+    setSensenovaTab('u1image')
+    setTimeout(() => sensenovaImageRef.current?.setPrompt(prompt), 100)
+    Notification.success('已填入 U1 Fast 生图描述')
+  }, [])
+
+  /* 汇总 loading：用于平台卡片"创作中"徽标 */
+  const agnesLoading = !!(
+    loading.image || loading.video || loading.videoFlash || loading.img2prompt
+  )
+  const sensenovaLoading = !!(
+    loading.sensenovaFlashlite || loading.sensenovaDeepseek || loading.sensenovaImage
+  )
+  const zhipuLoading = !!(
+    loading.zhipuGlm ||
+    loading.zhipuVideo ||
+    loading.zhipuImage ||
+    loading.zhipuImg2Prompt
   )
 
-/** 智谱图转提示词 → CogView-3-Flash 文生图 */
-const handleZhipuUsePrompt = useCallback(
-(prompt: string) => {
-setZhipuActiveTab('cogview')
-setTimeout(() => {
-if (zhipuImageRef.current) {
-zhipuImageRef.current.setPrompt(prompt)
-}
-}, 100)
-Notification.success('已填入 CogView-3-Flash 生图描述')
-},
-[]
-)
+  const loadingMap: Record<DrawerKey, boolean> = {
+    agnes: agnesLoading,
+    sensenova: sensenovaLoading,
+    zhipu: zhipuLoading
+  }
+  const platformCards = PLATFORM_CARDS.map((c) => ({ ...c, loading: loadingMap[c.key] }))
 
-/** SenseNova 图转提示词 → U1 Fast 文生图 */
-const handleSensenovaUsePrompt = useCallback(
-(prompt: string) => {
-setSensenovaActiveTab('u1image')
-setTimeout(() => {
-if (sensenovaImageRef.current) {
-sensenovaImageRef.current.setPrompt(prompt)
-}
-}, 100)
-Notification.success('已填入 U1 Fast 生图描述')
-},
-[]
-)
-
-  const handleSaveApiKey = useCallback(
-    (key: string) => {
-      const trimmed = key.trim()
-      if (trimmed) {
-        setStorage(STORAGE_KEYS.API_KEY, trimmed)
-      }
-    },
-    []
-  )
-
-  const handleSaveSensenovaApiKey = useCallback(
-    (key: string) => {
-      const trimmed = key.trim()
-      if (trimmed) {
-        setStorage(SENSENOVA_STORAGE_KEYS.API_KEY, trimmed)
-      }
-    },
-    []
-  )
-
-  const handleSaveZhipuApiKey = useCallback(
-    (key: string) => {
-      const trimmed = key.trim()
-      if (trimmed) {
-        setStorage(ZHIPU_STORAGE_KEYS.API_KEY, trimmed)
-      }
-    },
-    []
-  )
-
-  const sensenovaLoading = sensenovaFlashliteLoading || sensenovaDeepseekLoading || sensenovaImageLoading
-  const zhipuLoading = zhipuGlmLoading || zhipuVideoLoading || zhipuImageLoading || zhipuImg2PromptLoading
-
-  const flashLiteModel = SENSENOVA_MODELS[0]
   const deepSeekModel = SENSENOVA_MODELS[1]
   const glmModel = ZHIPU_MODELS[0]
   const cogviewModel = ZHIPU_MODELS[2]
   const cogvideoModel = ZHIPU_MODELS[3]
 
-  const sensenovaTabItems: KeepAliveTabItem[] = [
+  /* ===== Tab 配置 ===== */
+  const sensenovaTabs: KeepAliveTabItem[] = [
     {
       key: 'flashlite',
       label: (
         <span>
           🔍 图转提示词
-          {sensenovaFlashliteLoading && <span className="agnes-tab-loading-dot" />}
+          {loading.sensenovaFlashlite && <span className="agnes-tab-loading-dot" />}
         </span>
       ),
       children: (
         <SenseNovaImg2Prompt
-          apiKey={sensenovaApiKey}
-          errorMsg={errorMsgs.sensenova}
-          onError={(msg) => onError('sensenova', msg)}
-          onLoadingChange={setSensenovaFlashliteLoading}
-          onUsePrompt={handleSensenovaUsePrompt}
+          apiKey={sensenovaKey.value}
+          errorMsg={errors.sensenova || ''}
+          onError={sensenovaHandlers.onError}
+          onLoadingChange={sensenovaHandlers.onLoadingFlashlite}
+          onUsePrompt={usePromptInSenseNovaU1}
         />
       )
     },
@@ -197,18 +234,18 @@ Notification.success('已填入 U1 Fast 生图描述')
       label: (
         <span>
           🧩 DeepSeek V4
-          {sensenovaDeepseekLoading && <span className="agnes-tab-loading-dot" />}
+          {loading.sensenovaDeepseek && <span className="agnes-tab-loading-dot" />}
         </span>
       ),
       children: (
         <SenseNovaChat
-          apiKey={sensenovaApiKey}
+          apiKey={sensenovaKey.value}
           modelValue={deepSeekModel.value}
           modelLabel={deepSeekModel.label}
           modelDescription={deepSeekModel.description}
-          errorMsg={errorMsgs.sensenova}
-          onError={(msg) => onError('sensenova', msg)}
-          onLoadingChange={setSensenovaDeepseekLoading}
+          errorMsg={errors.sensenova || ''}
+          onError={sensenovaHandlers.onError}
+          onLoadingChange={sensenovaHandlers.onLoadingDeepseek}
         />
       )
     },
@@ -217,39 +254,39 @@ Notification.success('已填入 U1 Fast 生图描述')
       label: (
         <span>
           📊 U1 生图
-          {sensenovaImageLoading && <span className="agnes-tab-loading-dot" />}
+          {loading.sensenovaImage && <span className="agnes-tab-loading-dot" />}
         </span>
       ),
       children: (
         <SenseNovaImage
           ref={sensenovaImageRef}
-          apiKey={sensenovaApiKey}
-          errorMsg={errorMsgs.sensenova}
-          onError={(msg) => onError('sensenova', msg)}
-          onLoadingChange={setSensenovaImageLoading}
+          apiKey={sensenovaKey.value}
+          errorMsg={errors.sensenova || ''}
+          onError={sensenovaHandlers.onError}
+          onLoadingChange={sensenovaHandlers.onLoadingImage}
         />
       )
     }
   ]
 
-  const zhipuTabItems: KeepAliveTabItem[] = [
+  const zhipuTabs: KeepAliveTabItem[] = [
     {
       key: 'glm',
       label: (
         <span>
           🚀 GLM-4.7-Flash
-          {zhipuGlmLoading && <span className="agnes-tab-loading-dot" />}
+          {loading.zhipuGlm && <span className="agnes-tab-loading-dot" />}
         </span>
       ),
       children: (
         <ZhipuChat
-          apiKey={zhipuApiKey}
+          apiKey={zhipuKey.value}
           modelValue={glmModel.value}
           modelLabel={glmModel.label}
           modelDescription={glmModel.description}
-          errorMsg={errorMsgs.zhipu}
-          onError={(msg) => onError('zhipu', msg)}
-          onLoadingChange={setZhipuGlmLoading}
+          errorMsg={errors.zhipu || ''}
+          onError={zhipuHandlers.onError}
+          onLoadingChange={zhipuHandlers.onLoadingGlm}
         />
       )
     },
@@ -258,17 +295,16 @@ Notification.success('已填入 U1 Fast 生图描述')
       label: (
         <span>
           🎬 cogvideox-flash
-          {zhipuVideoLoading && <span className="agnes-tab-loading-dot" />}
+          {loading.zhipuVideo && <span className="agnes-tab-loading-dot" />}
         </span>
       ),
       children: (
         <ZhipuVideo
-          apiKey={zhipuApiKey}
-          modelLabel={cogvideoModel.label}
+          apiKey={zhipuKey.value}
           modelDescription={cogvideoModel.description}
-          errorMsg={errorMsgs.zhipu}
-          onError={(msg) => onError('zhipu', msg)}
-          onLoadingChange={setZhipuVideoLoading}
+          errorMsg={errors.zhipu || ''}
+          onError={zhipuHandlers.onError}
+          onLoadingChange={zhipuHandlers.onLoadingVideo}
         />
       )
     },
@@ -277,18 +313,17 @@ Notification.success('已填入 U1 Fast 生图描述')
       label: (
         <span>
           🎨 CogView-3-Flash
-          {zhipuImageLoading && <span className="agnes-tab-loading-dot" />}
+          {loading.zhipuImage && <span className="agnes-tab-loading-dot" />}
         </span>
       ),
       children: (
         <ZhipuImage
           ref={zhipuImageRef}
-          apiKey={zhipuApiKey}
-          modelLabel={cogviewModel.label}
+          apiKey={zhipuKey.value}
           modelDescription={cogviewModel.description}
-          errorMsg={errorMsgs.zhipu}
-          onError={(msg) => onError('zhipu', msg)}
-          onLoadingChange={setZhipuImageLoading}
+          errorMsg={errors.zhipu || ''}
+          onError={zhipuHandlers.onError}
+          onLoadingChange={zhipuHandlers.onLoadingImage}
         />
       )
     },
@@ -297,37 +332,37 @@ Notification.success('已填入 U1 Fast 生图描述')
       label: (
         <span>
           🔍 图转提示词
-          {zhipuImg2PromptLoading && <span className="agnes-tab-loading-dot" />}
+          {loading.zhipuImg2Prompt && <span className="agnes-tab-loading-dot" />}
         </span>
       ),
       children: (
         <ZhipuImg2Prompt
-          apiKey={zhipuApiKey}
-          errorMsg={errorMsgs.zhipu}
-          onError={(msg) => onError('zhipu', msg)}
-          onLoadingChange={setZhipuImg2PromptLoading}
-          onUsePrompt={handleZhipuUsePrompt}
+          apiKey={zhipuKey.value}
+          errorMsg={errors.zhipu || ''}
+          onError={zhipuHandlers.onError}
+          onLoadingChange={zhipuHandlers.onLoadingImg2Prompt}
+          onUsePrompt={usePromptInZhipuCogview}
         />
       )
     }
   ]
 
-  const tabItems: KeepAliveTabItem[] = [
+  const agnesTabs: KeepAliveTabItem[] = [
     {
       key: 'image',
       label: (
         <span>
           🖼️ 图片生成
-          {imageLoading && <span className="agnes-tab-loading-dot" />}
+          {loading.image && <span className="agnes-tab-loading-dot" />}
         </span>
       ),
       children: (
         <ImageGenerate
           ref={imageGenerateRef}
-          apiKey={apiKey}
-          errorMsg={errorMsgs.image}
-          onError={(msg) => onError('image', msg)}
-          onLoadingChange={setImageLoading}
+          apiKey={agnesKey.value}
+          errorMsg={errors.image || ''}
+          onError={agnesHandlers.onErrorImage}
+          onLoadingChange={agnesHandlers.onLoadingImage}
         />
       )
     },
@@ -336,15 +371,15 @@ Notification.success('已填入 U1 Fast 生图描述')
       label: (
         <span>
           🎬 Video V2.0
-          {videoLoading && <span className="agnes-tab-loading-dot" />}
+          {loading.video && <span className="agnes-tab-loading-dot" />}
         </span>
       ),
       children: (
         <VideoGenerate
-          apiKey={apiKey}
-          errorMsg={errorMsgs.video}
-          onError={(msg) => onError('video', msg)}
-          onLoadingChange={setVideoLoading}
+          apiKey={agnesKey.value}
+          errorMsg={errors.video || ''}
+          onError={agnesHandlers.onErrorVideo}
+          onLoadingChange={agnesHandlers.onLoadingVideo}
         />
       )
     },
@@ -353,15 +388,15 @@ Notification.success('已填入 U1 Fast 生图描述')
       label: (
         <span>
           🎥 Video 2.5 Flash
-          {videoFlashLoading && <span className="agnes-tab-loading-dot" />}
+          {loading.videoFlash && <span className="agnes-tab-loading-dot" />}
         </span>
       ),
       children: (
         <VideoGenerateFlash
-          apiKey={apiKey}
-          errorMsg={errorMsgs.videoFlash}
-          onError={(msg) => onError('videoFlash', msg)}
-          onLoadingChange={setVideoFlashLoading}
+          apiKey={agnesKey.value}
+          errorMsg={errors.videoFlash || ''}
+          onError={agnesHandlers.onErrorVideoFlash}
+          onLoadingChange={agnesHandlers.onLoadingVideoFlash}
         />
       )
     },
@@ -370,25 +405,86 @@ Notification.success('已填入 U1 Fast 生图描述')
       label: (
         <span>
           🔍 图转提示词
-          {img2promptLoading && <span className="agnes-tab-loading-dot" />}
+          {loading.img2prompt && <span className="agnes-tab-loading-dot" />}
         </span>
       ),
       children: (
         <Img2Prompt
-          apiKey={apiKey}
-          errorMsg={errorMsgs.img2prompt}
-          onError={(msg) => onError('img2prompt', msg)}
-          onLoadingChange={setImg2promptLoading}
-          onUsePrompt={handleUsePrompt}
+          apiKey={agnesKey.value}
+          errorMsg={errors.img2prompt || ''}
+          onError={agnesHandlers.onErrorImg2Prompt}
+          onLoadingChange={agnesHandlers.onLoadingImg2Prompt}
+          onUsePrompt={usePromptInAgnes}
         />
       )
     }
   ]
 
+  const anyKeyConfigured = !!(
+    agnesKey.value || sensenovaKey.value || zhipuKey.value
+  )
+  const configuredCount = [agnesKey.value, sensenovaKey.value, zhipuKey.value].filter(
+    Boolean
+  ).length
+
+  const drawerConfigs: DrawerConfig[] = [
+    {
+      key: 'agnes',
+      title: 'Agnes AI 创作工坊',
+      icon: '🎨',
+      apiKeyValue: agnesKey.value,
+      onApiKeyChange: agnesKey.onChange,
+      apiKeyLabel: 'API Key',
+      apiKeyPlaceholder: '输入你的 Agnes AI API Key',
+      platformUrl: 'https://platform.agnes-ai.com/',
+      platformName: 'platform.agnes-ai.com',
+      steps: '注册登录 → 设置 → API 秘钥 → 创建新的协议'
+    },
+    {
+      key: 'sensenova',
+      title: 'SenseNova 实验室',
+      icon: '🧠',
+      apiKeyValue: sensenovaKey.value,
+      onApiKeyChange: sensenovaKey.onChange,
+      apiKeyLabel: 'SenseNova API Key',
+      apiKeyPlaceholder: '输入你的 SenseNova API Key (sk- 开头)',
+      platformUrl: 'https://platform.sensenova.cn/',
+      platformName: 'platform.sensenova.cn',
+      steps: '注册登录 → 控制台 → API 密钥 → 创建密钥'
+    },
+    {
+      key: 'zhipu',
+      title: '智谱 AI 智能体',
+      icon: '🚀',
+      apiKeyValue: zhipuKey.value,
+      onApiKeyChange: zhipuKey.onChange,
+      apiKeyLabel: '智谱 AI API Key',
+      apiKeyPlaceholder: '输入你的智谱 AI API Key',
+      platformUrl: 'https://open.bigmodel.cn/',
+      platformName: 'open.bigmodel.cn',
+      steps: '注册登录 → API 密钥 → 创建密钥'
+    }
+  ]
+
+  const drawerContentMap: Record<DrawerKey, KeepAliveTabItem[]> = {
+    agnes: agnesTabs,
+    sensenova: sensenovaTabs,
+    zhipu: zhipuTabs
+  }
+  const drawerActiveMap: Record<DrawerKey, string> = {
+    agnes: agnesTab,
+    sensenova: sensenovaTab,
+    zhipu: zhipuTab
+  }
+  const drawerSetActiveMap: Record<DrawerKey, (k: string) => void> = {
+    agnes: (k) => setAgnesTab(k as AgnesTabKey),
+    sensenova: (k) => setSensenovaTab(k as SenseNovaTabKey),
+    zhipu: (k) => setZhipuTab(k as ZhipuTabKey)
+  }
+
   return (
     <Cursor>
       <div className="agnes-page">
-        {/* 头部 */}
         <header className="agnes-header">
           <div className="agnes-header-inner">
             <div className="agnes-logo-wrap">
@@ -404,7 +500,7 @@ Notification.success('已填入 U1 Fast 生图描述')
             </div>
             <button
               className="agnes-theme-toggle"
-              onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
+              onClick={toggleTheme}
               aria-label={theme === 'dark' ? '切换到浅色模式' : '切换到暗黑模式'}
               title={theme === 'dark' ? '浅色模式' : '暗黑模式'}
             >
@@ -425,15 +521,13 @@ Notification.success('已填入 U1 Fast 生图描述')
           <div className="agnes-header-deco" />
         </header>
 
-        {/* 主内容区 - 平台入口 */}
         <div className="agnes-main agnes-home-main">
           <div className="agnes-home-intro">
             <h2 className="agnes-home-title">选择创作平台</h2>
             <p className="agnes-home-desc">三大 AI 平台，覆盖图像、视频、对话与智能编码</p>
           </div>
 
-          {/* 首次使用引导 */}
-          {!apiKey && !sensenovaApiKey && !zhipuApiKey && (
+          {!anyKeyConfigured && (
             <div className="agnes-home-guide">
               <span className="agnes-home-guide-icon">👋</span>
               <div className="agnes-home-guide-body">
@@ -442,234 +536,99 @@ Notification.success('已填入 U1 Fast 生图描述')
               </div>
             </div>
           )}
+          {anyKeyConfigured && (
+            <div className="agnes-home-guide agnes-home-guide-status">
+              <span className="agnes-home-guide-icon">🔑</span>
+              <div className="agnes-home-guide-body">
+                <div className="agnes-home-guide-title">已配置 {configuredCount} / 3 个平台</div>
+                <div className="agnes-home-guide-text">点击卡片继续创作，或配置更多平台</div>
+              </div>
+            </div>
+          )}
 
           <div className="agnes-home-cards">
-            {/* Agnes AI 卡片 */}
-            <div
-              className={`agnes-home-card agnes-home-card-agnes ${imageLoading || videoLoading || videoFlashLoading || img2promptLoading ? 'agnes-home-card-busy' : ''}`}
-              onClick={() => setAgnesDrawerOpen(true)}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setAgnesDrawerOpen(true) } }}
-            >
-              <div className="agnes-home-card-icon">🎨</div>
-              <div className="agnes-home-card-body">
-                <div className="agnes-home-card-title">Agnes AI 创作工坊</div>
-                <div className="agnes-home-card-subtitle">图片生成 · 视频生成 · Video 2.5 Flash · 图转提示词</div>
-                <div className="agnes-home-card-tags">
-                  <span className="agnes-home-card-tag">🖼️ 图片生成</span>
-                  <span className="agnes-home-card-tag">🎬 视频生成</span>
-                  <span className="agnes-home-card-tag">🎥 Video 2.5 Flash</span>
-                  <span className="agnes-home-card-tag">🔍 图转提示词</span>
+            {platformCards.map((card) => (
+              <div
+                key={card.key}
+                className={`agnes-home-card agnes-home-card-${card.key} ${card.loading ? 'agnes-home-card-busy' : ''}`}
+                onClick={() => openDrawer(card.key)}
+                role="button"
+                tabIndex={0}
+                aria-label={card.ariaLabel}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDrawer(card.key) } }}
+              >
+                <div className="agnes-home-card-icon">{card.icon}</div>
+                <div className="agnes-home-card-body">
+                  <div className="agnes-home-card-title">{card.title}</div>
+                  <div className="agnes-home-card-subtitle">{card.subtitle}</div>
+                  <div className="agnes-home-card-tags">
+                    {card.tags.map((tag) => (
+                      <span key={tag} className="agnes-home-card-tag">{tag}</span>
+                    ))}
+                  </div>
                 </div>
+                <div className="agnes-home-card-arrow">›</div>
+                {card.loading && <span className="agnes-home-card-busy-badge">● 创作中</span>}
               </div>
-              <div className="agnes-home-card-arrow">›</div>
-              {(imageLoading || videoLoading || videoFlashLoading || img2promptLoading) && (
-                <span className="agnes-home-card-busy-badge">● 创作中</span>
-              )}
-            </div>
-
-            {/* SenseNova 卡片 */}
-            <div
-              className={`agnes-home-card agnes-home-card-sensenova ${sensenovaLoading ? 'agnes-home-card-busy' : ''}`}
-              onClick={() => setSensenovaDrawerOpen(true)}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSensenovaDrawerOpen(true) } }}
-            >
-              <div className="agnes-home-card-icon">🧠</div>
-              <div className="agnes-home-card-body">
-                <div className="agnes-home-card-title">SenseNova 实验室</div>
-                <div className="agnes-home-card-subtitle">多模态对话 · 深度思考 · 信息图生成</div>
-                <div className="agnes-home-card-tags">
-                  <span className="agnes-home-card-tag">⚡ Flash-Lite</span>
-                  <span className="agnes-home-card-tag">🧩 DeepSeek V4</span>
-                  <span className="agnes-home-card-tag">📊 U1 生图</span>
-                </div>
-              </div>
-              <div className="agnes-home-card-arrow">›</div>
-              {sensenovaLoading && (
-                <span className="agnes-home-card-busy-badge">● 创作中</span>
-              )}
-            </div>
-
-            {/* 智谱 AI 卡片 */}
-            <div
-              className={`agnes-home-card agnes-home-card-zhipu ${zhipuLoading ? 'agnes-home-card-busy' : ''}`}
-              onClick={() => setZhipuDrawerOpen(true)}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setZhipuDrawerOpen(true) } }}
-            >
-              <div className="agnes-home-card-icon">🚀</div>
-              <div className="agnes-home-card-body">
-                <div className="agnes-home-card-title">智谱 AI 智能体</div>
-                <div className="agnes-home-card-subtitle">Agentic Coding · 文生图 · 视频生成 · 图转提示词</div>
-                <div className="agnes-home-card-tags">
-                  <span className="agnes-home-card-tag">🚀 GLM-4.7-Flash</span>
-                  <span className="agnes-home-card-tag">🎨 CogView-3-Flash</span>
-                  <span className="agnes-home-card-tag">🎬 cogvideox-flash</span>
-                  <span className="agnes-home-card-tag">🔍 图转提示词</span>
-                </div>
-              </div>
-              <div className="agnes-home-card-arrow">›</div>
-              {zhipuLoading && (
-                <span className="agnes-home-card-busy-badge">● 创作中</span>
-              )}
-            </div>
+            ))}
           </div>
 
           <Divider type="wave-yellow" />
 
           <div className="agnes-home-links-title">🔑 快速获取 API Key</div>
           <div className="agnes-home-links">
-            <a
-              className="agnes-home-link-item"
-              href="https://platform.agnes-ai.com/"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <span className="agnes-home-link-icon">🔑</span>
-              <span className="agnes-home-link-text">获取 Agnes AI API Key</span>
-              <span className="agnes-home-link-arrow">↗</span>
-            </a>
-            <a
-              className="agnes-home-link-item"
-              href="https://platform.sensenova.cn/"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <span className="agnes-home-link-icon">🔑</span>
-              <span className="agnes-home-link-text">获取 SenseNova API Key</span>
-              <span className="agnes-home-link-arrow">↗</span>
-            </a>
-            <a
-              className="agnes-home-link-item"
-              href="https://open.bigmodel.cn/"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <span className="agnes-home-link-icon">🔑</span>
-              <span className="agnes-home-link-text">获取智谱 AI API Key</span>
-              <span className="agnes-home-link-arrow">↗</span>
-            </a>
+            {API_KEY_LINKS.map((link) => (
+              <a
+                key={link.href}
+                className="agnes-home-link-item"
+                href={link.href}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <span className="agnes-home-link-icon">🔑</span>
+                <span className="agnes-home-link-text">{link.text}</span>
+                <span className="agnes-home-link-arrow">↗</span>
+              </a>
+            ))}
           </div>
         </div>
 
-        {/* 底部 */}
         <Footer type="sea" />
       </div>
 
-      {/* ===== Agnes AI 抽屉 ===== */}
-      <Drawer
-        open={agnesDrawerOpen}
-        title={<span className="agnes-drawer-title">🎨 Agnes AI 创作工坊</span>}
-        placement="right"
-        width="100%"
-        onClose={() => setAgnesDrawerOpen(false)}
-        className="agnes-drawer"
-      >
-        <div className="agnes-drawer-content">
-          {/* API Key 配置 */}
-          <ApiKeyField
-            value={apiKey}
-            onChange={(key) => {
-              setApiKey(key)
-              handleSaveApiKey(key)
-            }}
-            label="API Key"
-            placeholder="输入你的 Agnes AI API Key"
-            platformUrl="https://platform.agnes-ai.com/"
-            platformName="platform.agnes-ai.com"
-            steps="注册登录 → 设置 → API 秘钥 → 创建新的秘钥"
-          />
-
-          <Divider type="wave-yellow" />
-
-          {/* 功能 Tab 切换 */}
-          <div className="agnes-tabs-wrapper">
-            <KeepAliveTabs
-              items={tabItems}
-              activeKey={activeTab}
-              onChange={(key) => setActiveTab(key as TabKey)}
+      {drawerConfigs.map((cfg) => (
+        <Drawer
+          key={cfg.key}
+          open={drawerOpen[cfg.key]}
+          title={<span className="agnes-drawer-title">{cfg.icon} {cfg.title}</span>}
+          placement="right"
+          width="100%"
+          onClose={() => closeDrawer(cfg.key)}
+          className="agnes-drawer"
+        >
+          <div className="agnes-drawer-content">
+            <ApiKeyField
+              value={cfg.apiKeyValue}
+              onChange={cfg.onApiKeyChange}
+              label={cfg.apiKeyLabel}
+              placeholder={cfg.apiKeyPlaceholder}
+              platformUrl={cfg.platformUrl}
+              platformName={cfg.platformName}
+              steps={cfg.steps}
             />
+
+            <Divider type="wave-yellow" />
+
+            <div className="agnes-tabs-wrapper">
+              <KeepAliveTabs
+                items={drawerContentMap[cfg.key]}
+                activeKey={drawerActiveMap[cfg.key]}
+                onChange={drawerSetActiveMap[cfg.key]}
+              />
+            </div>
           </div>
-        </div>
-      </Drawer>
-
-      {/* ===== SenseNova 抽屉 ===== */}
-      <Drawer
-        open={sensenovaDrawerOpen}
-        title={<span className="agnes-drawer-title">🧠 SenseNova 实验室</span>}
-        placement="right"
-        width="100%"
-        onClose={() => setSensenovaDrawerOpen(false)}
-        className="agnes-drawer"
-      >
-        <div className="agnes-drawer-content">
-          {/* SenseNova API Key 配置 */}
-          <ApiKeyField
-            value={sensenovaApiKey}
-            onChange={(key) => {
-              setSensenovaApiKey(key)
-              handleSaveSensenovaApiKey(key)
-            }}
-            label="SenseNova API Key"
-            placeholder="输入你的 SenseNova API Key (sk- 开头)"
-            platformUrl="https://platform.sensenova.cn/"
-            platformName="platform.sensenova.cn"
-            steps="注册登录 → 控制台 → API Keys → 创建密钥"
-          />
-
-          <Divider type="wave-yellow" />
-
-          {/* 功能 Tab 切换 */}
-          <div className="agnes-tabs-wrapper">
-            <KeepAliveTabs
-              items={sensenovaTabItems}
-              activeKey={sensenovaActiveTab}
-              onChange={(key) => setSensenovaActiveTab(key as SenseNovaTabKey)}
-            />
-          </div>
-        </div>
-      </Drawer>
-
-      {/* ===== 智谱 AI 抽屉 ===== */}
-      <Drawer
-        open={zhipuDrawerOpen}
-        title={<span className="agnes-drawer-title">🚀 智谱 AI 智能体</span>}
-        placement="right"
-        width="100%"
-        onClose={() => setZhipuDrawerOpen(false)}
-        className="agnes-drawer"
-      >
-        <div className="agnes-drawer-content">
-          {/* 智谱 AI API Key 配置 */}
-          <ApiKeyField
-            value={zhipuApiKey}
-            onChange={(key) => {
-              setZhipuApiKey(key)
-              handleSaveZhipuApiKey(key)
-            }}
-            label="智谱 AI API Key"
-            placeholder="输入你的智谱 AI API Key"
-            platformUrl="https://open.bigmodel.cn/"
-            platformName="open.bigmodel.cn"
-            steps="注册登录 → API Keys → 创建密钥"
-          />
-
-          <Divider type="wave-yellow" />
-
-          {/* 功能 Tab 切换 */}
-          <div className="agnes-tabs-wrapper">
-            <KeepAliveTabs
-              items={zhipuTabItems}
-              activeKey={zhipuActiveTab}
-              onChange={(key) => setZhipuActiveTab(key as ZhipuTabKey)}
-            />
-          </div>
-        </div>
-      </Drawer>
+        </Drawer>
+      ))}
     </Cursor>
   )
 }
