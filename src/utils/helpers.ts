@@ -176,6 +176,53 @@ export function parseSeed(input: string): number | undefined {
   return Math.trunc(n)
 }
 
+/** 画幅方向：竖屏 / 横屏 / 方形 / 超宽 */
+export type Orientation = 'portrait' | 'landscape' | 'square' | 'ultrawide'
+
+/** 画幅方向对应的中文标签（带图标） */
+export const ORIENTATION_LABELS: Record<Orientation, { text: string; icon: string; short: string }> = {
+  portrait: { text: '竖屏', icon: '📱', short: '竖' },
+  landscape: { text: '横屏', icon: '📺', short: '横' },
+  square: { text: '方形', icon: '⬛', short: '方' },
+  ultrawide: { text: '超宽', icon: '↔️', short: '宽' }
+}
+
+/** 从「宽×高」字符串（如 "1280x720" / "1152×768"）推断画幅 */
+export function getOrientationFromSize(size: string | undefined | null): Orientation | null {
+  if (!size) return null
+  const cleaned = String(size).replace(/[×X]/g, 'x')
+  const m = cleaned.match(/(\d+)\s*[x:]\s*(\d+)/)
+  if (!m) return null
+  const w = Number(m[1])
+  const h = Number(m[2])
+  if (!Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0) return null
+  const ratio = w / h
+  if (ratio > 2.0) return 'ultrawide'
+  if (ratio > 1.05) return 'landscape'
+  if (ratio < 0.95) return 'portrait'
+  return 'square'
+}
+
+/** 从「宽:高」比例（如 "16:9" / "9:16"）推断画幅 */
+export function getOrientationFromRatio(ratio: string | undefined | null): Orientation | null {
+  if (!ratio) return null
+  const m = String(ratio).match(/(\d+(?:\.\d+)?)\s*:\s*(\d+(?:\.\d+)?)/)
+  if (!m) return null
+  const w = Number(m[1])
+  const h = Number(m[2])
+  if (!Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0) return null
+  const r = w / h
+  if (r > 2.0) return 'ultrawide'
+  if (r > 1.05) return 'landscape'
+  if (r < 0.95) return 'portrait'
+  return 'square'
+}
+
+/** 优先按 ratio 推断、否则按 size 推断 */
+export function getOrientation(sizeOrRatio: string | undefined | null, ratio?: string | undefined | null): Orientation | null {
+  return getOrientationFromRatio(ratio) ?? getOrientationFromSize(sizeOrRatio)
+}
+
 /** localStorage 读取 */
 export function getStorage<T>(key: string): T | null {
   try {

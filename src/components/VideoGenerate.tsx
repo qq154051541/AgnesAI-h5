@@ -4,7 +4,7 @@ import { VIDEO_SIZES, VIDEO_DURATIONS, STORAGE_KEYS } from '../config/api'
 import { createVideoTask, queryVideoTask, uploadToImgbb } from '../services/api'
 import type { RequestResult, ApiResponse } from '../types'
 import type { VideoHistoryItem } from '../types'
-import { getStorage, setStorage, copyToClipboard, downloadFile, formatTime, truncateText, formatResponseData, fileToJpegDataUri, normalizeHistoryOnLoad, parseSeed } from '../utils/helpers'
+import { getStorage, setStorage, copyToClipboard, downloadFile, formatTime, truncateText, formatResponseData, fileToJpegDataUri, normalizeHistoryOnLoad, parseSeed, getOrientation, ORIENTATION_LABELS } from '../utils/helpers'
 import ImagePreview from './ImagePreview'
 
 interface VideoGenerateProps {
@@ -507,6 +507,10 @@ onError('')
               options={VIDEO_SIZES.map((s, i) => ({ key: String(i), label: s.label }))}
               placeholder="选择尺寸"
             />
+            {(() => {
+              const o = getOrientation(VIDEO_SIZES[sizeIndex]?.value)
+              return o ? <span className={`agnes-orientation-badge agnes-orientation-${o}`}>{ORIENTATION_LABELS[o].icon} {ORIENTATION_LABELS[o].text}</span> : null
+            })()}
           </div>
           <div className="agnes-attr-block">
             <div className="agnes-attr-label">
@@ -745,6 +749,10 @@ onError('')
                     {item.status === 'interrupted' && <span className="agnes-history-tag">⛔ 已中断</span>}
                     {item.status === 'failed' && <span className="agnes-history-tag">⚠️ 失败</span>}
                     <span className="agnes-history-tag">{item.size}</span>
+                    {(() => {
+                      const o = getOrientation(item.size)
+                      return o ? <span className="agnes-history-tag agnes-orientation-tag" data-orientation={o}>{ORIENTATION_LABELS[o].icon} {ORIENTATION_LABELS[o].text}</span> : null
+                    })()}
                     <span className="agnes-history-tag">{item.duration}</span>
                   </div>
                   <div className="agnes-history-meta">{formatTime(item.time)}</div>
@@ -847,7 +855,13 @@ onError('')
 
             <div className="agnes-detail-field">
               <span className="agnes-detail-label">尺寸：</span>
-              <span className="agnes-detail-value">{detailItem.size}</span>
+              <span className="agnes-detail-value">
+                {detailItem.size}
+                {(() => {
+                  const o = getOrientation(detailItem.size)
+                  return o ? <span className={`agnes-orientation-badge agnes-orientation-${o}`} style={{ marginLeft: 8 }}>{ORIENTATION_LABELS[o].icon} {ORIENTATION_LABELS[o].text}</span> : null
+                })()}
+              </span>
             </div>
             <div className="agnes-detail-field">
               <span className="agnes-detail-label">时长：</span>

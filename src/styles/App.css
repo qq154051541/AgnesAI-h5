@@ -3394,3 +3394,80 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ========================================
+   画幅方向标识（竖屏 / 横屏 / 方形 / 超宽）
+   用于尺寸/画幅旁边的徽标与历史 tag
+   ======================================== */
+
+.agnes-orientation-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+  line-height: 1.4;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.agnes-orientation-badge .agnes-orientation-icon {
+  font-size: 13px;
+  line-height: 1;
+}
+
+.agnes-orientation-tag {
+  cursor: default;
+}
+
+.agnes-orientation-portrait {
+  color: #b3531c;
+  background: linear-gradient(135deg, #fff1e3 0%, #ffe0c4 100%);
+  border-color: #f4c79a;
+}
+
+.agnes-orientation-landscape {
+  color: #2c5b3f;
+  background: linear-gradient(135deg, #e8f5ec 0%, #cfe9d7 100%);
+  border-color: #9bc8a8;
+}
+
+.agnes-orientation-square {
+  color: #5d4a2f;
+  background: linear-gradient(135deg, #f5efe1 0%, #e8dec5 100%);
+  border-color: #c8b78c;
+}
+
+.agnes-orientation-ultrawide {
+  color: #4a3a72;
+  background: linear-gradient(135deg, #efe9f7 0%, #dccff0 100%);
+  border-color: #b8a3d8;
+}
+
+[data-theme='dark'] .agnes-orientation-portrait {
+  color: #ffd1a8;
+  background: rgba(217, 119, 38, 0.18);
+  border-color: rgba(217, 119, 38, 0.45);
+}
+
+[data-theme='dark'] .agnes-orientation-landscape {
+  color: #a8e0b8;
+  background: rgba(74, 158, 102, 0.18);
+  border-color: rgba(74, 158, 102, 0.45);
+}
+
+[data-theme='dark'] .agnes-orientation-square {
+  color: #d8c89a;
+  background: rgba(170, 140, 80, 0.18);
+  border-color: rgba(170, 140, 80, 0.45);
+}
+
+[data-theme='dark'] .agnes-orientation-ultrawide {
+  color: #d4b8f0;
+  background: rgba(140, 100, 200, 0.18);
+  border-color: rgba(140, 100, 200, 0.45);
+}

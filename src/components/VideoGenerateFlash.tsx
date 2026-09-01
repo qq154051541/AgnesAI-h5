@@ -18,7 +18,9 @@ import {
   truncateText,
   formatResponseData,
   fileToJpegDataUri,
-  normalizeHistoryOnLoad
+  normalizeHistoryOnLoad,
+  getOrientationFromRatio,
+  ORIENTATION_LABELS
 } from '../utils/helpers'
 import ImagePreview from './ImagePreview'
 
@@ -601,6 +603,10 @@ export default function VideoGenerateFlash({ apiKey, errorMsg, onError, onLoadin
               options={VIDEO_FLASH_ASPECT_RATIOS.map((r, i) => ({ key: String(i), label: r.label }))}
               placeholder="选择画幅"
             />
+            {(() => {
+              const o = getOrientationFromRatio(VIDEO_FLASH_ASPECT_RATIOS[aspectRatioIndex]?.value)
+              return o ? <span className={`agnes-orientation-badge agnes-orientation-${o}`}>{ORIENTATION_LABELS[o].icon} {ORIENTATION_LABELS[o].text}</span> : null
+            })()}
           </div>
           <div className="agnes-attr-block">
             <div className="agnes-attr-label">
@@ -893,6 +899,10 @@ export default function VideoGenerateFlash({ apiKey, errorMsg, onError, onLoadin
                     {item.status === 'failed' && <span className="agnes-history-tag">⚠️ 失败</span>}
                     <span className="agnes-history-tag">{item.mode}</span>
                     <span className="agnes-history-tag">{item.aspectRatio}</span>
+                    {(() => {
+                      const o = getOrientationFromRatio(item.aspectRatio)
+                      return o ? <span className="agnes-history-tag agnes-orientation-tag" data-orientation={o}>{ORIENTATION_LABELS[o].icon} {ORIENTATION_LABELS[o].text}</span> : null
+                    })()}
                     <span className="agnes-history-tag">{item.seconds}s</span>
                   </div>
                   <div className="agnes-history-meta">{formatTime(item.time)}</div>
@@ -990,7 +1000,13 @@ export default function VideoGenerateFlash({ apiKey, errorMsg, onError, onLoadin
             </div>
             <div className="agnes-detail-field">
               <span className="agnes-detail-label">画幅：</span>
-              <span className="agnes-detail-value">{detailItem.aspectRatio}</span>
+              <span className="agnes-detail-value">
+                {detailItem.aspectRatio}
+                {(() => {
+                  const o = getOrientationFromRatio(detailItem.aspectRatio)
+                  return o ? <span className={`agnes-orientation-badge agnes-orientation-${o}`} style={{ marginLeft: 8 }}>{ORIENTATION_LABELS[o].icon} {ORIENTATION_LABELS[o].text}</span> : null
+                })()}
+              </span>
             </div>
             <div className="agnes-detail-field">
               <span className="agnes-detail-label">时长：</span>

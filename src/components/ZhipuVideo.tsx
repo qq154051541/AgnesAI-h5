@@ -20,7 +20,9 @@ import {
   formatTime,
   truncateText,
   formatResponseData,
-  normalizeHistoryOnLoad
+  normalizeHistoryOnLoad,
+  getOrientation,
+  ORIENTATION_LABELS
 } from '../utils/helpers'
 import ImagePreview from './ImagePreview'
 
@@ -547,6 +549,10 @@ onError('')
             options={ZHIPU_VIDEO_SIZES.map((s, i) => ({ key: String(i), label: s.label }))}
             placeholder="选择尺寸"
           />
+          {(() => {
+            const o = getOrientation(ZHIPU_VIDEO_SIZES[sizeIndex]?.value)
+            return o ? <span className={`agnes-orientation-badge agnes-orientation-${o}`}>{ORIENTATION_LABELS[o].icon} {ORIENTATION_LABELS[o].text}</span> : null
+          })()}
         </div>
         <div className="agnes-form-group">
           <div className="agnes-label-row">
@@ -808,6 +814,10 @@ onError('')
                     {item.status === 'interrupted' && <span className="agnes-history-tag">⛔ 已中断</span>}
                     {item.status === 'failed' && <span className="agnes-history-tag">⚠️ 失败</span>}
                     <span className="agnes-history-tag">{item.size}</span>
+                    {(() => {
+                      const o = getOrientation(item.size)
+                      return o ? <span className="agnes-history-tag agnes-orientation-tag" data-orientation={o}>{ORIENTATION_LABELS[o].icon} {ORIENTATION_LABELS[o].text}</span> : null
+                    })()}
                     <span className="agnes-history-tag">{item.duration}s</span>
                     <span className="agnes-history-tag">{item.fps}fps</span>
                     {item.isKeyframeMode && <span className="agnes-history-tag">首尾帧</span>}
@@ -909,7 +919,13 @@ onError('')
             </div>
             <div className="agnes-detail-field">
               <span className="agnes-detail-label">尺寸：</span>
-              <span className="agnes-detail-value">{detailItem.size}</span>
+              <span className="agnes-detail-value">
+                {detailItem.size}
+                {(() => {
+                  const o = getOrientation(detailItem.size)
+                  return o ? <span className={`agnes-orientation-badge agnes-orientation-${o}`} style={{ marginLeft: 8 }}>{ORIENTATION_LABELS[o].icon} {ORIENTATION_LABELS[o].text}</span> : null
+                })()}
+              </span>
             </div>
             <div className="agnes-detail-field">
               <span className="agnes-detail-label">时长：</span>

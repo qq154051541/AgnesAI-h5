@@ -4,7 +4,7 @@ import { MODELS, SIZES, IMAGE_COUNTS, STORAGE_KEYS } from '../config/api'
 import { generateImage, uploadToImgbb } from '../services/api'
 import type { RequestResult } from '../types'
 import type { ImageHistoryItem } from '../types'
-import { getStorage, setStorage, copyToClipboard, downloadFile, formatTime, truncateText, formatResponseData, fileToJpegDataUri, normalizeHistoryOnLoad } from '../utils/helpers'
+import { getStorage, setStorage, copyToClipboard, downloadFile, formatTime, truncateText, formatResponseData, fileToJpegDataUri, normalizeHistoryOnLoad, getOrientation, ORIENTATION_LABELS } from '../utils/helpers'
 import { useStageHint } from '../hooks/useStageHint'
 import ImagePreview from './ImagePreview'
 
@@ -838,6 +838,10 @@ onError('')
                       {item.status === 'failed' && <span className="agnes-history-tag">⚠️ 失败</span>}
                       <span className="agnes-history-tag">{item.model}</span>
                       <span className="agnes-history-tag">{item.size}{item.ratio ? ` ${item.ratio}` : ''}</span>
+                      {(() => {
+                        const o = getOrientation(item.size, item.ratio)
+                        return o ? <span className="agnes-history-tag agnes-orientation-tag" data-orientation={o}>{ORIENTATION_LABELS[o].icon} {ORIENTATION_LABELS[o].text}</span> : null
+                      })()}
                       {item.urls && item.urls.length > 1 && (
                         <span className="agnes-history-tag">{item.urls.length}张</span>
                       )}
@@ -933,7 +937,13 @@ onError('')
               </div>
               <div className="agnes-detail-field">
                 <span className="agnes-detail-label">尺寸：</span>
-                <span className="agnes-detail-value">{detailItem.size}{detailItem.ratio ? ` (${detailItem.ratio})` : ''}</span>
+                <span className="agnes-detail-value">
+                  {detailItem.size}{detailItem.ratio ? ` (${detailItem.ratio})` : ''}
+                  {(() => {
+                    const o = getOrientation(detailItem.size, detailItem.ratio)
+                    return o ? <span className={`agnes-orientation-badge agnes-orientation-${o}`} style={{ marginLeft: 8 }}>{ORIENTATION_LABELS[o].icon} {ORIENTATION_LABELS[o].text}</span> : null
+                  })()}
+                </span>
               </div>
               {detailItem.urls && detailItem.urls.length > 1 && (
                 <div className="agnes-detail-field">

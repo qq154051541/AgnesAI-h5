@@ -21,7 +21,9 @@ import {
   normalizeHistoryOnLoad,
   formatTime,
   truncateText,
-  formatResponseData
+  formatResponseData,
+  getOrientation,
+  ORIENTATION_LABELS
 } from '../utils/helpers'
 import { useStageHint } from '../hooks/useStageHint'
 import ImagePreview from './ImagePreview'
@@ -502,6 +504,10 @@ onError('')
             options={ZHIPU_IMAGE_SIZES.map((s, i) => ({ key: String(i), label: s.label }))}
             placeholder="选择尺寸"
           />
+          {(() => {
+            const o = getOrientation(ZHIPU_IMAGE_SIZES[imgSizeIndex]?.value, ZHIPU_IMAGE_SIZES[imgSizeIndex]?.ratio)
+            return o ? <span className={`agnes-orientation-badge agnes-orientation-${o}`}>{ORIENTATION_LABELS[o].icon} {ORIENTATION_LABELS[o].text}</span> : null
+          })()}
         </div>
         <div className="agnes-form-group">
           <div className="agnes-label-row">
@@ -727,6 +733,11 @@ onError('')
                       {imgItem.status === 'interrupted' && <span className="agnes-history-tag">⛔ 已中断</span>}
                       {imgItem.status === 'failed' && <span className="agnes-history-tag">⚠️ 失败</span>}
                       <span className="agnes-history-tag">{imgItem.size}</span>
+                      {(() => {
+                        const matched = ZHIPU_IMAGE_SIZES.find((s) => s.value === imgItem.size)
+                        const o = getOrientation(imgItem.size, matched?.ratio)
+                        return o ? <span className="agnes-history-tag agnes-orientation-tag" data-orientation={o}>{ORIENTATION_LABELS[o].icon} {ORIENTATION_LABELS[o].text}</span> : null
+                      })()}
                       {isMulti && (
                         <span className="agnes-history-tag">{urls.length}张</span>
                       )}
@@ -844,7 +855,14 @@ onError('')
             </div>
             <div className="agnes-detail-field">
               <span className="agnes-detail-label">尺寸：</span>
-              <span className="agnes-detail-value">{detailItem.size}</span>
+              <span className="agnes-detail-value">
+                {detailItem.size}
+                {(() => {
+                  const matched = ZHIPU_IMAGE_SIZES.find((s) => s.value === detailItem.size)
+                  const o = getOrientation(detailItem.size, matched?.ratio)
+                  return o ? <span className={`agnes-orientation-badge agnes-orientation-${o}`} style={{ marginLeft: 8 }}>{ORIENTATION_LABELS[o].icon} {ORIENTATION_LABELS[o].text}</span> : null
+                })()}
+              </span>
             </div>
             <div className="agnes-detail-field">
               <span className="agnes-detail-label">模型：</span>

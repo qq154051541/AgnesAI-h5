@@ -116,13 +116,13 @@ export function getZhipuStorageKeys(modelValue: string) {
 
 /** CogView-3-Flash 图片尺寸配置（支持多种分辨率） */
 export const ZHIPU_IMAGE_SIZES = [
-  { value: '768x1344', label: '768×1344 （9:16）竖屏', ratio: '9:16' },
-  { value: '864x1152', label: '864×1152 （3:4）竖屏', ratio: '3:4' },
-  { value: '1344x768', label: '1344×768 （16:9）横屏', ratio: '16:9' },
-  { value: '1152x864', label: '1152×864 （4:3）横屏', ratio: '4:3' },
-  { value: '1440x720', label: '1440×720 （2:1）横屏', ratio: '2:1' },
-  { value: '720x1440', label: '720×1440 （1:2）竖屏', ratio: '1:2' },
-  { value: '1024x1024', label: '1024×1024 （1:1）方形', ratio: '1:1' }
+  { value: '768x1344', label: '768×1344 (9:16) 📱 竖屏', ratio: '9:16', orientation: 'portrait' as const },
+  { value: '864x1152', label: '864×1152 (3:4) 📱 竖屏', ratio: '3:4', orientation: 'portrait' as const },
+  { value: '1344x768', label: '1344×768 (16:9) 📺 横屏', ratio: '16:9', orientation: 'landscape' as const },
+  { value: '1152x864', label: '1152×864 (4:3) 📺 横屏', ratio: '4:3', orientation: 'landscape' as const },
+  { value: '1440x720', label: '1440×720 (2:1) ↔️ 超宽', ratio: '2:1', orientation: 'ultrawide' as const },
+  { value: '720x1440', label: '720×1440 (1:2) 📱 竖屏', ratio: '1:2', orientation: 'portrait' as const },
+  { value: '1024x1024', label: '1024×1024 (1:1) ⬛ 方形', ratio: '1:1', orientation: 'square' as const }
 ]
 
 /** CogView-3-Flash 图片生成模型 */
@@ -133,13 +133,13 @@ export const ZHIPU_VIDEO_MODEL = 'cogvideox-flash'
 
 /** cogvideox-flash 视频尺寸配置（支持多种分辨率，最高 4K） */
 export const ZHIPU_VIDEO_SIZES = [
-  { value: '1920x1080', label: '1920×1080（16:9）横屏', ratio: '16:9' },
-  { value: '1080x1920', label: '1080×1920（9:16）竖屏', ratio: '9:16' },
-  { value: '1024x1024', label: '1024×1024（1:1）方形', ratio: '1:1' },
-  { value: '1280x720', label: '1280×720（16:9）横屏', ratio: '16:9' },
-  { value: '720x1280', label: '720×1280（9:16）竖屏', ratio: '9:16' },
-  { value: '2048x1080', label: '2048×1080（17:9）超宽', ratio: '17:9' },
-  { value: '3840x2160', label: '3840×2160（16:9）4K', ratio: '16:9' }
+  { value: '1920x1080', label: '1920×1080 (16:9) 📺 横屏', ratio: '16:9', orientation: 'landscape' as const },
+  { value: '1080x1920', label: '1080×1920 (9:16) 📱 竖屏', ratio: '9:16', orientation: 'portrait' as const },
+  { value: '1024x1024', label: '1024×1024 (1:1) ⬛ 方形', ratio: '1:1', orientation: 'square' as const },
+  { value: '1280x720', label: '1280×720 (16:9) 📺 横屏', ratio: '16:9', orientation: 'landscape' as const },
+  { value: '720x1280', label: '720×1280 (9:16) 📱 竖屏', ratio: '9:16', orientation: 'portrait' as const },
+  { value: '2048x1080', label: '2048×1080 (17:9) ↔️ 超宽', ratio: '17:9', orientation: 'ultrawide' as const },
+  { value: '3840x2160', label: '3840×2160 (16:9) 📺 横屏 4K', ratio: '16:9', orientation: 'landscape' as const }
 ]
 
 /** cogvideox-flash 视频时长配置 */

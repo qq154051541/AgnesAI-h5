@@ -62,18 +62,17 @@ export const SENSENOVA_MODELS: SenseNovaModelItem[] = [
 
 /** U1 Fast 图片尺寸（2K 分辨率，11种比例） */
 export const SENSENOVA_U1_SIZES = [
-  { value: '1536x2752', label: '1536×2752 (9:16)', ratio: '9:16' },
-  { value: '2752x1536', label: '2752×1536 (16:9)', ratio: '16:9' },
-  { value: '3072x1376', label: '3072×1376 (21:9)', ratio: '21:9' },
-  { value: '1344x3136', label: '1344×3136 (9:21)', ratio: '9:21' },
-  { value: '2048x2048', label: '2048×2048 (1:1)', ratio: '1:1' },
-  { value: '2496x1664', label: '2496×1664 (3:2)', ratio: '3:2' },
-  { value: '1664x2496', label: '1664×2496 (2:3)', ratio: '2:3' },
-  { value: '2368x1760', label: '2368×1760 (4:3)', ratio: '4:3' },
-  { value: '1760x2368', label: '1760×2368 (3:4)', ratio: '3:4' },
-  { value: '2272x1824', label: '2272×1824 (5:4)', ratio: '5:4' },
-  { value: '1824x2272', label: '1824×2272 (4:5)', ratio: '4:5' }
-  
+  { value: '1536x2752', label: '1536×2752 (9:16) 📱 竖屏', ratio: '9:16', orientation: 'portrait' as const },
+  { value: '2752x1536', label: '2752×1536 (16:9) 📺 横屏', ratio: '16:9', orientation: 'landscape' as const },
+  { value: '3072x1376', label: '3072×1376 (21:9) ↔️ 超宽', ratio: '21:9', orientation: 'ultrawide' as const },
+  { value: '1344x3136', label: '1344×3136 (9:21) 📱 竖屏', ratio: '9:21', orientation: 'portrait' as const },
+  { value: '2048x2048', label: '2048×2048 (1:1) ⬛ 方形', ratio: '1:1', orientation: 'square' as const },
+  { value: '2496x1664', label: '2496×1664 (3:2) 📺 横屏', ratio: '3:2', orientation: 'landscape' as const },
+  { value: '1664x2496', label: '1664×2496 (2:3) 📱 竖屏', ratio: '2:3', orientation: 'portrait' as const },
+  { value: '2368x1760', label: '2368×1760 (4:3) 📺 横屏', ratio: '4:3', orientation: 'landscape' as const },
+  { value: '1760x2368', label: '1760×2368 (3:4) 📱 竖屏', ratio: '3:4', orientation: 'portrait' as const },
+  { value: '2272x1824', label: '2272×1824 (5:4) 📺 横屏', ratio: '5:4', orientation: 'landscape' as const },
+  { value: '1824x2272', label: '1824×2272 (4:5) 📱 竖屏', ratio: '4:5', orientation: 'portrait' as const }
 ]
 
 /** 推理力度选项 */
