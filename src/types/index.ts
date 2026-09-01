@@ -30,6 +30,8 @@ export interface VideoHistoryItem {
   id: string
   url: string
   prompt: string
+  /** 负向提示词（v2.0 文档支持） */
+  negativePrompt?: string
   size: string
   duration: string
   refImageUrls: string[]

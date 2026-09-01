@@ -144,7 +144,10 @@ export function generateImage(
 }
 
 /**
- * 创建视频生成任务
+ * 创建视频生成任务（Agnes Video V2.0）
+ * 文档参数：model / prompt / image / mode / height / width /
+ *          num_frames / frame_rate / num_inference_steps / seed /
+ *          negative_prompt / extra_body.image / extra_body.mode
  */
 export function createVideoTask(
   apiKey: string,
@@ -154,7 +157,12 @@ export function createVideoTask(
   numFrames: number,
   frameRate: number,
   refImageUrls?: string[],
-  isKeyframeMode?: boolean
+  isKeyframeMode?: boolean,
+  options?: {
+    negativePrompt?: string
+    numInferenceSteps?: number
+    seed?: number
+  }
 ): RequestResult<ApiResponse> {
   const alignedWidth = alignToMultiple(width, 64)
   const alignedHeight = alignToMultiple(height, 64)
@@ -166,6 +174,17 @@ export function createVideoTask(
     height: alignedHeight,
     num_frames: numFrames,
     frame_rate: frameRate
+  }
+
+  const negativePrompt = options?.negativePrompt?.trim()
+  if (negativePrompt) {
+    body.negative_prompt = negativePrompt
+  }
+  if (typeof options?.numInferenceSteps === 'number' && options.numInferenceSteps > 0) {
+    body.num_inference_steps = options.numInferenceSteps
+  }
+  if (typeof options?.seed === 'number' && Number.isFinite(options.seed)) {
+    body.seed = options.seed
   }
 
   if (refImageUrls && refImageUrls.length > 0) {

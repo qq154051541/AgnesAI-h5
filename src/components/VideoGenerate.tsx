@@ -4,7 +4,7 @@ import { VIDEO_SIZES, VIDEO_DURATIONS, STORAGE_KEYS } from '../config/api'
 import { createVideoTask, queryVideoTask, uploadToImgbb } from '../services/api'
 import type { RequestResult, ApiResponse } from '../types'
 import type { VideoHistoryItem } from '../types'
-import { getStorage, setStorage, copyToClipboard, downloadFile, formatTime, truncateText, formatResponseData, fileToJpegDataUri, normalizeHistoryOnLoad } from '../utils/helpers'
+import { getStorage, setStorage, copyToClipboard, downloadFile, formatTime, truncateText, formatResponseData, fileToJpegDataUri, normalizeHistoryOnLoad, parseSeed } from '../utils/helpers'
 import ImagePreview from './ImagePreview'
 
 interface VideoGenerateProps {
@@ -20,6 +20,8 @@ export default function VideoGenerate({ apiKey, errorMsg, onError, onLoadingChan
   const [sizeIndex, setSizeIndex] = useState(0)
   const [durationIndex, setDurationIndex] = useState(0)
   const [prompt, setPrompt] = useState('')
+  const [negativePrompt, setNegativePrompt] = useState('')
+  const [seed, setSeed] = useState('')
   const [refImageInput, setRefImageInput] = useState('')
   const [refImageUrls, setRefImageUrls] = useState<string[]>([])
   const [isKeyframeMode, setIsKeyframeMode] = useState(false)
@@ -89,7 +91,9 @@ export default function VideoGenerate({ apiKey, errorMsg, onError, onLoadingChan
       refImgs: string[],
       keyframeMode: boolean,
       sIndex: number,
-      dIndex: number
+      dIndex: number,
+      negPrompt: string,
+      seedVal: number | undefined
     ): string => {
       const record: VideoHistoryItem = {
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -104,6 +108,13 @@ export default function VideoGenerate({ apiKey, errorMsg, onError, onLoadingChan
         time: Date.now(),
         responseData: null,
         status: 'generating'
+      }
+      const trimmedNeg = negPrompt.trim()
+      if (trimmedNeg) {
+        record.negativePrompt = trimmedNeg
+      }
+      if (seedVal !== undefined) {
+        (record as VideoHistoryItem & { seed?: number }).seed = seedVal
       }
       setHistory((prev) => {
         const updated = [record, ...prev].slice(0, 50)
@@ -153,8 +164,11 @@ export default function VideoGenerate({ apiKey, errorMsg, onError, onLoadingChan
             if (status === 'completed') {
               stopPolling()
               setIsLoading(false)
-              // 视频地址在 remixed_from_video_id 字段
-              const rawUrl = String(data.remixed_from_video_id || data.url || '').trim()
+              // 视频地址按 V2.0 文档位于 metadata.url，兼容 remixed_from_video_id / url
+              const metadata = (data.metadata as Record<string, unknown>) || {}
+              const rawUrl = String(
+                (metadata.url as string) || data.url || data.remixed_from_video_id || ''
+              ).trim()
               const cleanUrl = rawUrl.replace(/^[\s`]+|[\s`]+$/g, '')
               const recordId = currentTaskRecordIdRef.current
               if (cleanUrl) {
@@ -230,6 +244,8 @@ export default function VideoGenerate({ apiKey, errorMsg, onError, onLoadingChan
     const width = parseInt(sizeVal.split('x')[0])
     const height = parseInt(sizeVal.split('x')[1])
     const duration = VIDEO_DURATIONS[durationIndex]
+    const trimmedNegativePrompt = negativePrompt.trim()
+    const seedValue = parseSeed(seed)
 
     // 请求开始立即写入「生成中」历史记录，防止切换 tab 导致任务丢失
     currentTaskRecordIdRef.current = startTaskRecord(
@@ -239,7 +255,9 @@ export default function VideoGenerate({ apiKey, errorMsg, onError, onLoadingChan
       refImageUrls,
       isKeyframeMode,
       sizeIndex,
-      durationIndex
+      durationIndex,
+      trimmedNegativePrompt,
+      seedValue
     )
 
     requestRef.current = createVideoTask(
@@ -250,7 +268,11 @@ export default function VideoGenerate({ apiKey, errorMsg, onError, onLoadingChan
       duration.value,
       duration.frameRate,
       refImageUrls,
-      isKeyframeMode
+      isKeyframeMode,
+      {
+        negativePrompt: trimmedNegativePrompt || undefined,
+        seed: seedValue
+      }
     )
 
     requestRef.current.promise
@@ -295,7 +317,7 @@ export default function VideoGenerate({ apiKey, errorMsg, onError, onLoadingChan
           finishTaskRecord(recordId, { status: 'failed', failReason: '网络请求失败' + (msg ? '：' + msg : '') })
         }
       })
-  }, [isLoading, apiKey, prompt, sizeIndex, durationIndex, refImageUrls, isKeyframeMode, onError, startPolling, startTaskRecord, finishTaskRecord])
+  }, [isLoading, apiKey, prompt, negativePrompt, seed, sizeIndex, durationIndex, refImageUrls, isKeyframeMode, onError, startPolling, startTaskRecord, finishTaskRecord])
 
   const stopGenerate = useCallback(() => {
     if (requestRef.current) {
@@ -323,6 +345,12 @@ export default function VideoGenerate({ apiKey, errorMsg, onError, onLoadingChan
     Notification[ok ? 'success' : 'error'](ok ? '已复制提示词' : '复制失败')
   }, [prompt])
 
+  const handleCopyNegativePrompt = useCallback(async () => {
+    if (!negativePrompt.trim()) return
+    const ok = await copyToClipboard(negativePrompt)
+    Notification[ok ? 'success' : 'error'](ok ? '已复制负向提示词' : '复制失败')
+  }, [negativePrompt])
+
   const handleDownload = useCallback(() => {
     if (!videoUrl) return
     downloadFile(videoUrl, `agnes-ai-video-${Date.now()}.mp4`)
@@ -342,6 +370,8 @@ setVideoProgress(0)
 setRefImageInput('')
 setRefImageUrls([])
 setIsKeyframeMode(false)
+setNegativePrompt('')
+setSeed('')
 stopPolling()
 onError('')
 }, [stopPolling, onError])
@@ -416,6 +446,9 @@ onError('')
   const usePrompt = useCallback(() => {
     if (!detailItem) return
     setPrompt(detailItem.prompt)
+    setNegativePrompt(detailItem.negativePrompt || '')
+    const seedField = (detailItem as VideoHistoryItem & { seed?: number }).seed
+    setSeed(seedField === undefined || seedField === null ? '' : String(seedField))
     if (detailItem.sizeIndex !== undefined) {
       setSizeIndex(detailItem.sizeIndex)
     }
@@ -455,7 +488,7 @@ onError('')
         onChange={handleFileUpload}
       />
 
-      {/* ===== 配置卡片：尺寸 / 时长 ===== */}
+      {/* ===== 配置卡片：尺寸 / 时长 / 随机种子 ===== */}
       <div className="agnes-flash-card">
         <div className="agnes-flash-card-header">
           <span className="agnes-label-icon">⚙️</span>
@@ -487,6 +520,23 @@ onError('')
               placeholder="选择时长"
             />
           </div>
+          <div className="agnes-attr-block">
+            <div className="agnes-attr-label">
+              <span className="agnes-attr-label-icon">🎲</span>
+              <span>随机种子</span>
+              <span className="agnes-label-optional">可选</span>
+            </div>
+            <input
+              className="agnes-textarea agnes-ref-input"
+              value={seed}
+              onChange={(e) => setSeed(e.target.value.replace(/[^\d-]/g, ''))}
+              placeholder="留空使用随机值"
+              inputMode="numeric"
+            />
+          </div>
+        </div>
+        <div className="agnes-ref-tips">
+          尺寸与宽高比：1152×768 (3:2) · 768×1152 (2:3) · 1280×720 (16:9) · 720×1280 (9:16)；服务会按 480p/720p/1080p 标准化。
         </div>
       </div>
 
@@ -509,6 +559,28 @@ onError('')
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           placeholder="描述你想要生成的视频，例如：一只柴犬在樱花树下奔跑，阳光温暖，花瓣飘落"
+        />
+      </div>
+
+      {/* ===== 负向提示词卡片 ===== */}
+      <div className="agnes-flash-card">
+        <div className="agnes-flash-card-header">
+          <span className="agnes-label-icon">🚫</span>
+          <span className="agnes-flash-card-title">负向提示词</span>
+          <span className="agnes-label-optional">可选</span>
+          <span className="agnes-flash-card-tip">描述需要避免的内容，例如：模糊、抖动、低画质</span>
+          {negativePrompt && (
+            <div className="agnes-prompt-actions" style={{ marginLeft: 'auto' }}>
+              <Button size="small" onClick={handleCopyNegativePrompt}>复制</Button>
+              <Button size="small" onClick={() => setNegativePrompt('')}>清除</Button>
+            </div>
+          )}
+        </div>
+        <textarea
+          className="agnes-textarea"
+          value={negativePrompt}
+          onChange={(e) => setNegativePrompt(e.target.value)}
+          placeholder="避免生成的内容，例如：模糊、扭曲、抖动、低画质、水印"
         />
       </div>
 
@@ -764,6 +836,15 @@ onError('')
               <div className="agnes-detail-value agnes-detail-value-long">{detailItem.prompt}</div>
             </div>
 
+            {detailItem.negativePrompt && (
+              <div className="agnes-detail-field agnes-detail-prompt-field">
+                <div className="agnes-detail-prompt-header">
+                  <span className="agnes-detail-label">负向提示词：</span>
+                </div>
+                <div className="agnes-detail-value agnes-detail-value-long">{detailItem.negativePrompt}</div>
+              </div>
+            )}
+
             <div className="agnes-detail-field">
               <span className="agnes-detail-label">尺寸：</span>
               <span className="agnes-detail-value">{detailItem.size}</span>
@@ -772,6 +853,12 @@ onError('')
               <span className="agnes-detail-label">时长：</span>
               <span className="agnes-detail-value">{detailItem.duration}</span>
             </div>
+            {(detailItem as VideoHistoryItem & { seed?: number }).seed !== undefined && (
+              <div className="agnes-detail-field">
+                <span className="agnes-detail-label">随机种子：</span>
+                <span className="agnes-detail-value">{(detailItem as VideoHistoryItem & { seed?: number }).seed}</span>
+              </div>
+            )}
             {detailItem.isKeyframeMode && (
               <div className="agnes-detail-field">
                 <span className="agnes-detail-label">模式：</span>

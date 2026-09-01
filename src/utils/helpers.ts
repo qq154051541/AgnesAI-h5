@@ -167,6 +167,15 @@ export function normalizeHistoryOnLoad<T extends { status?: TaskStatus; failReas
   )
 }
 
+/** 解析用户输入的 seed 字符串：空返回 undefined，非法返回 NaN 由调用方处理 */
+export function parseSeed(input: string): number | undefined {
+  const trimmed = input.trim()
+  if (!trimmed) return undefined
+  const n = Number(trimmed)
+  if (!Number.isFinite(n)) return undefined
+  return Math.trunc(n)
+}
+
 /** localStorage 读取 */
 export function getStorage<T>(key: string): T | null {
   try {
