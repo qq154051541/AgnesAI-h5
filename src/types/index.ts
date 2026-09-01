@@ -44,6 +44,56 @@ export interface VideoHistoryItem {
   failReason?: string
 }
 
+/* ===== Agnes Video 2.5 Flash 相关类型 ===== */
+
+/** Flash 生成模式 */
+export type VideoFlashMode = 'text' | 'keyframe' | 'reference'
+
+/** Flash 创建任务参数 */
+export interface VideoFlashCreateOptions {
+  /** 提示词 */
+  prompt: string
+  /** 生成模式 */
+  mode: VideoFlashMode
+  /** 视频时长，字符串 "4"-"12"，默认 "5" */
+  seconds: string
+  /** 画幅，默认 16:9 */
+  aspectRatio: string
+  /** 随机种子 */
+  seed?: number
+  /** 首帧图片 URL（keyframe 模式） */
+  firstFrame?: string
+  /** 尾帧图片 URL（keyframe 模式） */
+  lastFrame?: string
+  /** 参考图片 URL 列表（reference 模式，最多 5 张） */
+  images?: string[]
+  /** 参考音频 URL 列表（reference 模式） */
+  audios?: string[]
+}
+
+/** Flash 视频历史记录 */
+export interface VideoFlashHistoryItem {
+  id: string
+  url: string
+  prompt: string
+  mode: VideoFlashMode
+  seconds: string
+  aspectRatio: string
+  firstFrame?: string
+  lastFrame?: string
+  images: string[]
+  audios: string[]
+  modeIndex: number
+  aspectRatioIndex: number
+  durationIndex: number
+  time: number
+  responseData: unknown
+  /** 任务状态；旧记录无此字段，展示时视为成功 */
+  status?: TaskStatus
+  /** 失败 / 中断原因 */
+  failReason?: string
+}
+
 /** 图转提示词历史记录 */
 export interface Img2PromptHistoryItem {
   prompt: string

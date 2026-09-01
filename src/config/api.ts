@@ -27,7 +27,8 @@ export const API_PATHS = {
 /** 模型配置 */
 export const MODELS = [
   { value: 'agnes-image-2.0-flash', label: 'Agnes Image 2.0 Flash' },
-  { value: 'agnes-image-2.1-flash', label: 'Agnes Image 2.1 Flash' }
+  { value: 'agnes-image-2.1-flash', label: 'Agnes Image 2.1 Flash' },
+  { value: 'agnes-image-2.5-flash', label: 'Agnes Image 2.5 Flash' }
 ] as const
 
 /** 图片尺寸配置项 */
@@ -35,15 +36,15 @@ export interface SizeItem {
   /** 尺寸值：精确尺寸（"1024x1024"）或档位（"2K"） */
   value: string
   label: string
-  /** 仅限该模型使用 */
-  model?: string
+  /** 仅限该模型（或模型数组）使用 */
+  model?: string | string[]
   /** 宽高比，仅档位式 size（如 "2K"）配合使用 */
   ratio?: string
 }
 
 /** 图片尺寸配置
  * 2.0 模型使用精确尺寸（如 1024x1024）
- * 2.1 模型使用档位+宽高比（如 size="2K" ratio="16:9"），输出更可预期
+ * 2.1 / 2.5 模型使用档位+宽高比（如 size="2K" ratio="16:9"），输出更可预期
  */
 export const SIZES: SizeItem[] = [
   // ===== 2.0 Flash 精确尺寸 =====
@@ -55,32 +56,32 @@ export const SIZES: SizeItem[] = [
   { value: '1344x768', label: '1344×768 (横屏)' },
   { value: '1792x1024', label: '1792×1024 横屏（最大横版）' },
   { value: '1024x1792', label: '1024×1792 竖屏（最大竖版）' },
-  // ===== 2.1 Flash 档位 + 宽高比 =====
+  // ===== 2.1 / 2.5 Flash 档位 + 宽高比 =====
   // 1K 档位
-  { value: '1K', ratio: '1:1', label: '1K 1024×1024（1:1）', model: 'agnes-image-2.1-flash' },
-  { value: '1K', ratio: '16:9', label: '1K 1312×736（16:9）', model: 'agnes-image-2.1-flash' },
-  { value: '1K', ratio: '9:16', label: '1K 736×1312（9:16）', model: 'agnes-image-2.1-flash' },
-  { value: '1K', ratio: '4:3', label: '1K 1152×864（4:3）', model: 'agnes-image-2.1-flash' },
-  { value: '1K', ratio: '3:4', label: '1K 864×1152（3:4）', model: 'agnes-image-2.1-flash' },
+  { value: '1K', ratio: '1:1', label: '1K 1024×1024（1:1）', model: ['agnes-image-2.1-flash', 'agnes-image-2.5-flash'] },
+  { value: '1K', ratio: '16:9', label: '1K 1312×736（16:9）', model: ['agnes-image-2.1-flash', 'agnes-image-2.5-flash'] },
+  { value: '1K', ratio: '9:16', label: '1K 736×1312（9:16）', model: ['agnes-image-2.1-flash', 'agnes-image-2.5-flash'] },
+  { value: '1K', ratio: '4:3', label: '1K 1152×864（4:3）', model: ['agnes-image-2.1-flash', 'agnes-image-2.5-flash'] },
+  { value: '1K', ratio: '3:4', label: '1K 864×1152（3:4）', model: ['agnes-image-2.1-flash', 'agnes-image-2.5-flash'] },
   // 2K 档位
-  { value: '2K', ratio: '1:1', label: '2K 2048×2048（1:1）', model: 'agnes-image-2.1-flash' },
-  { value: '2K', ratio: '16:9', label: '2K 2624×1472（16:9）', model: 'agnes-image-2.1-flash' },
-  { value: '2K', ratio: '9:16', label: '2K 1472×2624（9:16）', model: 'agnes-image-2.1-flash' },
-  { value: '2K', ratio: '4:3', label: '2K 2304×1728（4:3）', model: 'agnes-image-2.1-flash' },
-  { value: '2K', ratio: '3:4', label: '2K 1728×2304（3:4）', model: 'agnes-image-2.1-flash' },
-  { value: '2K', ratio: '3:2', label: '2K 2496×1664（3:2）', model: 'agnes-image-2.1-flash' },
-  { value: '2K', ratio: '2:3', label: '2K 1664×2496（2:3）', model: 'agnes-image-2.1-flash' },
-  { value: '2K', ratio: '21:9', label: '2K 3136×1344（21:9）', model: 'agnes-image-2.1-flash' },
+  { value: '2K', ratio: '1:1', label: '2K 2048×2048（1:1）', model: ['agnes-image-2.1-flash', 'agnes-image-2.5-flash'] },
+  { value: '2K', ratio: '16:9', label: '2K 2624×1472（16:9）', model: ['agnes-image-2.1-flash', 'agnes-image-2.5-flash'] },
+  { value: '2K', ratio: '9:16', label: '2K 1472×2624（9:16）', model: ['agnes-image-2.1-flash', 'agnes-image-2.5-flash'] },
+  { value: '2K', ratio: '4:3', label: '2K 2304×1728（4:3）', model: ['agnes-image-2.1-flash', 'agnes-image-2.5-flash'] },
+  { value: '2K', ratio: '3:4', label: '2K 1728×2304（3:4）', model: ['agnes-image-2.1-flash', 'agnes-image-2.5-flash'] },
+  { value: '2K', ratio: '3:2', label: '2K 2496×1664（3:2）', model: ['agnes-image-2.1-flash', 'agnes-image-2.5-flash'] },
+  { value: '2K', ratio: '2:3', label: '2K 1664×2496（2:3）', model: ['agnes-image-2.1-flash', 'agnes-image-2.5-flash'] },
+  { value: '2K', ratio: '21:9', label: '2K 3136×1344（21:9）', model: ['agnes-image-2.1-flash', 'agnes-image-2.5-flash'] },
   // 3K 档位
-  { value: '3K', ratio: '1:1', label: '3K 3072×3072（1:1）', model: 'agnes-image-2.1-flash' },
-  { value: '3K', ratio: '16:9', label: '3K 3936×2208（16:9）', model: 'agnes-image-2.1-flash' },
-  { value: '3K', ratio: '9:16', label: '3K 2208×3936（9:16）', model: 'agnes-image-2.1-flash' },
+  { value: '3K', ratio: '1:1', label: '3K 3072×3072（1:1）', model: ['agnes-image-2.1-flash', 'agnes-image-2.5-flash'] },
+  { value: '3K', ratio: '16:9', label: '3K 3936×2208（16:9）', model: ['agnes-image-2.1-flash', 'agnes-image-2.5-flash'] },
+  { value: '3K', ratio: '9:16', label: '3K 2208×3936（9:16）', model: ['agnes-image-2.1-flash', 'agnes-image-2.5-flash'] },
   // 4K 档位
-  { value: '4K', ratio: '1:1', label: '4K 4096×4096（1:1）', model: 'agnes-image-2.1-flash' },
-  { value: '4K', ratio: '16:9', label: '4K 5248×2944（16:9）', model: 'agnes-image-2.1-flash' },
-  { value: '4K', ratio: '9:16', label: '4K 2944×5248（9:16）', model: 'agnes-image-2.1-flash' },
-  { value: '4K', ratio: '4:3', label: '4K 4608×3456（4:3）', model: 'agnes-image-2.1-flash' },
-  { value: '4K', ratio: '3:4', label: '4K 3456×4608（3:4）', model: 'agnes-image-2.1-flash' }
+  { value: '4K', ratio: '1:1', label: '4K 4096×4096（1:1）', model: ['agnes-image-2.1-flash', 'agnes-image-2.5-flash'] },
+  { value: '4K', ratio: '16:9', label: '4K 5248×2944（16:9）', model: ['agnes-image-2.1-flash', 'agnes-image-2.5-flash'] },
+  { value: '4K', ratio: '9:16', label: '4K 2944×5248（9:16）', model: ['agnes-image-2.1-flash', 'agnes-image-2.5-flash'] },
+  { value: '4K', ratio: '4:3', label: '4K 4608×3456（4:3）', model: ['agnes-image-2.1-flash', 'agnes-image-2.5-flash'] },
+  { value: '4K', ratio: '3:4', label: '4K 3456×4608（3:4）', model: ['agnes-image-2.1-flash', 'agnes-image-2.5-flash'] }
 ]
 
 /** 图片生成数量配置 */
@@ -111,6 +112,44 @@ export const VIDEO_DURATIONS = [
 /** 视频生成模型 */
 export const VIDEO_MODEL = 'agnes-video-v2.0'
 
+/* ===== Agnes Video 2.5 Flash 专属配置 ===== */
+
+/** 视频生成模型（Flash 版） */
+export const VIDEO_MODEL_FLASH = 'agnes-video-2.5-flash'
+
+/** Flash 固定尺寸档位，仅支持 "720P" */
+export const VIDEO_FLASH_SIZE = '720P'
+
+/** Flash 画幅配置（通过 aspect_ratio 选择输出像素，size 固定 720P） */
+export const VIDEO_FLASH_ASPECT_RATIOS = [
+  { value: '21:9', label: '21:9（1680×720）' },
+  { value: '16:9', label: '16:9（1280×720）' },
+  { value: '4:3', label: '4:3（960×720）' },
+  { value: '1:1', label: '1:1（720×720）' },
+  { value: '3:4', label: '3:4（720×960）' },
+  { value: '9:16', label: '9:16（720×1280）' }
+] as const
+
+/** Flash 时长配置（seconds 为字符串 "4"-"12"，默认 "5"） */
+export const VIDEO_FLASH_DURATIONS = [
+  { value: '4', label: '4 秒' },
+  { value: '5', label: '5 秒' },
+  { value: '6', label: '6 秒' },
+  { value: '8', label: '8 秒' },
+  { value: '10', label: '10 秒' },
+  { value: '12', label: '12 秒' }
+] as const
+
+/** Flash 生成模式 */
+export const VIDEO_FLASH_MODES = [
+  { value: 'text', label: '文生视频' },
+  { value: 'keyframe', label: '首尾帧控制' },
+  { value: 'reference', label: '图片/音频参考' }
+] as const
+
+/** Flash 参考图最大数量 */
+export const VIDEO_FLASH_MAX_IMAGES = 5
+
 /** 图转提示词模型（主） */
 export const CHAT_MODEL = 'agnes-2.5-flash'
 
@@ -136,5 +175,6 @@ export const STORAGE_KEYS = {
   API_KEY: 'agnes_api_key',
   IMAGE_HISTORY: 'agnes_history',
   VIDEO_HISTORY: 'agnes_video_history',
+  VIDEO_HISTORY_FLASH: 'agnes_video_history_flash',
   IMG2PROMPT_HISTORY: 'agnes_img2prompt_history'
 } as const

@@ -56,14 +56,18 @@ const ImageGenerate = forwardRef<ImageGenerateHandle, ImageGenerateProps>(
       setPrompt: (text: string) => setPrompt(text)
     }))
 
-    // 根据当前模型过滤可用尺寸
-    const availableSizes = SIZES.filter((s) => !s.model || s.model === MODELS[modelIndex].value)
-    const isV21 = MODELS[modelIndex].value === 'agnes-image-2.1-flash'
+    // 根据当前模型过滤可用尺寸（model 字段支持单个模型或模型数组）
+    const currentModel = MODELS[modelIndex].value
+    const availableSizes = SIZES.filter(
+      (s) => !s.model || (Array.isArray(s.model) ? s.model.includes(currentModel) : s.model === currentModel)
+    )
+    // 档位式尺寸模型（2.1 / 2.5）：档位 + 宽高比选择
+    const TIER_MODELS = ['agnes-image-2.1-flash', 'agnes-image-2.5-flash']
+    const isTierModel = TIER_MODELS.includes(currentModel)
 
-    // 2.1 模型：档位 + 宽高比选择
     const TIERS_21 = ['1K', '2K', '3K', '4K'] as const
-    const currentTier = isV21 ? (availableSizes[sizeIndex]?.value || '2K') : ''
-    const tierSizes = isV21 ? availableSizes.filter((s) => s.value === currentTier) : []
+    const currentTier = isTierModel ? (availableSizes[sizeIndex]?.value || '2K') : ''
+    const tierSizes = isTierModel ? availableSizes.filter((s) => s.value === currentTier) : []
     // 3K/4K 档位限制只能生成 1 张
     const isMaxTier = currentTier === '3K' || currentTier === '4K'
     const imageCount = isMaxTier ? 1 : IMAGE_COUNTS[countIndex].value
@@ -526,14 +530,14 @@ onError('')
         </div>
 
         {/* 尺寸与数量 */}
-        {isV21 ? (
+        {isTierModel ? (
           <div className="agnes-form-group">
             <div className="agnes-label-row">
               <span className="agnes-label-icon">📐</span>
               <span className="agnes-label-text">尺寸</span>
               <span className="agnes-label-required">*</span>
             </div>
-            {/* 2.1 Flash：档位 + 宽高比滑动选择 */}
+            {/* 2.1 / 2.5 Flash：档位 + 宽高比滑动选择 */}
             <div className="agnes-size-picker-21">
               <div className="agnes-tier-row">
                 {TIERS_21.map((tier) => (
@@ -610,8 +614,8 @@ onError('')
           </div>
         </div>
         )}
-        {/* 2.1 模型时数量单独一行 */}
-        {isV21 && (
+        {/* 2.1 / 2.5 模型时数量单独一行 */}
+        {isTierModel && (
           <div className="agnes-form-group">
             <div className="agnes-label-row">
               <span className="agnes-label-icon">🔢</span>

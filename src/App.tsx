@@ -5,6 +5,7 @@ import type { KeepAliveTabItem } from './components/KeepAliveTabs'
 import ApiKeyField from './components/ApiKeyField'
 import ImageGenerate from './components/ImageGenerate'
 import VideoGenerate from './components/VideoGenerate'
+import VideoGenerateFlash from './components/VideoGenerateFlash'
 import Img2Prompt from './components/Img2Prompt'
 import SenseNovaChat from './components/SenseNovaChat'
 import SenseNovaImage from './components/SenseNovaImage'
@@ -20,7 +21,7 @@ import { SENSENOVA_STORAGE_KEYS, SENSENOVA_MODELS } from './config/sensenova'
 import { ZHIPU_STORAGE_KEYS, ZHIPU_MODELS } from './config/zhipu'
 import { getStorage, setStorage } from './utils/helpers'
 
-type TabKey = 'image' | 'video' | 'img2prompt'
+type TabKey = 'image' | 'video' | 'videoFlash' | 'img2prompt'
 type SenseNovaTabKey = 'flashlite' | 'deepseek' | 'u1image'
 type ZhipuTabKey = 'glm' | 'video' | 'cogview' | 'img2prompt'
 
@@ -30,12 +31,14 @@ export default function App() {
   const [errorMsgs, setErrorMsgs] = useState<Record<string, string>>({
     image: '',
     video: '',
+    videoFlash: '',
     img2prompt: '',
     sensenova: '',
     zhipu: ''
   })
   const [imageLoading, setImageLoading] = useState(false)
   const [videoLoading, setVideoLoading] = useState(false)
+  const [videoFlashLoading, setVideoFlashLoading] = useState(false)
   const [img2promptLoading, setImg2promptLoading] = useState(false)
   const [sensenovaFlashliteLoading, setSensenovaFlashliteLoading] = useState(false)
   const [sensenovaDeepseekLoading, setSensenovaDeepseekLoading] = useState(false)
@@ -337,6 +340,23 @@ Notification.success('已填入 U1 Fast 生图描述')
       )
     },
     {
+      key: 'videoFlash',
+      label: (
+        <span>
+          🎥 Video 2.5 Flash
+          {videoFlashLoading && <span className="agnes-tab-loading-dot" />}
+        </span>
+      ),
+      children: (
+        <VideoGenerateFlash
+          apiKey={apiKey}
+          errorMsg={errorMsgs.videoFlash}
+          onError={(msg) => onError('videoFlash', msg)}
+          onLoadingChange={setVideoFlashLoading}
+        />
+      )
+    },
+    {
       key: 'img2prompt',
       label: (
         <span>
@@ -409,7 +429,7 @@ Notification.success('已填入 U1 Fast 生图描述')
           <div className="agnes-home-cards">
             {/* Agnes AI 卡片 */}
             <div
-              className={`agnes-home-card agnes-home-card-agnes ${imageLoading || videoLoading || img2promptLoading ? 'agnes-home-card-busy' : ''}`}
+              className={`agnes-home-card agnes-home-card-agnes ${imageLoading || videoLoading || videoFlashLoading || img2promptLoading ? 'agnes-home-card-busy' : ''}`}
               onClick={() => setAgnesDrawerOpen(true)}
               role="button"
               tabIndex={0}
@@ -418,15 +438,16 @@ Notification.success('已填入 U1 Fast 生图描述')
               <div className="agnes-home-card-icon">🎨</div>
               <div className="agnes-home-card-body">
                 <div className="agnes-home-card-title">Agnes AI 创作工坊</div>
-                <div className="agnes-home-card-subtitle">图片生成 · 视频生成 · 图转提示词</div>
+                <div className="agnes-home-card-subtitle">图片生成 · 视频生成 · Video 2.5 Flash · 图转提示词</div>
                 <div className="agnes-home-card-tags">
                   <span className="agnes-home-card-tag">🖼️ 图片生成</span>
                   <span className="agnes-home-card-tag">🎬 视频生成</span>
+                  <span className="agnes-home-card-tag">🎥 Video 2.5 Flash</span>
                   <span className="agnes-home-card-tag">🔍 图转提示词</span>
                 </div>
               </div>
               <div className="agnes-home-card-arrow">›</div>
-              {(imageLoading || videoLoading || img2promptLoading) && (
+              {(imageLoading || videoLoading || videoFlashLoading || img2promptLoading) && (
                 <span className="agnes-home-card-busy-badge">● 创作中</span>
               )}
             </div>

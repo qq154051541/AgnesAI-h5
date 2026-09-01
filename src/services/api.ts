@@ -9,6 +9,8 @@ import {
   IMGBB_AUTH_TOKEN,
   API_PATHS,
   VIDEO_MODEL,
+  VIDEO_MODEL_FLASH,
+  VIDEO_FLASH_SIZE,
   CHAT_MODEL,
   CHAT_MODEL_FALLBACK,
   IMG2PROMPT_SYSTEM_ZH,
@@ -16,7 +18,7 @@ import {
   IMG2PROMPT_USER_ZH,
   IMG2PROMPT_USER_EN
 } from '../config/api'
-import type { RequestResult, ApiResponse } from '../types'
+import type { RequestResult, ApiResponse, VideoFlashCreateOptions } from '../types'
 
 /**
  * 清理 URL，提取纯净的 http/https 地址
@@ -206,6 +208,77 @@ export function createVideoTask(
 export function queryVideoTask(apiKey: string, videoId: string): RequestResult<ApiResponse> {
   return fetchWithAbort(
     `${API_BASE_URL}${API_PATHS.VIDEO_QUERY}?video_id=${encodeURIComponent(videoId)}&model_name=${encodeURIComponent(VIDEO_MODEL)}&_t=${Date.now()}`,
+    {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache'
+      }
+    },
+    60000
+  )
+}
+
+/**
+ * 创建视频生成任务（Agnes Video 2.5 Flash）
+ * 参数体系与 v2.0 不同：使用 mode/seconds/size="720P"/aspect_ratio/first_frame/last_frame/images/audios
+ */
+export function createVideoTaskFlash(
+  apiKey: string,
+  options: VideoFlashCreateOptions
+): RequestResult<ApiResponse> {
+  const body: Record<string, unknown> = {
+    model: VIDEO_MODEL_FLASH,
+    prompt: options.prompt,
+    mode: options.mode,
+    seconds: options.seconds,
+    size: VIDEO_FLASH_SIZE,
+    aspect_ratio: options.aspectRatio,
+    n: 1
+  }
+
+  if (options.seed !== undefined && options.seed !== null) {
+    body.seed = options.seed
+  }
+
+  if (options.mode === 'keyframe') {
+    if (options.firstFrame) {
+      body.first_frame = cleanUrl(options.firstFrame)
+    }
+    if (options.lastFrame) {
+      body.last_frame = cleanUrl(options.lastFrame)
+    }
+  } else if (options.mode === 'reference') {
+    if (options.images && options.images.length > 0) {
+      body.images = options.images
+        .map((url) => (url.startsWith('data:') ? url : cleanUrl(url)))
+        .filter((url) => url)
+    }
+    if (options.audios && options.audios.length > 0) {
+      body.audios = options.audios
+        .map((url) => (url.startsWith('data:') ? url : cleanUrl(url)))
+        .filter((url) => url)
+    }
+  }
+
+  return fetchWithAbort(`${API_BASE_URL}${API_PATHS.VIDEOS}`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(body)
+  })
+}
+
+/**
+ * 查询视频任务状态（Agnes Video 2.5 Flash）
+ * 推荐使用 video_id + model_name=agnes-video-2.5-flash 轮询，适用于全部模式
+ */
+export function queryVideoTaskFlash(apiKey: string, videoId: string): RequestResult<ApiResponse> {
+  return fetchWithAbort(
+    `${API_BASE_URL}${API_PATHS.VIDEO_QUERY}?video_id=${encodeURIComponent(videoId)}&model_name=${encodeURIComponent(VIDEO_MODEL_FLASH)}&_t=${Date.now()}`,
     {
       method: 'GET',
       headers: {

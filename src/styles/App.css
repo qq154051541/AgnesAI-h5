@@ -1346,6 +1346,25 @@ body {
   border-color: var(--agnes-primary);
 }
 
+/* 参考音频项（reference 模式） */
+.agnes-ref-audio-item {
+  width: auto;
+  height: auto;
+  padding: 6px 12px;
+  border-radius: var(--agnes-radius-sm);
+  border: 2px solid var(--agnes-border);
+  background: var(--agnes-surface);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.agnes-ref-audio-label {
+  font-size: 13px;
+  color: var(--agnes-text);
+  white-space: nowrap;
+}
+
 .agnes-ref-preview-delete {
   position: absolute;
   top: -6px;
