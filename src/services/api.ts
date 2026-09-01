@@ -294,6 +294,8 @@ export function queryVideoTaskFlash(apiKey: string, videoId: string): RequestRes
 /**
  * 图转提示词
  * 使用 agnes-2.5-flash（agnes-2.0-flash 已废弃，不再作为兼容回退）
+ * 请求格式遵循 OpenAI 兼容的图像理解规范：
+ * messages[0] 为单条 user 消息，content 为 [text, image_url] 内容块数组
  */
 export function imageToPrompt(
   apiKey: string,
@@ -310,13 +312,9 @@ export function imageToPrompt(
     stream: false,
     messages: [
       {
-        role: 'system',
-        content: systemPrompt
-      },
-      {
         role: 'user',
         content: [
-          { type: 'text', text: userText },
+          { type: 'text', text: `${systemPrompt}\n${userText}` },
           {
             type: 'image_url',
             image_url: { url: imageUrl }

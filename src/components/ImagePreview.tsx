@@ -13,7 +13,9 @@ interface ImagePreviewProps {
 
 /** 图片页内预览弹窗（支持多图切换 + 缩放） */
 export default function ImagePreview({ src, images, initialIndex = 0, onClose }: ImagePreviewProps) {
-  const list = images && images.length > 0 ? images : [src]
+  // src 不在 images 列表中时（如先预览生成图、再点击参考图），回退为单图模式，
+  // 避免残留的多图列表覆盖当前要预览的图片
+  const list = images && images.length > 0 && images.includes(src) ? images : [src]
   const [index, setIndex] = useState(initialIndex)
   const [scale, setScale] = useState(1)
   const [translateX, setTranslateX] = useState(0)

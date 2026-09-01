@@ -173,5 +173,6 @@ export const STORAGE_KEYS = {
   IMAGE_HISTORY: 'agnes_history',
   VIDEO_HISTORY: 'agnes_video_history',
   VIDEO_HISTORY_FLASH: 'agnes_video_history_flash',
-  IMG2PROMPT_HISTORY: 'agnes_img2prompt_history'
+  IMG2PROMPT_HISTORY: 'agnes_img2prompt_history',
+  THEME: 'agnes_theme'
 } as const

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { Button, Modal, Notification } from 'animal-island-ui'
 import { STORAGE_KEYS } from '../config/api'
-import { imageToPrompt } from '../services/api'
+import { imageToPrompt, uploadToImgbb } from '../services/api'
 import type { RequestResult, ApiResponse } from '../types'
 import type { Img2PromptHistoryItem } from '../types'
 import { getStorage, setStorage, copyToClipboard, formatTime, truncateText, fileToJpegDataUri } from '../utils/helpers'
@@ -19,6 +19,8 @@ const PAGE_SIZE = 10
 
 export default function Img2Prompt({ apiKey, errorMsg, onError, onLoadingChange, onUsePrompt }: Img2PromptProps) {
   const [imageUrl, setImageUrl] = useState('')
+  /** 随请求发送的 Data URI（上传文件时本地生成，规避服务端回源拉取图床 URL 失败）；手填 URL 时为空 */
+  const [imageDataUri, setImageDataUri] = useState('')
   const [imageInput, setImageInput] = useState('')
   const [lang, setLang] = useState<'en' | 'zh'>('en')
   const [result, setResult] = useState('')
@@ -75,6 +77,8 @@ export default function Img2Prompt({ apiKey, errorMsg, onError, onLoadingChange,
     const url = imageInput.trim()
     if (!url) return
     setImageUrl(url)
+    // 手填 URL 无对应 Data URI，请求将直接使用该 URL
+    setImageDataUri('')
     setImageInput('')
   }, [imageInput])
 
@@ -85,14 +89,27 @@ export default function Img2Prompt({ apiKey, errorMsg, onError, onLoadingChange,
   const handleFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    // 直接转 JPEG Data URI（自动等比缩放、处理 HEIC），随请求内嵌发送；
-    // 避免服务端回源拉取图床 URL 失败（如 imgbb 连接被重置导致 500 upstream_error）
+    // 本地先生成 Data URI（自动等比缩放、处理 HEIC），随请求内嵌发送，
+    // 规避服务端回源拉取图床 URL 失败（如 imgbb 连接被重置导致 500 upstream_error）
+    let dataUri = ''
     try {
-      const dataUri = await fileToJpegDataUri(file)
-      setImageUrl(dataUri)
-      Notification.success('已读取本地图片')
+      dataUri = await fileToJpegDataUri(file)
     } catch {
       Notification.error('图片格式不支持，请使用 JPG 或 PNG 格式')
+      e.target.value = ''
+      return
+    }
+    try {
+      const url = await uploadToImgbb(file)
+      // 前端展示 / 历史记录用 imgbb 链接，API 请求用 Data URI
+      setImageUrl(url)
+      setImageDataUri(dataUri)
+      Notification.success('上传成功')
+    } catch {
+      // 图床上传失败：展示与请求均使用本地 Data URI
+      setImageUrl(dataUri)
+      setImageDataUri(dataUri)
+      Notification.warning('图床上传失败，已使用本地图片')
     }
     e.target.value = ''
   }, [])
@@ -113,7 +130,9 @@ export default function Img2Prompt({ apiKey, errorMsg, onError, onLoadingChange,
     setResult('')
     setIsLoading(true)
 
-    requestRef.current = imageToPrompt(apiKey.trim(), imageUrl.trim(), lang)
+    // 请求优先使用上传时本地生成的 Data URI，无则使用输入的图片 URL
+    const requestImageUrl = (imageDataUri || imageUrl).trim()
+    requestRef.current = imageToPrompt(apiKey.trim(), requestImageUrl, lang)
     requestRef.current.promise
       .then((res) => {
         if (res.statusCode === 200) {
@@ -146,7 +165,7 @@ export default function Img2Prompt({ apiKey, errorMsg, onError, onLoadingChange,
       .finally(() => {
         setIsLoading(false)
       })
-  }, [isLoading, apiKey, imageUrl, lang, onError, addToHistory])
+  }, [isLoading, apiKey, imageUrl, imageDataUri, lang, onError, addToHistory])
 
   const stopGenerate = useCallback(() => {
     if (requestRef.current) {
@@ -218,6 +237,8 @@ export default function Img2Prompt({ apiKey, errorMsg, onError, onLoadingChange,
   const reuseDetail = useCallback(() => {
     if (!detailItem) return
     setImageUrl(detailItem.imageUrl)
+    // 历史记录仅存 URL，重新分析时请求将使用该 URL
+    setImageDataUri('')
     setLang((detailItem.lang as 'en' | 'zh') || 'en')
     setDetailItem(null)
     Notification.info('已填入，点击生成')
@@ -261,7 +282,7 @@ export default function Img2Prompt({ apiKey, errorMsg, onError, onLoadingChange,
             />
             <div
               className="agnes-ref-preview-delete"
-              onClick={() => setImageUrl('')}
+              onClick={() => { setImageUrl(''); setImageDataUri('') }}
             >
               ✕
             </div>

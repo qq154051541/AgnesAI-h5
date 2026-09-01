@@ -41,6 +41,8 @@
   --agnes-bg-card: #ffffff;
   --agnes-bg-glass: rgba(255, 255, 255, 0.72);
   --agnes-bg-glass-strong: rgba(255, 255, 255, 0.88);
+  /** 浅色表面上的 hover 高亮（暗黑模式下切换为微透明白） */
+  --agnes-bg-hover: rgba(255, 255, 255, 0.5);
 
   /* 圆角 */
   --agnes-radius-xs: 8px;
@@ -85,6 +87,234 @@
   --agnes-font-lg: var(--animal-font-size-lg, 16px);
   --agnes-font-xl: 18px;
   --agnes-font-xxl: 22px;
+}
+
+/* ===== 暗黑模式（html[data-theme='dark']） ===== */
+:root[data-theme='dark'] {
+  /* 覆盖 animal-island-ui 核心变量，使 UI 库组件跟随暗色 */
+  --animal-text-color: #e8ddc8;
+  --animal-text-color-secondary: #a89c86;
+  --animal-text-color-muted: #e8ddc8;
+  --animal-text-color-disabled: #6b6252;
+  --animal-border-color: #4a4232;
+  --animal-border-color-light: #3a3428;
+  --animal-border-color-hover: #8a7a5c;
+  --animal-bg-color: #1e1b16;
+  --animal-bg-color-secondary: #26221b;
+  --animal-bg-color-disabled: #2e2921;
+  --animal-mask-bg: rgba(0, 0, 0, 0.6);
+  --animal-shadow-sm: 0 2px 4px 0 rgba(0, 0, 0, 0.3);
+  --animal-shadow-base: 0 3px 10px 0 rgba(0, 0, 0, 0.35);
+  --animal-shadow-lg: 0 8px 24px 0 rgba(0, 0, 0, 0.45);
+  --animal-primary-color-bg: rgba(25, 200, 185, 0.14);
+
+  /* 主色 */
+  --agnes-primary-active: #17b3a5;
+  --agnes-primary-bg-soft: rgba(25, 200, 185, 0.1);
+
+  /* 功能色背景（暗色下微透明底） */
+  --agnes-success-bg: rgba(111, 186, 44, 0.16);
+  --agnes-warning-bg: rgba(245, 195, 28, 0.16);
+  --agnes-info-bg: rgba(74, 144, 217, 0.18);
+  --agnes-error-bg: rgba(224, 90, 90, 0.16);
+
+  /* 文字 */
+  --agnes-text-muted: #857860;
+
+  /* 边框 */
+  --agnes-border-strong: #4a4232;
+
+  /* 背景 */
+  --agnes-bg-card: #2a251d;
+  --agnes-bg-glass: rgba(38, 34, 27, 0.78);
+  --agnes-bg-glass-strong: rgba(30, 27, 22, 0.92);
+  --agnes-bg-hover: rgba(255, 255, 255, 0.06);
+
+  /* 阴影 */
+  --agnes-shadow-primary: 0 6px 20px 0 rgba(0, 0, 0, 0.4);
+  --agnes-shadow-primary-sm: 0 2px 8px 0 rgba(0, 0, 0, 0.35);
+
+  /* 渐变 */
+  --agnes-gradient-warm: linear-gradient(135deg, #2e2921 0%, #3a3122 100%);
+}
+
+/* 暗黑模式：页面氛围背景 */
+:root[data-theme='dark'] body {
+  background-image:
+    radial-gradient(circle at 12% 18%, rgba(25, 200, 185, 0.07) 0%, transparent 35%),
+    radial-gradient(circle at 88% 82%, rgba(232, 169, 72, 0.05) 0%, transparent 38%),
+    radial-gradient(circle at 50% 50%, rgba(108, 92, 231, 0.06) 0%, transparent 45%);
+}
+
+/* 暗黑模式：滚动条 */
+:root[data-theme='dark'] ::-webkit-scrollbar-thumb {
+  background: rgba(232, 221, 200, 0.22);
+}
+
+/* 暗黑模式：animal-island-ui 弹层（Drawer/Modal 硬编码浅色） */
+:root[data-theme='dark'] [class*='animal-panel'],
+:root[data-theme='dark'] [class*='animal-modalClipped'] {
+  background: var(--agnes-bg-card) !important;
+  color: var(--agnes-text) !important;
+  box-shadow: -12px 0 32px rgba(0, 0, 0, 0.4) !important;
+}
+:root[data-theme='dark'] [class*='animal-panelLeft'] {
+  box-shadow: 12px 0 32px rgba(0, 0, 0, 0.4) !important;
+}
+:root[data-theme='dark'] [class*='animal-panelTop'] {
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4) !important;
+}
+:root[data-theme='dark'] [class*='animal-panelBottom'] {
+  box-shadow: 0 -12px 32px rgba(0, 0, 0, 0.4) !important;
+}
+:root[data-theme='dark'] [class*='animal-title'],
+:root[data-theme='dark'] [class*='animal-modal-title'] {
+  color: var(--agnes-text) !important;
+}
+:root[data-theme='dark'] [class*='animal-close'] {
+  color: rgba(232, 221, 200, 0.6) !important;
+}
+:root[data-theme='dark'] [class*='animal-close']:hover {
+  color: var(--agnes-text) !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+:root[data-theme='dark'] [class*='animal-body'] {
+  color: var(--agnes-text-secondary) !important;
+}
+
+/* 暗黑模式：Modal 底部按钮 */
+:root[data-theme='dark'] [class*='animal-footer-btn'] {
+  border-color: rgba(232, 221, 200, 0.3) !important;
+  color: var(--agnes-text) !important;
+}
+:root[data-theme='dark'] [class*='animal-footer-btn']:hover {
+  border-color: rgba(232, 221, 200, 0.6) !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* 暗黑模式：Notification */
+:root[data-theme='dark'] [class*='animal-notification-'] {
+  background: var(--agnes-bg-card) !important;
+  border-color: var(--agnes-border) !important;
+  color: var(--agnes-text) !important;
+}
+:root[data-theme='dark'] [class*='animal-title-']:not([class*='animal-modal']):not([class*='animal-tab']) {
+  color: var(--agnes-text) !important;
+}
+:root[data-theme='dark'] [class*='animal-description-'] {
+  color: var(--agnes-text-secondary) !important;
+}
+:root[data-theme='dark'] [class*='animal-type-success-'] {
+  background: rgba(111, 186, 44, 0.12) !important;
+  border-color: rgba(111, 186, 44, 0.5) !important;
+}
+:root[data-theme='dark'] [class*='animal-type-info-'] {
+  background: rgba(25, 200, 185, 0.12) !important;
+  border-color: rgba(25, 200, 185, 0.5) !important;
+}
+:root[data-theme='dark'] [class*='animal-type-warning-'] {
+  background: rgba(245, 195, 28, 0.12) !important;
+  border-color: rgba(245, 195, 28, 0.5) !important;
+}
+:root[data-theme='dark'] [class*='animal-type-error-'] {
+  background: rgba(224, 90, 90, 0.12) !important;
+  border-color: rgba(224, 90, 90, 0.5) !important;
+}
+
+/* 暗黑模式：Input（背景 #f7f3df / 边框 #c4b89e） */
+:root[data-theme='dark'] [class*='animal-wrapper-']:not([class*='animal-wrapper-disabled']) {
+  background: var(--agnes-bg-card) !important;
+  border-color: var(--agnes-border) !important;
+  box-shadow: 0 3px rgba(0, 0, 0, 0.35) !important;
+}
+:root[data-theme='dark'] [class*='animal-wrapper-']:hover:not([class*='animal-wrapper-disabled']) {
+  border-color: var(--agnes-border-hover) !important;
+  box-shadow: 0 3px var(--agnes-border) !important;
+}
+:root[data-theme='dark'] [class*='animal-input-'] {
+  color: var(--agnes-text) !important;
+}
+:root[data-theme='dark'] [class*='animal-input-']::placeholder {
+  color: var(--agnes-text-muted) !important;
+}
+
+/* 暗黑模式：Select 触发器 */
+:root[data-theme='dark'] [class*='animal-trigger-'] {
+  background: var(--agnes-bg-card) !important;
+  border-color: var(--agnes-border) !important;
+}
+:root[data-theme='dark'] [class*='animal-trigger-']:hover {
+  background: var(--agnes-bg-card) !important;
+  border-color: var(--agnes-border-hover) !important;
+}
+:root[data-theme='dark'] [class*='animal-value-'] {
+  color: var(--agnes-text) !important;
+}
+:root[data-theme='dark'] [class*='animal-placeholder-'] {
+  color: var(--agnes-text-muted) !important;
+}
+:root[data-theme='dark'] [class*='animal-arrow-'] {
+  color: var(--agnes-text-muted) !important;
+}
+
+/* 暗黑模式：Tabs */
+:root[data-theme='dark'] [class*='animal-tabs-'] {
+  background: var(--agnes-bg-card) !important;
+  border-color: var(--agnes-border) !important;
+}
+:root[data-theme='dark'] [class*='animal-tabList-'] {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border-bottom-color: var(--agnes-border) !important;
+}
+:root[data-theme='dark'] [class*='animal-tabItem-'] {
+  color: var(--agnes-text-secondary) !important;
+}
+:root[data-theme='dark'] [class*='animal-tabItem-']:hover {
+  color: var(--agnes-text) !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+}
+:root[data-theme='dark'] [class*='animal-tabItem-'][class*='animal-active-'] {
+  background: var(--agnes-primary) !important;
+  color: #0a2a26 !important;
+  box-shadow: 0 3px rgba(0, 0, 0, 0.45) !important;
+}
+:root[data-theme='dark'] [class*='animal-tabItem-'][class*='animal-active-'] [class*='animal-tabLabel-'] {
+  color: #0a2a26 !important;
+}
+
+/* 暗黑模式：Card（硬编码 #f7f3df / #725d42，排除彩色变体） */
+:root[data-theme='dark'] [class*='animal-card-']:not([class*='animal-card-app-']):not([class*='animal-card-purple']):not([class*='animal-card-brown']):not([class*='animal-card-lime']):not([class*='animal-card-yellow']):not([class*='animal-card-warm']):not([class*='animal-card-red']):not([class*='animal-card-green']):not([class*='animal-card-teal']):not([class*='animal-card-orange']):not([class*='animal-card-blue']):not([class*='animal-card-pink']) {
+  background: var(--agnes-bg-card) !important;
+  color: var(--agnes-text) !important;
+  border-color: var(--agnes-border) !important;
+}
+:root[data-theme='dark'] [class*='animal-card-dashed-'] {
+  background: var(--agnes-bg-secondary) !important;
+  border-color: var(--agnes-border) !important;
+}
+:root[data-theme='dark'] [class*='animal-tabContent-'] {
+  color: var(--agnes-text-secondary) !important;
+}
+
+/* 暗黑模式：Button（primary 硬编码 #f8f8f0/#794f27 需重写） */
+:root[data-theme='dark'] .animal-btn-primary-9tMG9:not([class*='animal-btn-danger']) {
+  color: var(--agnes-text) !important;
+  background: var(--agnes-bg-card) !important;
+  border-color: var(--agnes-bg-card) !important;
+  box-shadow: 0 5px rgba(0, 0, 0, 0.45) !important;
+}
+:root[data-theme='dark'] .animal-btn-primary-9tMG9:hover:not(:disabled):not([class*='animal-btn-danger']) {
+  background: var(--agnes-bg-card) !important;
+  border-color: var(--agnes-bg-card) !important;
+  box-shadow: 0 6px rgba(0, 0, 0, 0.5) !important;
+}
+:root[data-theme='dark'] .animal-btn-primary-9tMG9:active:not(:disabled):not([class*='animal-btn-danger']) {
+  background: var(--agnes-bg-card) !important;
+  border-color: var(--agnes-bg-card) !important;
+  box-shadow: 0 1px rgba(0, 0, 0, 0.45) !important;
+}
+:root[data-theme='dark'] .animal-btn-text-Tope4:active:not(:disabled) {
+  background: var(--agnes-bg-hover) !important;
 }
 
 /* ===== 重置 ===== */
@@ -232,6 +462,34 @@ body {
 }
 
 .agnes-github-link:active {
+  transform: scale(0.95);
+}
+
+/* 主题切换按钮 */
+.agnes-theme-toggle {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--agnes-text-secondary);
+  background: transparent;
+  transition: all var(--agnes-transition);
+}
+
+.agnes-theme-toggle:hover {
+  color: var(--agnes-primary);
+  background: var(--agnes-primary-bg);
+  transform: scale(1.08) rotate(15deg);
+}
+
+.agnes-theme-toggle:active {
   transform: scale(0.95);
 }
 
@@ -897,6 +1155,7 @@ body {
   padding: var(--agnes-space-lg) !important;
   overflow-y: auto !important;
   -webkit-overflow-scrolling: touch;
+  background: var(--agnes-bg) !important;
 }
 
 .agnes-drawer [class*='animal-panel'] {
@@ -1136,7 +1395,7 @@ body {
 
 .agnes-tier-btn:hover {
   color: var(--agnes-text);
-  background: rgba(255, 255, 255, 0.5);
+  background: var(--agnes-bg-hover);
 }
 
 .agnes-tier-btn-active {
@@ -2226,7 +2485,7 @@ body {
 
 .agnes-lang-switch-btn:hover:not(.agnes-lang-active) {
   color: var(--agnes-text-secondary);
-  background: rgba(255, 255, 255, 0.5);
+  background: var(--agnes-bg-hover);
 }
 
 .agnes-lang-switch-btn.agnes-lang-active {

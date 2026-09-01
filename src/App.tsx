@@ -27,6 +27,9 @@ type ZhipuTabKey = 'glm' | 'video' | 'cogview' | 'img2prompt'
 
 export default function App() {
   const [apiKey, setApiKey] = useState('')
+  const [theme, setTheme] = useState<'light' | 'dark'>(() =>
+    getStorage<string>(STORAGE_KEYS.THEME) === 'dark' ? 'dark' : 'light'
+  )
   const [activeTab, setActiveTab] = useState<TabKey>('image')
   const [errorMsgs, setErrorMsgs] = useState<Record<string, string>>({
     image: '',
@@ -79,6 +82,12 @@ const sensenovaImageRef = useRef<SenseNovaImageHandle | null>(null)
       setZhipuApiKey(savedZhipuKey)
     }
   }, [])
+
+  // 主题同步到 <html data-theme> 与 localStorage
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme)
+    setStorage(STORAGE_KEYS.THEME, theme)
+  }, [theme])
 
   const onError = useCallback((tab: TabKey | 'sensenova' | 'zhipu', msg: string) => {
     setErrorMsgs((prev) => ({ ...prev, [tab]: msg }))
@@ -393,6 +402,14 @@ Notification.success('已填入 U1 Fast 生图描述')
               </div>
               <span className="agnes-subtitle">一言绘境，万象由生</span>
             </div>
+            <button
+              className="agnes-theme-toggle"
+              onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
+              aria-label={theme === 'dark' ? '切换到浅色模式' : '切换到暗黑模式'}
+              title={theme === 'dark' ? '浅色模式' : '暗黑模式'}
+            >
+              {theme === 'dark' ? '☀️' : '🌙'}
+            </button>
             <a
               className="agnes-github-link"
               href="https://github.com/qq154051541/AgnesAI-h5"
