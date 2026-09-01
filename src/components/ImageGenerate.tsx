@@ -668,21 +668,11 @@ onError('')
           </div>
           <div className="agnes-ref-tips">添加参考图后，AI 将基于参考图风格生成新图像，支持多张参考图</div>
           {refImageUrls.length > 0 && (
-            <div className="agnes-ref-preview-list">
+            <div className="agnes-media-grid">
               {refImageUrls.map((url, index) => (
-                <div className="agnes-ref-preview-wrap" key={index}>
-                  <img
-                    className="agnes-ref-preview-image"
-                    src={url}
-                    alt={`ref-${index}`}
-                    onClick={() => setPreviewSrc(url)}
-                  />
-                  <div
-                    className="agnes-ref-preview-delete"
-                    onClick={() => removeRefImage(index)}
-                  >
-                    ✕
-                  </div>
+                <div className="agnes-media-tile" key={index}>
+                  <img src={url} alt={`ref-${index}`} onClick={() => setPreviewSrc(url)} />
+                  <div className="agnes-media-tile-remove" onClick={() => removeRefImage(index)} title="删除">✕</div>
                 </div>
               ))}
             </div>

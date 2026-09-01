@@ -455,42 +455,50 @@ onError('')
         onChange={handleFileUpload}
       />
 
-      {/* 尺寸与时长 */}
-      <div className="agnes-form-row">
-        <div className="agnes-form-group">
-          <div className="agnes-label-row">
-            <span className="agnes-label-icon">📐</span>
-            <span className="agnes-label-text">尺寸</span>
-          </div>
-          <Select
-            value={String(sizeIndex)}
-            onChange={(key) => setSizeIndex(Number(key))}
-            options={VIDEO_SIZES.map((s, i) => ({ key: String(i), label: s.label }))}
-            placeholder="选择尺寸"
-          />
+      {/* ===== 配置卡片：尺寸 / 时长 ===== */}
+      <div className="agnes-flash-card">
+        <div className="agnes-flash-card-header">
+          <span className="agnes-label-icon">⚙️</span>
+          <span className="agnes-flash-card-title">生成参数</span>
+          <span className="agnes-flash-card-tip">图生视频支持多张参考图（首末两张可作为关键帧）</span>
         </div>
-        <div className="agnes-form-group">
-          <div className="agnes-label-row">
-            <span className="agnes-label-icon">⏱️</span>
-            <span className="agnes-label-text">时长</span>
+        <div className="agnes-attr-row">
+          <div className="agnes-attr-block">
+            <div className="agnes-attr-label">
+              <span className="agnes-attr-label-icon">📐</span>
+              <span>尺寸</span>
+            </div>
+            <Select
+              value={String(sizeIndex)}
+              onChange={(key) => setSizeIndex(Number(key))}
+              options={VIDEO_SIZES.map((s, i) => ({ key: String(i), label: s.label }))}
+              placeholder="选择尺寸"
+            />
           </div>
-          <Select
-            value={String(durationIndex)}
-            onChange={(key) => setDurationIndex(Number(key))}
-            options={VIDEO_DURATIONS.map((d, i) => ({ key: String(i), label: d.label }))}
-            placeholder="选择时长"
-          />
+          <div className="agnes-attr-block">
+            <div className="agnes-attr-label">
+              <span className="agnes-attr-label-icon">⏱️</span>
+              <span>时长</span>
+            </div>
+            <Select
+              value={String(durationIndex)}
+              onChange={(key) => setDurationIndex(Number(key))}
+              options={VIDEO_DURATIONS.map((d, i) => ({ key: String(i), label: d.label }))}
+              placeholder="选择时长"
+            />
+          </div>
         </div>
       </div>
 
-      {/* 视频提示词 */}
-      <div className="agnes-form-group">
-        <div className="agnes-label-row">
+      {/* ===== 提示词卡片 ===== */}
+      <div className="agnes-flash-card">
+        <div className="agnes-flash-card-header">
           <span className="agnes-label-icon">✨</span>
-          <span className="agnes-label-text">提示词</span>
+          <span className="agnes-flash-card-title">提示词</span>
           <span className="agnes-label-required">*</span>
+          <span className="agnes-flash-card-tip">描述视频内容、风格、运镜</span>
           {prompt && (
-            <div className="agnes-prompt-actions">
+            <div className="agnes-prompt-actions" style={{ marginLeft: 'auto' }}>
               <Button size="small" onClick={handleCopyPrompt}>复制</Button>
               <Button size="small" onClick={() => setPrompt('')}>清除</Button>
             </div>
@@ -504,12 +512,17 @@ onError('')
         />
       </div>
 
-      {/* 参考图（图生视频） */}
-      <div className="agnes-form-group">
-        <div className="agnes-label-row">
+      {/* ===== 参考图卡片 ===== */}
+      <div className="agnes-flash-card">
+        <div className="agnes-flash-card-header">
           <span className="agnes-label-icon">🖼️</span>
-          <span className="agnes-label-text">参考图（图生视频）</span>
-          <span className="agnes-label-optional">可选，支持多张</span>
+          <span className="agnes-flash-card-title">参考图（图生视频）</span>
+          <span className="agnes-flash-card-tip">已添加 {refImageUrls.length} 张 · 可选</span>
+        </div>
+        <div className="agnes-attr-label" style={{ marginTop: 0 }}>
+          <span className="agnes-attr-label-icon">🔗</span>
+          <span>图片地址</span>
+          <span className="agnes-label-optional">支持多张</span>
         </div>
         <div className="agnes-ref-input-row">
           <input
@@ -522,45 +535,36 @@ onError('')
           <Button size="middle" onClick={addRefImageUrl}>添加</Button>
           <Button size="middle" type="dashed" onClick={uploadRefImage}>上传</Button>
         </div>
-        <div className="agnes-ref-tips">添加参考图后，AI 将基于参考图生成视频，支持多张参考图</div>
+        <div className="agnes-ref-tips">添加参考图后，AI 将基于参考图生成视频；勾选「关键帧模式」后首末两张作为关键帧</div>
         {refImageUrls.length > 0 && (
-          <>
-            <div className="agnes-ref-mode-row">
-              <Button
-                size="small"
-                type={isKeyframeMode ? 'primary' : 'dashed'}
-                onClick={() => setIsKeyframeMode(!isKeyframeMode)}
-              >
-                {isKeyframeMode ? '🔑 关键帧模式：开' : '🔑 关键帧模式：关'}
-              </Button>
-              {isKeyframeMode && (
-                <span className="agnes-ref-mode-tip">
-                  {refImageUrls.length < 2
-                    ? `⚠️ 关键帧模式需要至少 2 张图片（当前 ${refImageUrls.length} 张）`
-                    : `${refImageUrls.length} 张参考图将作为关键帧，AI 生成帧间过渡动画`}
-                </span>
-              )}
-            </div>
-            <div className="agnes-ref-preview-list">
-              {refImageUrls.map((url, index) => (
-                <div className="agnes-ref-preview-wrap" key={index}>
-                  <img
-                    className="agnes-ref-preview-image"
-                    src={url}
-                    alt={`ref-${index}`}
-                    onClick={() => setPreviewSrc(url)}
-                  />
-                  <div
-                    className="agnes-ref-preview-delete"
-                    onClick={() => removeRefImage(index)}
-                  >
-                    ✕
-                  </div>
-                </div>
-              ))}
-            </div>
-          </>
+          <div className="agnes-ref-mode-row">
+            <Button
+              size="small"
+              type={isKeyframeMode ? 'primary' : 'dashed'}
+              onClick={() => setIsKeyframeMode(!isKeyframeMode)}
+            >
+              {isKeyframeMode ? '🔑 关键帧模式：开' : '🔑 关键帧模式：关'}
+            </Button>
+            {isKeyframeMode && (
+              <span className="agnes-ref-mode-tip">
+                {refImageUrls.length < 2
+                  ? `⚠️ 关键帧模式需要至少 2 张图片（当前 ${refImageUrls.length} 张）`
+                  : `${refImageUrls.length} 张参考图将作为关键帧，AI 生成帧间过渡动画`}
+              </span>
+            )}
+          </div>
         )}
+        <div className="agnes-media-grid">
+          {refImageUrls.map((url, index) => (
+            <div className="agnes-media-tile" key={index}>
+              <img src={url} alt={`ref-${index}`} onClick={() => setPreviewSrc(url)} />
+              <div className="agnes-media-tile-remove" onClick={() => removeRefImage(index)} title="删除">✕</div>
+            </div>
+          ))}
+          {refImageUrls.length === 0 && (
+            <div className="agnes-media-tile agnes-media-tile-empty" style={{ minWidth: '100%' }}>＋ 暂无参考图</div>
+          )}
+        </div>
       </div>
 
       {/* 生成按钮 */}
@@ -588,14 +592,14 @@ onError('')
           <div className="agnes-spinner" />
           <div className="agnes-loading-text agnes-loading-dots">视频生成中，预计需要 5-10 分钟</div>
           {videoProgress > 0 && (
-            <div className="agnes-video-progress-bar">
+            <div className="agnes-video-progress-bar" style={{ width: '100%' }}>
               <div
                 className="agnes-video-progress-fill"
                 style={{ width: `${videoProgress}%` }}
               />
             </div>
           )}
-          {videoStatus && <div className="agnes-video-status-text">{videoStatus}</div>}
+          {videoStatus && <div className="agnes-loading-status">{videoStatus}</div>}
           <Button type="dashed" danger size="small" onClick={stopGenerate}>
             终止生成
           </Button>

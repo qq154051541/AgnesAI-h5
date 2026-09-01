@@ -254,12 +254,17 @@ export default function Img2Prompt({ apiKey, errorMsg, onError, onLoadingChange,
         onChange={handleFileUpload}
       />
 
-      {/* 图片输入 */}
-      <div className="agnes-form-group">
-        <div className="agnes-label-row">
+      {/* ===== 图片输入卡片 ===== */}
+      <div className="agnes-flash-card">
+        <div className="agnes-flash-card-header">
           <span className="agnes-label-icon">🖼️</span>
-          <span className="agnes-label-text">图片</span>
+          <span className="agnes-flash-card-title">图片</span>
           <span className="agnes-label-required">*</span>
+          <span className="agnes-flash-card-tip">支持 URL / 上传 · 上传后内嵌发送</span>
+        </div>
+        <div className="agnes-attr-label" style={{ marginTop: 0 }}>
+          <span className="agnes-attr-label-icon">🔗</span>
+          <span>图片地址</span>
         </div>
         <div className="agnes-ref-input-row">
           <input
@@ -273,44 +278,46 @@ export default function Img2Prompt({ apiKey, errorMsg, onError, onLoadingChange,
           <Button size="middle" type="dashed" onClick={uploadImage}>上传</Button>
         </div>
         {imageUrl && (
-          <div className="agnes-img2prompt-preview-wrap">
-            <img
-              className="agnes-img2prompt-preview"
-              src={imageUrl}
-              alt="preview"
-              onClick={() => setPreviewSrc(imageUrl)}
-            />
-            <div
-              className="agnes-ref-preview-delete"
-              onClick={() => { setImageUrl(''); setImageDataUri('') }}
-            >
-              ✕
+          <div className="agnes-media-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))' }}>
+            <div className="agnes-media-tile" style={{ aspectRatio: 'auto', maxHeight: 220 }}>
+              <img src={imageUrl} alt="preview" style={{ objectFit: 'contain' }} onClick={() => setPreviewSrc(imageUrl)} />
+              <div
+                className="agnes-media-tile-remove"
+                onClick={() => { setImageUrl(''); setImageDataUri('') }}
+                title="移除图片"
+              >
+                ✕
+              </div>
             </div>
           </div>
         )}
       </div>
 
-      {/* 语言切换 */}
-      <div className="agnes-form-group">
-        <div className="agnes-label-row">
+      {/* ===== 语言切换卡片 ===== */}
+      <div className="agnes-flash-card">
+        <div className="agnes-flash-card-header">
           <span className="agnes-label-icon">🌐</span>
-          <span className="agnes-label-text">提示词语言</span>
+          <span className="agnes-flash-card-title">提示词语言</span>
+          <span className="agnes-flash-card-tip">切换 AI 输出语言</span>
         </div>
-        <div className="agnes-lang-switch">
+        <div className="agnes-segment">
           <button
-            className={`agnes-lang-switch-btn ${lang === 'en' ? 'agnes-lang-active' : ''}`}
+            type="button"
+            className={`agnes-segment-item ${lang === 'en' ? 'agnes-segment-item-active' : ''}`}
             onClick={() => setLang('en')}
           >
             English
           </button>
           <button
-            className={`agnes-lang-switch-btn ${lang === 'zh' ? 'agnes-lang-active' : ''}`}
+            type="button"
+            className={`agnes-segment-item ${lang === 'zh' ? 'agnes-segment-item-active' : ''}`}
             onClick={() => setLang('zh')}
           >
             中文
           </button>
         </div>
       </div>
+
 
       {/* 生成按钮 */}
       <div className="agnes-generate-btn-wrapper">

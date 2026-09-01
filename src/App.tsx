@@ -335,7 +335,7 @@ Notification.success('已填入 U1 Fast 生图描述')
       key: 'video',
       label: (
         <span>
-          🎬 视频生成
+          🎬 Video V2.0
           {videoLoading && <span className="agnes-tab-loading-dot" />}
         </span>
       ),
