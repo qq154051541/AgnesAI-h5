@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { Button, Modal, Notification } from 'animal-island-ui'
 import { STORAGE_KEYS } from '../config/api'
-import { imageToPrompt, uploadToImgbb } from '../services/api'
+import { imageToPrompt } from '../services/api'
 import type { RequestResult, ApiResponse } from '../types'
 import type { Img2PromptHistoryItem } from '../types'
 import { getStorage, setStorage, copyToClipboard, formatTime, truncateText, fileToJpegDataUri } from '../utils/helpers'
@@ -57,7 +57,8 @@ export default function Img2Prompt({ apiKey, errorMsg, onError, onLoadingChange,
     (promptText: string, imgUrl: string, langCode: string) => {
       const record: Img2PromptHistoryItem = {
         prompt: promptText,
-        imageUrl: imgUrl,
+        // Data URI 体积大，不写入历史以免撑爆 localStorage；历史缩略图与详情仅支持 URL 图片
+        imageUrl: imgUrl.startsWith('data:') ? '' : imgUrl,
         lang: langCode,
         time: Date.now()
       }
@@ -84,19 +85,14 @@ export default function Img2Prompt({ apiKey, errorMsg, onError, onLoadingChange,
   const handleFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
+    // 直接转 JPEG Data URI（自动等比缩放、处理 HEIC），随请求内嵌发送；
+    // 避免服务端回源拉取图床 URL 失败（如 imgbb 连接被重置导致 500 upstream_error）
     try {
-      const url = await uploadToImgbb(file)
-      setImageUrl(url)
-      Notification.success('上传成功')
+      const dataUri = await fileToJpegDataUri(file)
+      setImageUrl(dataUri)
+      Notification.success('已读取本地图片')
     } catch {
-      // 上传失败时转 JPEG Data URI（自动处理 HEIC 等格式）
-      try {
-        const dataUri = await fileToJpegDataUri(file)
-        setImageUrl(dataUri)
-        Notification.warning('上传失败，已转用本地图片')
-      } catch {
-        Notification.error('图片格式不支持，请使用 JPG 或 PNG 格式')
-      }
+      Notification.error('图片格式不支持，请使用 JPG 或 PNG 格式')
     }
     e.target.value = ''
   }, [])
@@ -136,7 +132,12 @@ export default function Img2Prompt({ apiKey, errorMsg, onError, onLoadingChange,
             (data?.error as { message?: string })?.message ||
             (typeof data === 'string' ? data : JSON.stringify(data)) ||
             `请求失败 (${res.statusCode})`
-          onError(errMsg)
+          // 服务端回源拉取图片 URL 失败（图床可能拒绝外部访问），引导改用本地上传
+          if (/loading IMAGE data|ImageData|Connection reset|upstream_error/i.test(errMsg)) {
+            onError('服务端无法访问该图片地址（图床可能拒绝外部访问），请点击「上传」选择本地图片后重试')
+          } else {
+            onError(errMsg)
+          }
         }
       })
       .catch((err) => {

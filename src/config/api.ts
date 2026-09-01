@@ -150,11 +150,8 @@ export const VIDEO_FLASH_MODES = [
 /** Flash 参考图最大数量 */
 export const VIDEO_FLASH_MAX_IMAGES = 5
 
-/** 图转提示词模型（主） */
+/** 图转提示词模型（agnes-2.0-flash 已废弃，不再作为兼容回退） */
 export const CHAT_MODEL = 'agnes-2.5-flash'
-
-/** 图转提示词模型（回退） */
-export const CHAT_MODEL_FALLBACK = 'agnes-2.0-flash'
 
 /** 图转提示词 - 中文系统提示词 */
 export const IMG2PROMPT_SYSTEM_ZH =

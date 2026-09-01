@@ -12,7 +12,7 @@ import {
   VIDEO_MODEL_FLASH,
   VIDEO_FLASH_SIZE,
   CHAT_MODEL,
-  CHAT_MODEL_FALLBACK,
+
   IMG2PROMPT_SYSTEM_ZH,
   IMG2PROMPT_SYSTEM_EN,
   IMG2PROMPT_USER_ZH,
@@ -293,7 +293,7 @@ export function queryVideoTaskFlash(apiKey: string, videoId: string): RequestRes
 
 /**
  * 图转提示词
- * 先尝试 agnes-2.5-flash，失败后回退 agnes-2.0-flash
+ * 使用 agnes-2.5-flash（agnes-2.0-flash 已废弃，不再作为兼容回退）
  */
 export function imageToPrompt(
   apiKey: string,
@@ -304,8 +304,8 @@ export function imageToPrompt(
   const systemPrompt = isZh ? IMG2PROMPT_SYSTEM_ZH : IMG2PROMPT_SYSTEM_EN
   const userText = isZh ? IMG2PROMPT_USER_ZH : IMG2PROMPT_USER_EN
 
-  const buildBody = (model: string) => ({
-    model,
+  const body = {
+    model: CHAT_MODEL,
     temperature: 0.7,
     stream: false,
     messages: [
@@ -324,63 +324,16 @@ export function imageToPrompt(
         ]
       }
     ]
+  }
+
+  return fetchWithAbort(`${API_BASE_URL}${API_PATHS.CHAT_COMPLETIONS}`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(body)
   })
-
-  const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), 120000)
-
-  const doFetch = async (model: string): Promise<ApiResponse> => {
-    const res = await fetch(`${API_BASE_URL}${API_PATHS.CHAT_COMPLETIONS}`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(buildBody(model)),
-      signal: controller.signal
-    })
-    const contentType = res.headers.get('content-type') || ''
-    let data: unknown
-    if (contentType.includes('application/json')) {
-      data = await res.json()
-    } else {
-      const text = await res.text()
-      try {
-        data = JSON.parse(text)
-      } catch {
-        data = text
-      }
-    }
-    return { statusCode: res.status, data }
-  }
-
-  const promise = doFetch(CHAT_MODEL)
-    .then((res) => {
-      // 2.5-flash 成功直接返回
-      if (res.statusCode === 200) return res
-      // 2.5-flash 失败，回退到 2.0-flash
-      return doFetch(CHAT_MODEL_FALLBACK)
-    })
-    .catch((err) => {
-      // 2.5-flash 网络错误/超时，尝试回退
-      if (err.name === 'AbortError') {
-        throw { errMsg: '请求超时或已取消' }
-      }
-      return doFetch(CHAT_MODEL_FALLBACK).catch((fallbackErr) => {
-        if (fallbackErr.name === 'AbortError') {
-          throw { errMsg: '请求超时或已取消' }
-        }
-        throw { errMsg: fallbackErr.message || '网络请求失败' }
-      })
-    })
-
-  return {
-    promise,
-    abort: () => {
-      clearTimeout(timeoutId)
-      controller.abort()
-    }
-  }
 }
 
 /**
