@@ -412,11 +412,6 @@ onError('')
     setHistoryJumpPage('')
   }, [historyJumpPage, historyTotalPages])
 
-  const viewHistory = useCallback((item: VideoHistoryItem) => {
-    setVideoUrl(item.url)
-    setPrompt(item.prompt)
-    window.scrollTo({ top: 0, behavior: 'smooth' })
-  }, [])
 
   const usePrompt = useCallback(() => {
     if (!detailItem) return
@@ -649,10 +644,7 @@ onError('')
             {pagedHistory.map((item) => (
               <div className="agnes-history-item" key={item.id}>
                 {item.url ? (
-                  <div
-                    className="agnes-history-video-thumb-wrap"
-                    onClick={() => viewHistory(item)}
-                  >
+                  <div className="agnes-history-video-thumb-wrap">
                     <video
                       className="agnes-history-video-thumb"
                       src={item.url}

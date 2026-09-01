@@ -399,11 +399,6 @@ onError('')
       setHistoryJumpPage('')
     }, [historyJumpPage, historyTotalPages])
 
-    const viewHistory = useCallback((item: ImageHistoryItem) => {
-      setImageUrls(item.urls || [item.url])
-      setPrompt(item.prompt)
-      window.scrollTo({ top: 0, behavior: 'smooth' })
-    }, [])
 
     const showDetail = useCallback((item: ImageHistoryItem) => {
       setDetailItem(item)
@@ -835,7 +830,7 @@ onError('')
                       className="agnes-history-thumb"
                       src={item.url || item.urls![0]}
                       alt="thumb"
-                      onClick={() => viewHistory(item)}
+
                     />
                   ) : (
                     <div

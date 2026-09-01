@@ -484,25 +484,6 @@ onError('')
     setHistoryJumpPage('')
   }, [historyJumpPage, historyTotalPages])
 
-  const viewHistory = useCallback((item: ZhipuVideoHistoryItem) => {
-    if (!item.url) {
-      Notification.warning('该任务还没有生成结果')
-      return
-    }
-    setVideoUrl(item.url)
-    setVideoCoverUrl(item.coverUrl || '')
-    setVideoTaskId(item.taskId || '')
-    setVideoStatus(item.url ? '生成完成' : '')
-    setPrompt(item.prompt)
-    if (item.sizeIndex !== undefined) setSizeIndex(item.sizeIndex)
-    if (item.durationIndex !== undefined) setDurationIndex(item.durationIndex)
-    if (item.fpsIndex !== undefined) setFpsIndex(item.fpsIndex)
-    if (item.qualityIndex !== undefined) setQualityIndex(item.qualityIndex)
-    setWithAudio(item.withAudio || false)
-    setRefImageUrls(item.refImageUrls || [])
-    setIsKeyframeMode(item.isKeyframeMode || false)
-    window.scrollTo({ top: 0, behavior: 'smooth' })
-  }, [])
 
   const usePrompt = useCallback(() => {
     if (!detailItem) return
@@ -794,10 +775,7 @@ onError('')
             {pagedHistory.map((item) => (
               <div className="agnes-history-item" key={item.id}>
                 {item.url || item.coverUrl ? (
-                  <div
-                    className="agnes-history-video-thumb-wrap"
-                    onClick={() => viewHistory(item)}
-                  >
+                  <div className="agnes-history-video-thumb-wrap">
                     {item.coverUrl ? (
                       <img
                         className="agnes-history-thumb"

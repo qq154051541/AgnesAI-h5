@@ -507,11 +507,6 @@ export default function VideoGenerateFlash({ apiKey, errorMsg, onError, onLoadin
     setHistoryJumpPage('')
   }, [historyJumpPage, historyTotalPages])
 
-  const viewHistory = useCallback((item: VideoFlashHistoryItem) => {
-    setVideoUrl(item.url)
-    setPrompt(item.prompt)
-    window.scrollTo({ top: 0, behavior: 'smooth' })
-  }, [])
 
   const usePrompt = useCallback(() => {
     if (!detailItem) return
@@ -569,54 +564,70 @@ export default function VideoGenerateFlash({ apiKey, errorMsg, onError, onLoadin
         onChange={handleRefImageUpload}
       />
 
-      {/* 模式 / 画幅 / 时长 */}
-      <div className="agnes-form-row">
-        <div className="agnes-form-group">
-          <div className="agnes-label-row">
-            <span className="agnes-label-icon">🎬</span>
-            <span className="agnes-label-text">模式</span>
-          </div>
-          <Select
-            value={String(modeIndex)}
-            onChange={(key) => setModeIndex(Number(key))}
-            options={VIDEO_FLASH_MODES.map((m, i) => ({ key: String(i), label: m.label }))}
-            placeholder="选择模式"
-          />
+      {/* ===== 配置卡片：模式 ===== */}
+      <div className="agnes-flash-card">
+        <div className="agnes-flash-card-header">
+          <span className="agnes-label-icon">🎬</span>
+          <span className="agnes-flash-card-title">生成模式</span>
+          <span className="agnes-flash-card-tip">
+            {mode === 'text' && '纯文本描述生成'}
+            {mode === 'keyframe' && '首尾帧过渡生成'}
+            {mode === 'reference' && '图片 / 音频参考生成'}
+          </span>
         </div>
-        <div className="agnes-form-group">
-          <div className="agnes-label-row">
-            <span className="agnes-label-icon">📐</span>
-            <span className="agnes-label-text">画幅</span>
-          </div>
-          <Select
-            value={String(aspectRatioIndex)}
-            onChange={(key) => setAspectRatioIndex(Number(key))}
-            options={VIDEO_FLASH_ASPECT_RATIOS.map((r, i) => ({ key: String(i), label: r.label }))}
-            placeholder="选择画幅"
-          />
+        <div className="agnes-segment">
+          {VIDEO_FLASH_MODES.map((m, i) => (
+            <button
+              key={m.value}
+              type="button"
+              className={`agnes-segment-item ${modeIndex === i ? 'agnes-segment-item-active' : ''}`}
+              onClick={() => setModeIndex(i)}
+            >
+              <span>{m.label}</span>
+            </button>
+          ))}
         </div>
-        <div className="agnes-form-group">
-          <div className="agnes-label-row">
-            <span className="agnes-label-icon">⏱️</span>
-            <span className="agnes-label-text">时长</span>
+
+        {/* 画幅 + 时长 */}
+        <div className="agnes-attr-row">
+          <div className="agnes-attr-block">
+            <div className="agnes-attr-label">
+              <span className="agnes-attr-label-icon">📐</span>
+              <span>画幅</span>
+            </div>
+            <Select
+              value={String(aspectRatioIndex)}
+              onChange={(key) => setAspectRatioIndex(Number(key))}
+              options={VIDEO_FLASH_ASPECT_RATIOS.map((r, i) => ({ key: String(i), label: r.label }))}
+              placeholder="选择画幅"
+            />
           </div>
-          <Select
-            value={String(durationIndex)}
-            onChange={(key) => setDurationIndex(Number(key))}
-            options={VIDEO_FLASH_DURATIONS.map((d, i) => ({ key: String(i), label: d.label }))}
-            placeholder="选择时长"
-          />
+          <div className="agnes-attr-block">
+            <div className="agnes-attr-label">
+              <span className="agnes-attr-label-icon">⏱️</span>
+              <span>时长</span>
+            </div>
+            <Select
+              value={String(durationIndex)}
+              onChange={(key) => setDurationIndex(Number(key))}
+              options={VIDEO_FLASH_DURATIONS.map((d, i) => ({ key: String(i), label: d.label }))}
+              placeholder="选择时长"
+            />
+          </div>
         </div>
       </div>
 
-      {/* 视频提示词 */}
-      <div className="agnes-form-group">
-        <div className="agnes-label-row">
+      {/* ===== 提示词卡片 ===== */}
+      <div className="agnes-flash-card">
+        <div className="agnes-flash-card-header">
           <span className="agnes-label-icon">✨</span>
-          <span className="agnes-label-text">提示词</span>
+          <span className="agnes-flash-card-title">提示词</span>
           <span className="agnes-label-required">*</span>
+          <span className="agnes-flash-card-tip">
+            {mode === 'reference' ? '可用 <Picture N>、<Audio N> 指代素材' : '描述视频内容、风格、运镜'}
+          </span>
           {prompt && (
-            <div className="agnes-prompt-actions">
+            <div className="agnes-prompt-actions" style={{ marginLeft: 'auto' }}>
               <Button size="small" onClick={handleCopyPrompt}>复制</Button>
               <Button size="small" onClick={() => setPrompt('')}>清除</Button>
             </div>
@@ -634,123 +645,145 @@ export default function VideoGenerateFlash({ apiKey, errorMsg, onError, onLoadin
         />
       </div>
 
-      {/* keyframe 模式：首尾帧 */}
+      {/* keyframe 模式：首尾帧卡片 */}
       {mode === 'keyframe' && (
-        <div className="agnes-form-group">
-          <div className="agnes-label-row">
+        <div className="agnes-flash-card">
+          <div className="agnes-flash-card-header">
             <span className="agnes-label-icon">🖼️</span>
-            <span className="agnes-label-text">首尾帧（至少提供一个）</span>
-            <span className="agnes-label-optional">可选，但首尾帧至少一个</span>
+            <span className="agnes-flash-card-title">首尾帧</span>
+            <span className="agnes-flash-card-tip">至少提供一个，AI 生成帧间过渡</span>
           </div>
-          <div className="agnes-ref-input-row">
-            <input
-              className="agnes-textarea agnes-ref-input"
-              value={firstFrame}
-              onChange={(e) => setFirstFrame(e.target.value)}
-              placeholder="首帧图片 URL"
-            />
-            <Button size="middle" type="dashed" onClick={() => firstFrameInputRef.current?.click()}>上传首帧</Button>
+          <div className="agnes-attr-row" style={{ marginBottom: 0 }}>
+            <div className="agnes-attr-block">
+              <div className="agnes-attr-label">
+                <span className="agnes-attr-label-icon">🎞</span>
+                <span>首帧</span>
+              </div>
+              <div className="agnes-ref-input-row">
+                <input
+                  className="agnes-textarea agnes-ref-input"
+                  value={firstFrame}
+                  onChange={(e) => setFirstFrame(e.target.value)}
+                  placeholder="首帧图片 URL"
+                />
+                <Button size="middle" type="dashed" onClick={() => firstFrameInputRef.current?.click()}>上传</Button>
+              </div>
+            </div>
+            <div className="agnes-attr-block">
+              <div className="agnes-attr-label">
+                <span className="agnes-attr-label-icon">🎬</span>
+                <span>尾帧</span>
+              </div>
+              <div className="agnes-ref-input-row">
+                <input
+                  className="agnes-textarea agnes-ref-input"
+                  value={lastFrame}
+                  onChange={(e) => setLastFrame(e.target.value)}
+                  placeholder="尾帧图片 URL"
+                />
+                <Button size="middle" type="dashed" onClick={() => lastFrameInputRef.current?.click()}>上传</Button>
+              </div>
+            </div>
           </div>
-          <div className="agnes-ref-input-row">
-            <input
-              className="agnes-textarea agnes-ref-input"
-              value={lastFrame}
-              onChange={(e) => setLastFrame(e.target.value)}
-              placeholder="尾帧图片 URL"
-            />
-            <Button size="middle" type="dashed" onClick={() => lastFrameInputRef.current?.click()}>上传尾帧</Button>
-          </div>
-          <div className="agnes-ref-tips">AI 将基于首帧/尾帧生成帧间过渡动画</div>
           {(firstFrame || lastFrame) && (
-            <div className="agnes-ref-preview-list">
-              {firstFrame && (
-                <div className="agnes-ref-preview-wrap" key="first">
-                  <img className="agnes-ref-preview-image" src={firstFrame} alt="first-frame" onClick={() => setPreviewSrc(firstFrame)} />
-                  <div className="agnes-ref-preview-delete" onClick={() => setFirstFrame('')}>✕</div>
+            <div className="agnes-media-grid">
+              {firstFrame ? (
+                <div className="agnes-media-tile">
+                  <img src={firstFrame} alt="first-frame" onClick={() => setPreviewSrc(firstFrame)} />
+                  <div className="agnes-media-tile-remove" onClick={() => setFirstFrame('')} title="删除首帧">✕</div>
                 </div>
+              ) : (
+                <div className="agnes-media-tile agnes-media-tile-empty" title="未设置首帧">＋</div>
               )}
-              {lastFrame && (
-                <div className="agnes-ref-preview-wrap" key="last">
-                  <img className="agnes-ref-preview-image" src={lastFrame} alt="last-frame" onClick={() => setPreviewSrc(lastFrame)} />
-                  <div className="agnes-ref-preview-delete" onClick={() => setLastFrame('')}>✕</div>
+              {lastFrame ? (
+                <div className="agnes-media-tile">
+                  <img src={lastFrame} alt="last-frame" onClick={() => setPreviewSrc(lastFrame)} />
+                  <div className="agnes-media-tile-remove" onClick={() => setLastFrame('')} title="删除尾帧">✕</div>
                 </div>
+              ) : (
+                <div className="agnes-media-tile agnes-media-tile-empty" title="未设置尾帧">＋</div>
               )}
             </div>
           )}
         </div>
       )}
 
-      {/* reference 模式：参考图 + 参考音频 */}
+      {/* reference 模式：参考图 + 参考音频卡片 */}
       {mode === 'reference' && (
-        <>
-          <div className="agnes-form-group">
-            <div className="agnes-label-row">
-              <span className="agnes-label-icon">🖼️</span>
-              <span className="agnes-label-text">参考图</span>
-              <span className="agnes-label-optional">最多 {VIDEO_FLASH_MAX_IMAGES} 张</span>
-            </div>
-            <div className="agnes-ref-input-row">
-              <input
-                className="agnes-textarea agnes-ref-input"
-                value={refImageInput}
-                onChange={(e) => setRefImageInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && addRefImageUrl()}
-                placeholder="输入图片 URL 后点击添加"
-              />
-              <Button size="middle" onClick={addRefImageUrl}>添加</Button>
-              <Button size="middle" type="dashed" onClick={uploadRefImage}>上传</Button>
-            </div>
-            <div className="agnes-ref-tips">在提示词中可用 &lt;Picture N&gt; 指代第 N 张参考图</div>
-            {refImageUrls.length > 0 && (
-              <div className="agnes-ref-preview-list">
-                {refImageUrls.map((url, index) => (
-                  <div className="agnes-ref-preview-wrap" key={index}>
-                    <img
-                      className="agnes-ref-preview-image"
-                      src={url}
-                      alt={`ref-${index}`}
-                      onClick={() => setPreviewSrc(url)}
-                    />
-                    <div className="agnes-ref-preview-delete" onClick={() => removeRefImage(index)}>
-                      ✕
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+        <div className="agnes-flash-card">
+          <div className="agnes-flash-card-header">
+            <span className="agnes-label-icon">🎨</span>
+            <span className="agnes-flash-card-title">参考素材</span>
+            <span className="agnes-flash-card-tip">
+              图片 {refImageUrls.length}/{VIDEO_FLASH_MAX_IMAGES} · 音频 {audioUrls.length}
+            </span>
           </div>
 
-          <div className="agnes-form-group">
-            <div className="agnes-label-row">
-              <span className="agnes-label-icon">🎵</span>
-              <span className="agnes-label-text">参考音频</span>
-              <span className="agnes-label-optional">可选，支持多个</span>
-            </div>
-            <div className="agnes-ref-input-row">
-              <input
-                className="agnes-textarea agnes-ref-input"
-                value={audioInput}
-                onChange={(e) => setAudioInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && addAudioUrl()}
-                placeholder="输入音频 URL 后点击添加"
-              />
-              <Button size="middle" onClick={addAudioUrl}>添加</Button>
-            </div>
-            <div className="agnes-ref-tips">在提示词中可用 &lt;Audio N&gt; 指代第 N 个参考音频</div>
-            {audioUrls.length > 0 && (
-              <div className="agnes-ref-preview-list">
-                {audioUrls.map((url, index) => (
-                  <div className="agnes-ref-preview-wrap agnes-ref-audio-item" key={index}>
-                    <span className="agnes-ref-audio-label">🎵 Audio {index + 1}</span>
-                    <div className="agnes-ref-preview-delete" onClick={() => removeAudio(index)}>
-                      ✕
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+          <div className="agnes-attr-label" style={{ marginTop: 0 }}>
+            <span className="agnes-attr-label-icon">🖼️</span>
+            <span>参考图</span>
+            <span className="agnes-label-optional">最多 {VIDEO_FLASH_MAX_IMAGES} 张</span>
           </div>
-        </>
+          <div className="agnes-ref-input-row">
+            <input
+              className="agnes-textarea agnes-ref-input"
+              value={refImageInput}
+              onChange={(e) => setRefImageInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && addRefImageUrl()}
+              placeholder="输入图片 URL 后点击添加"
+            />
+            <Button size="middle" onClick={addRefImageUrl}>添加</Button>
+            <Button size="middle" type="dashed" onClick={uploadRefImage}>上传</Button>
+          </div>
+          <div className="agnes-ref-tips">在提示词中可用 &lt;Picture N&gt; 指代第 N 张参考图</div>
+          {refImageUrls.length > 0 ? (
+            <div className="agnes-media-grid">
+              {refImageUrls.map((url, index) => (
+                <div className="agnes-media-tile" key={index}>
+                  <img src={url} alt={`ref-${index}`} onClick={() => setPreviewSrc(url)} />
+                  <div className="agnes-media-tile-remove" onClick={() => removeRefImage(index)} title="删除">✕</div>
+                </div>
+              ))}
+              {Array.from({ length: Math.max(0, VIDEO_FLASH_MAX_IMAGES - refImageUrls.length) }).map((_, i) => (
+                <div className="agnes-media-tile agnes-media-tile-empty" key={`empty-${i}`}>＋</div>
+              ))}
+            </div>
+          ) : (
+            <div className="agnes-media-grid">
+              {Array.from({ length: VIDEO_FLASH_MAX_IMAGES }).map((_, i) => (
+                <div className="agnes-media-tile agnes-media-tile-empty" key={`empty-${i}`}>＋</div>
+              ))}
+            </div>
+          )}
+
+          <div className="agnes-attr-label" style={{ marginTop: 'var(--agnes-space-md)' }}>
+            <span className="agnes-attr-label-icon">🎵</span>
+            <span>参考音频</span>
+            <span className="agnes-label-optional">可选，支持多个</span>
+          </div>
+          <div className="agnes-ref-input-row">
+            <input
+              className="agnes-textarea agnes-ref-input"
+              value={audioInput}
+              onChange={(e) => setAudioInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && addAudioUrl()}
+              placeholder="输入音频 URL 后点击添加"
+            />
+            <Button size="middle" onClick={addAudioUrl}>添加</Button>
+          </div>
+          <div className="agnes-ref-tips">在提示词中可用 &lt;Audio N&gt; 指代第 N 个参考音频</div>
+          {audioUrls.length > 0 && (
+            <div className="agnes-media-grid">
+              {audioUrls.map((_url, index) => (
+                <div className="agnes-media-tile agnes-media-tile-empty agnes-media-tile-audio" key={index} title={`Audio ${index + 1}`}>
+                  🎵
+                  <span>Audio {index + 1}</span>
+                  <div className="agnes-media-tile-remove" onClick={() => removeAudio(index)} title="删除">✕</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       )}
 
       {/* 生成按钮 */}
@@ -778,14 +811,14 @@ export default function VideoGenerateFlash({ apiKey, errorMsg, onError, onLoadin
           <div className="agnes-spinner" />
           <div className="agnes-loading-text agnes-loading-dots">视频生成中，预计需要 1-5 分钟</div>
           {videoProgress > 0 && (
-            <div className="agnes-video-progress-bar">
+            <div className="agnes-video-progress-bar" style={{ width: '100%' }}>
               <div
                 className="agnes-video-progress-fill"
                 style={{ width: `${videoProgress}%` }}
               />
             </div>
           )}
-          {videoStatus && <div className="agnes-video-status-text">{videoStatus}</div>}
+          {videoStatus && <div className="agnes-loading-status">{videoStatus}</div>}
           <Button type="dashed" danger size="small" onClick={stopGenerate}>
             终止生成
           </Button>
@@ -834,10 +867,7 @@ export default function VideoGenerateFlash({ apiKey, errorMsg, onError, onLoadin
             {pagedHistory.map((item) => (
               <div className="agnes-history-item" key={item.id}>
                 {item.url ? (
-                  <div
-                    className="agnes-history-video-thumb-wrap"
-                    onClick={() => viewHistory(item)}
-                  >
+                  <div className="agnes-history-video-thumb-wrap">
                     <video
                       className="agnes-history-video-thumb"
                       src={item.url}
