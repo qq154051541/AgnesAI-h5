@@ -114,9 +114,11 @@ export default function VideoGenerateFlash({ apiKey, errorMsg, onError, onLoadin
             if (status === 'completed') {
               stopPolling()
               setIsLoading(false)
-              // 视频地址位于 metadata.url，不再兼容 remixed_from_video_id 字段
-              const metadata = (data.metadata as Record<string, unknown>) || {}
-              const rawUrl = String(metadata.url || '').trim()
+              // 视频地址可能在 data.url（直接返回）或 data.metadata.url（嵌套），兼容两种格式
+              const metadata = (data.metadata as Record<string, unknown> | undefined) || {}
+              const urlTop = typeof data.url === 'string' ? data.url : ''
+              const urlMeta = typeof metadata.url === 'string' ? metadata.url : ''
+              const rawUrl = String(urlTop || urlMeta || '').trim()
               const cleanUrl = rawUrl.replace(/^[\s`]+|[\s`]+$/g, '')
               const recordId = currentTaskRecordIdRef.current
               if (cleanUrl) {

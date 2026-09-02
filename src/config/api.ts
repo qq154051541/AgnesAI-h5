@@ -91,12 +91,24 @@ export const VIDEO_SIZES = [
 ] as const
 
 /** 视频时长配置（num_frames 满足 8n+1，frame_rate 固定 24）
- * 注意：720p 分辨率下 num_frames 最大 409 */
+ * 注意：720p 分辨率下 num_frames 最大 409；
+ * 实际时长 ≈ (num_frames - 1) / frame_rate 秒 */
 export const VIDEO_DURATIONS = [
-  { value: 81, label: '约 3 秒', frameRate: 24 },
-  { value: 121, label: '约 5 秒', frameRate: 24 },
-  { value: 241, label: '约 10 秒', frameRate: 24 },
-  { value: 409, label: '约 17 秒', frameRate: 24 }
+  { value: 73, label: '3 秒', frameRate: 24 },
+  { value: 97, label: '4 秒', frameRate: 24 },
+  { value: 121, label: '5 秒', frameRate: 24 },
+  { value: 145, label: '6 秒', frameRate: 24 },
+  { value: 169, label: '7 秒', frameRate: 24 },
+  { value: 193, label: '8 秒', frameRate: 24 },
+  { value: 217, label: '9 秒', frameRate: 24 },
+  { value: 241, label: '10 秒', frameRate: 24 },
+  { value: 265, label: '11 秒', frameRate: 24 },
+  { value: 289, label: '12 秒', frameRate: 24 },
+  { value: 313, label: '13 秒', frameRate: 24 },
+  { value: 337, label: '14 秒', frameRate: 24 },
+  { value: 361, label: '15 秒', frameRate: 24 },
+  { value: 385, label: '16 秒', frameRate: 24 },
+  { value: 409, label: '17 秒', frameRate: 24 }
 ] as const
 
 /** 视频生成模型 */

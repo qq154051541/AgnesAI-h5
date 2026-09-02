@@ -54,9 +54,23 @@
   margin-bottom: var(--agnes-space-lg);
 }
 
+.agnes-duration-scroll {
+  overflow-x: auto;
+  flex-wrap: nowrap;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.agnes-duration-scroll .agnes-segment-item {
+  flex: 0 0 auto;
+  padding: 8px 14px;
+  white-space: nowrap;
+}
+
 .agnes-segment-item {
-  flex: 1;
-  padding: 10px 12px;
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 10px 8px;
   border: none;
   background: transparent;
   border-radius: var(--agnes-radius-sm);
@@ -76,6 +90,8 @@
   color: var(--agnes-text);
   background: var(--agnes-bg-hover);
 }
+
+
 
 .agnes-segment-item-active {
   color: var(--agnes-primary);

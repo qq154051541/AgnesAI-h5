@@ -413,6 +413,8 @@
 
 .agnes-drawer-content {
   padding-bottom: 40px;
+  overflow-x: hidden;
+  min-width: 0;
 }
 
 
