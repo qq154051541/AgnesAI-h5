@@ -34,6 +34,17 @@
   z-index: 9999 !important;
 }
 
+/* Select 下拉限高：长列表（如 15 档时长）内部滚动，不无限撑高 */
+[class*='animal-dropdown'] {
+  max-height: 244px !important;
+  overflow-y: auto !important;
+  scrollbar-width: none;
+}
+
+[class*='animal-dropdown']::-webkit-scrollbar {
+  display: none;
+}
+
 .agnes-label-row {
   display: flex;
   align-items: center;
