@@ -19,6 +19,7 @@ import type { ZhipuImageHandle } from './components/ZhipuImage'
 import { SENSENOVA_STORAGE_KEYS, SENSENOVA_MODELS } from './config/sensenova'
 import { ZHIPU_STORAGE_KEYS, ZHIPU_MODELS } from './config/zhipu'
 import { useApiKey } from './hooks/useApiKey'
+import { useEscapeStack } from './hooks/useEscapeStack'
 import { useTheme } from './hooks/useTheme'
 
 type AgnesTabKey = 'image' | 'video' | 'videoFlash' | 'img2prompt'
@@ -133,19 +134,24 @@ export default function App() {
   /* ===== 稳定的 onError / onLoadingChange 集合（避免 inline 函数触发子组件 effect 死循环） ===== */
   const sensenovaHandlers = useMemo(
     () => ({
-      onError: (msg: string) => setError('sensenova', msg),
+      onError: (msg: string) => setError('sensenovaFlashlite', msg),
       onLoadingFlashlite: (v: boolean) => setLoadingFlag('sensenovaFlashlite', v),
+      onErrorDeepseek: (msg: string) => setError('sensenovaDeepseek', msg),
       onLoadingDeepseek: (v: boolean) => setLoadingFlag('sensenovaDeepseek', v),
+      onErrorImage: (msg: string) => setError('sensenovaImage', msg),
       onLoadingImage: (v: boolean) => setLoadingFlag('sensenovaImage', v)
     }),
     [setError, setLoadingFlag]
   )
   const zhipuHandlers = useMemo(
     () => ({
-      onError: (msg: string) => setError('zhipu', msg),
+      onErrorGlm: (msg: string) => setError('zhipuGlm', msg),
       onLoadingGlm: (v: boolean) => setLoadingFlag('zhipuGlm', v),
+      onErrorVideo: (msg: string) => setError('zhipuVideo', msg),
       onLoadingVideo: (v: boolean) => setLoadingFlag('zhipuVideo', v),
+      onErrorImage: (msg: string) => setError('zhipuImage', msg),
       onLoadingImage: (v: boolean) => setLoadingFlag('zhipuImage', v),
+      onErrorImg2Prompt: (msg: string) => setError('zhipuImg2Prompt', msg),
       onLoadingImg2Prompt: (v: boolean) => setLoadingFlag('zhipuImg2Prompt', v)
     }),
     [setError, setLoadingFlag]
@@ -222,7 +228,7 @@ export default function App() {
       children: (
         <SenseNovaImg2Prompt
           apiKey={sensenovaKey.value}
-          errorMsg={errors.sensenova || ''}
+          errorMsg={errors.sensenovaFlashlite || ''}
           onError={sensenovaHandlers.onError}
           onLoadingChange={sensenovaHandlers.onLoadingFlashlite}
           onUsePrompt={usePromptInSenseNovaU1}
@@ -243,8 +249,8 @@ export default function App() {
           modelValue={deepSeekModel.value}
           modelLabel={deepSeekModel.label}
           modelDescription={deepSeekModel.description}
-          errorMsg={errors.sensenova || ''}
-          onError={sensenovaHandlers.onError}
+          errorMsg={errors.sensenovaDeepseek || ''}
+          onError={sensenovaHandlers.onErrorDeepseek}
           onLoadingChange={sensenovaHandlers.onLoadingDeepseek}
         />
       )
@@ -261,8 +267,8 @@ export default function App() {
         <SenseNovaImage
           ref={sensenovaImageRef}
           apiKey={sensenovaKey.value}
-          errorMsg={errors.sensenova || ''}
-          onError={sensenovaHandlers.onError}
+          errorMsg={errors.sensenovaImage || ''}
+          onError={sensenovaHandlers.onErrorImage}
           onLoadingChange={sensenovaHandlers.onLoadingImage}
         />
       )
@@ -284,8 +290,8 @@ export default function App() {
           modelValue={glmModel.value}
           modelLabel={glmModel.label}
           modelDescription={glmModel.description}
-          errorMsg={errors.zhipu || ''}
-          onError={zhipuHandlers.onError}
+          errorMsg={errors.zhipuGlm || ''}
+          onError={zhipuHandlers.onErrorGlm}
           onLoadingChange={zhipuHandlers.onLoadingGlm}
         />
       )
@@ -302,8 +308,8 @@ export default function App() {
         <ZhipuVideo
           apiKey={zhipuKey.value}
           modelDescription={cogvideoModel.description}
-          errorMsg={errors.zhipu || ''}
-          onError={zhipuHandlers.onError}
+          errorMsg={errors.zhipuVideo || ''}
+          onError={zhipuHandlers.onErrorVideo}
           onLoadingChange={zhipuHandlers.onLoadingVideo}
         />
       )
@@ -321,8 +327,8 @@ export default function App() {
           ref={zhipuImageRef}
           apiKey={zhipuKey.value}
           modelDescription={cogviewModel.description}
-          errorMsg={errors.zhipu || ''}
-          onError={zhipuHandlers.onError}
+          errorMsg={errors.zhipuImage || ''}
+          onError={zhipuHandlers.onErrorImage}
           onLoadingChange={zhipuHandlers.onLoadingImage}
         />
       )
@@ -338,8 +344,8 @@ export default function App() {
       children: (
         <ZhipuImg2Prompt
           apiKey={zhipuKey.value}
-          errorMsg={errors.zhipu || ''}
-          onError={zhipuHandlers.onError}
+          errorMsg={errors.zhipuImg2Prompt || ''}
+          onError={zhipuHandlers.onErrorImg2Prompt}
           onLoadingChange={zhipuHandlers.onLoadingImg2Prompt}
           onUsePrompt={usePromptInZhipuCogview}
         />
@@ -597,38 +603,80 @@ export default function App() {
       </div>
 
       {drawerConfigs.map((cfg) => (
-        <Drawer
+        <DrawerWithEscape
           key={cfg.key}
           open={drawerOpen[cfg.key]}
-          title={<span className="agnes-drawer-title">{cfg.icon} {cfg.title}</span>}
-          placement="right"
-          width="100%"
+          icon={cfg.icon}
+          title={cfg.title}
           onClose={() => closeDrawer(cfg.key)}
-          className="agnes-drawer"
-        >
-          <div className="agnes-drawer-content">
-            <ApiKeyField
-              value={cfg.apiKeyValue}
-              onChange={cfg.onApiKeyChange}
-              label={cfg.apiKeyLabel}
-              placeholder={cfg.apiKeyPlaceholder}
-              platformUrl={cfg.platformUrl}
-              platformName={cfg.platformName}
-              steps={cfg.steps}
-            />
+          apiKeyValue={cfg.apiKeyValue}
+          onApiKeyChange={cfg.onApiKeyChange}
+          apiKeyLabel={cfg.apiKeyLabel}
+          apiKeyPlaceholder={cfg.apiKeyPlaceholder}
+          platformUrl={cfg.platformUrl}
+          platformName={cfg.platformName}
+          steps={cfg.steps}
+          contentItems={drawerContentMap[cfg.key]}
+          activeKey={drawerActiveMap[cfg.key]}
+          onTabChange={drawerSetActiveMap[cfg.key]}
+        />
 
-            <Divider type="wave-yellow" />
-
-            <div className="agnes-tabs-wrapper">
-              <KeepAliveTabs
-                items={drawerContentMap[cfg.key]}
-                activeKey={drawerActiveMap[cfg.key]}
-                onChange={drawerSetActiveMap[cfg.key]}
-              />
-            </div>
-          </div>
-        </Drawer>
       ))}
     </Cursor>
+  )
+}
+
+interface DrawerWithEscapeProps {
+  open: boolean
+  icon: React.ReactNode
+  title: string
+  onClose: () => void
+  apiKeyValue: string
+  onApiKeyChange: (v: string) => void
+  apiKeyLabel: string
+  apiKeyPlaceholder: string
+  platformUrl: string
+  platformName: string
+  steps: string
+  contentItems: KeepAliveTabItem[]
+  activeKey: string
+  onTabChange: (k: string) => void
+}
+
+function DrawerWithEscape({
+  open, icon, title, onClose,
+  apiKeyValue, onApiKeyChange, apiKeyLabel, apiKeyPlaceholder, platformUrl, platformName, steps,
+  contentItems, activeKey, onTabChange
+}: DrawerWithEscapeProps) {
+  useEscapeStack(onClose, open)
+  return (
+    <Drawer
+      open={open}
+      title={<span className="agnes-drawer-title">{icon} {title}</span>}
+      placement="right"
+      width="100%"
+      onClose={onClose}
+      className="agnes-drawer"
+    >
+      <div className="agnes-drawer-content">
+        <ApiKeyField
+          value={apiKeyValue}
+          onChange={onApiKeyChange}
+          label={apiKeyLabel}
+          placeholder={apiKeyPlaceholder}
+          platformUrl={platformUrl}
+          platformName={platformName}
+          steps={steps}
+        />
+        <Divider type="wave-yellow" />
+        <div className="agnes-tabs-wrapper">
+          <KeepAliveTabs
+            items={contentItems}
+            activeKey={activeKey}
+            onChange={onTabChange}
+          />
+        </div>
+      </div>
+    </Drawer>
   )
 }
