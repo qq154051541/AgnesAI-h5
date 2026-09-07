@@ -34,6 +34,18 @@
   z-index: 9999 !important;
 }
 
+/* 参数区（Video V2.0 / Video 2.5 Flash）下拉面板：强制在触发框下方展开 */
+.agnes-attr-block [class*='animal-dropdown'] {
+  left: 0 !important;
+  right: auto !important;
+  top: 100% !important;
+  bottom: auto !important;
+  margin: 6px 0 0 0 !important;
+  transform: none !important;
+  min-width: 100% !important;
+  z-index: 9999 !important;
+}
+
 /* Select 下拉限高：长列表（如 15 档时长）内部滚动，不无限撑高 */
 [class*='animal-dropdown'] {
   max-height: 244px !important;
