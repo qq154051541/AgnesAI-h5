@@ -47,10 +47,12 @@
   font-weight: 500;
 }
 
-.sensenova-reasoning-btn:hover {
-  border-color: var(--agnes-primary);
-  color: var(--agnes-primary);
-  transform: translateY(-1px);
+@media (hover: hover) and (pointer: fine) {
+  .sensenova-reasoning-btn:hover {
+    border-color: var(--agnes-primary);
+    color: var(--agnes-primary);
+    transform: translateY(-1px);
+  }
 }
 
 .sensenova-reasoning-btn:active {
@@ -150,8 +152,10 @@
   transition: transform var(--agnes-transition-fast);
 }
 
-.sensenova-chat-msg-image:hover {
-  transform: scale(1.02);
+@media (hover: hover) and (pointer: fine) {
+  .sensenova-chat-msg-image:hover {
+    transform: scale(1.02);
+  }
 }
 
 .sensenova-chat-text {
@@ -206,8 +210,10 @@
   font-weight: 500;
 }
 
-.sensenova-chat-copy-btn:hover {
-  opacity: 0.7;
+@media (hover: hover) and (pointer: fine) {
+  .sensenova-chat-copy-btn:hover {
+    opacity: 0.7;
+  }
 }
 
 .sensenova-streaming-badge {
@@ -315,8 +321,10 @@
   transition: transform var(--agnes-transition-bounce);
 }
 
-.sensenova-chat-image-preview:hover {
-  transform: scale(1.02);
+@media (hover: hover) and (pointer: fine) {
+  .sensenova-chat-image-preview:hover {
+    transform: scale(1.02);
+  }
 }
 
 .sensenova-chat-image-preview img {
@@ -339,6 +347,33 @@
   font-size: 12px;
   color: #c48820;
   text-align: center;
+}
+
+
+/* ===== 触屏反馈（hover 迁移补充） ===== */
+.sensenova-chat-msg-image:active {
+  transform: scale(0.99);
+}
+
+.sensenova-chat-copy-btn:active {
+  opacity: 0.5;
+}
+
+.sensenova-chat-image-preview:active {
+  transform: scale(0.99);
+}
+
+
+/* ===== 宽屏断点：聊天区增强 ===== */
+/* ≥769px iPad 竖屏：消息容器限高放宽 + 输入区增加呼吸感 */
+@media (min-width: 769px) {
+  .sensenova-chat-container {
+    max-height: min(70vh, 720px);
+  }
+
+  .sensenova-chat-input-area {
+    padding: var(--agnes-space-sm) 0;
+  }
 }
 
 

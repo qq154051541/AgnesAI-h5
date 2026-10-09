@@ -52,9 +52,11 @@
   transition: all var(--agnes-transition);
 }
 
-.agnes-apikey-collapsed:hover {
-  border-color: var(--agnes-primary);
-  box-shadow: var(--agnes-shadow-sm);
+@media (hover: hover) and (pointer: fine) {
+  .agnes-apikey-collapsed:hover {
+    border-color: var(--agnes-primary);
+    box-shadow: var(--agnes-shadow-sm);
+  }
 }
 
 .agnes-apikey-collapsed:active {
@@ -102,9 +104,11 @@
   transition: color var(--agnes-transition-fast);
 }
 
-.agnes-apikey-collapsed:hover .agnes-apikey-edit {
-  color: var(--agnes-primary-active);
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .agnes-apikey-collapsed:hover .agnes-apikey-edit {
+    color: var(--agnes-primary-active);
+    text-decoration: underline;
+  }
 }
 
 /* 展开态的收起按钮 */
@@ -121,9 +125,11 @@
   font-family: inherit;
 }
 
-.agnes-apikey-collapse:hover {
-  color: var(--agnes-primary);
-  background: var(--agnes-primary-bg);
+@media (hover: hover) and (pointer: fine) {
+  .agnes-apikey-collapse:hover {
+    color: var(--agnes-primary);
+    background: var(--agnes-primary-bg);
+  }
 }
 
 .agnes-apikey-row {
@@ -176,8 +182,20 @@
   transition: color var(--agnes-transition-fast);
 }
 
-.agnes-apikey-tips-link:hover {
-  color: var(--agnes-primary-active);
+@media (hover: hover) and (pointer: fine) {
+  .agnes-apikey-tips-link:hover {
+    color: var(--agnes-primary-active);
+  }
+}
+
+
+/* ===== 触屏反馈（hover 迁移补充）：折叠态已有 ：active，此处补充收起按钮与链接按压态 ===== */
+.agnes-apikey-collapse:active {
+  opacity: 0.7;
+}
+
+.agnes-apikey-tips-link:active {
+  opacity: 0.7;
 }
 
 

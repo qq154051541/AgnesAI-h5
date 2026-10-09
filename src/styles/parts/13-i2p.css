@@ -7,8 +7,10 @@
   transition: transform var(--agnes-transition-bounce);
 }
 
-.agnes-img2prompt-preview-wrap:hover {
-  transform: scale(1.02);
+@media (hover: hover) and (pointer: fine) {
+  .agnes-img2prompt-preview-wrap:hover {
+    transform: scale(1.02);
+  }
 }
 
 .agnes-img2prompt-preview {
@@ -87,9 +89,11 @@
   font-family: inherit;
 }
 
-.agnes-lang-switch-btn:hover:not(.agnes-lang-active) {
-  color: var(--agnes-text-secondary);
-  background: var(--agnes-bg-hover);
+@media (hover: hover) and (pointer: fine) {
+  .agnes-lang-switch-btn:hover:not(.agnes-lang-active) {
+    color: var(--agnes-text-secondary);
+    background: var(--agnes-bg-hover);
+  }
 }
 
 .agnes-lang-switch-btn.agnes-lang-active {
@@ -97,6 +101,31 @@
   color: var(--agnes-primary);
   background: var(--agnes-bg-card);
   box-shadow: var(--agnes-shadow-sm);
+}
+
+
+/* ===== 触屏反馈（hover 迁移补充） ===== */
+.agnes-img2prompt-preview-wrap:active {
+  transform: scale(0.99);
+}
+
+.agnes-lang-switch-btn:active:not(.agnes-lang-active) {
+  opacity: 0.7;
+}
+
+
+/* ===== 宽屏断点：预览图放大（圆角为 token 变量自动跟随，无需另改） ===== */
+/* ≥769px iPad 竖屏：200px → 280px */
+@media (min-width: 769px) {
+  .agnes-img2prompt-preview-wrap {
+    width: 280px;
+    height: 280px;
+  }
+
+  .agnes-img2prompt-preview {
+    width: 280px;
+    height: 280px;
+  }
 }
 
 

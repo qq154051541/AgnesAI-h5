@@ -1,4 +1,47 @@
 ﻿/* ===== 响应式 ===== */
+
+/* ============================================
+   宽屏针对性优化（iPad 竖屏 / iPad 横屏 / 桌面）
+   与下方 max-width 小屏断点互补，≤768px 不受影响
+   变量覆写依赖加载顺序：本文件在 01-tokens.css 之后引入，
+   :root 同特异性下后声明生效；暗黑主题仅覆盖颜色变量，无冲突
+   ============================================ */
+
+/* iPad 竖屏：页面放宽至 900px */
+@media (min-width: 769px) {
+  :root {
+    --agnes-page-max: 900px;
+  }
+
+  /* 头部与主内容区内边距适当增大，宽屏下更透气 */
+  .agnes-header {
+    padding: var(--agnes-space-xxl) var(--agnes-space-xl) var(--agnes-space-lg);
+  }
+
+  .agnes-header-inner {
+    padding: var(--agnes-space-xl);
+  }
+
+  .agnes-main {
+    padding: 0 var(--agnes-space-xl);
+  }
+}
+
+/* iPad 横屏：页面 1040px */
+@media (min-width: 1024px) {
+  :root {
+    --agnes-page-max: 1040px;
+  }
+}
+
+/* 桌面：页面 1160px，抽屉面板 960px（字号/间距克制不调，维持现有视觉） */
+@media (min-width: 1366px) {
+  :root {
+    --agnes-page-max: 1160px;
+    --agnes-drawer-max: 960px;
+  }
+}
+
 /* 平板 */
 @media (max-width: 768px) {
   .agnes-page {

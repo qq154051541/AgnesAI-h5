@@ -108,19 +108,22 @@
   background: var(--agnes-gradient-zhipu);
 }
 
-.agnes-home-card:hover {
-  border-color: var(--agnes-border-hover);
-  box-shadow: var(--agnes-shadow-lg);
-  transform: translateY(-3px);
-}
+/* 悬停反馈仅在支持 hover 的精确指针设备生效；触屏设备由 :active 提供反馈 */
+@media (hover: hover) and (pointer: fine) {
+  .agnes-home-card:hover {
+    border-color: var(--agnes-border-hover);
+    box-shadow: var(--agnes-shadow-lg);
+    transform: translateY(-3px);
+  }
 
-.agnes-home-card:hover::after {
-  opacity: 0.18;
-  transform: scale(1.2);
-}
+  .agnes-home-card:hover::after {
+    opacity: 0.18;
+    transform: scale(1.2);
+  }
 
-.agnes-home-card:hover::before {
-  width: 8px;
+  .agnes-home-card:hover::before {
+    width: 8px;
+  }
 }
 
 .agnes-home-card:active {
@@ -186,8 +189,10 @@
   position: relative;
 }
 
-.agnes-home-card:hover .agnes-home-card-icon {
-  transform: scale(1.1) rotate(-5deg);
+@media (hover: hover) and (pointer: fine) {
+  .agnes-home-card:hover .agnes-home-card-icon {
+    transform: scale(1.1) rotate(-5deg);
+  }
 }
 
 .agnes-home-card-agnes .agnes-home-card-icon {
@@ -263,9 +268,11 @@
   transition: transform var(--agnes-transition), color var(--agnes-transition);
 }
 
-.agnes-home-card:hover .agnes-home-card-arrow {
-  transform: translateX(6px);
-  color: var(--agnes-primary);
+@media (hover: hover) and (pointer: fine) {
+  .agnes-home-card:hover .agnes-home-card-arrow {
+    transform: translateX(6px);
+    color: var(--agnes-primary);
+  }
 }
 
 /* 忙碌状态徽标（右上角） */
@@ -358,11 +365,13 @@
   color: inherit;
 }
 
-.agnes-home-link-item:hover {
-  background: var(--agnes-bg-card);
-  border-color: var(--agnes-primary);
-  transform: translateX(2px);
-  box-shadow: var(--agnes-shadow-sm);
+@media (hover: hover) and (pointer: fine) {
+  .agnes-home-link-item:hover {
+    background: var(--agnes-bg-card);
+    border-color: var(--agnes-primary);
+    transform: translateX(2px);
+    box-shadow: var(--agnes-shadow-sm);
+  }
 }
 
 .agnes-home-link-item:active {
@@ -386,9 +395,11 @@
   transition: transform var(--agnes-transition);
 }
 
-.agnes-home-link-item:hover .agnes-home-link-arrow {
-  color: var(--agnes-primary);
-  transform: translate(2px, -2px);
+@media (hover: hover) and (pointer: fine) {
+  .agnes-home-link-item:hover .agnes-home-link-arrow {
+    color: var(--agnes-primary);
+    transform: translate(2px, -2px);
+  }
 }
 
 
@@ -407,8 +418,10 @@
   background: var(--agnes-bg) !important;
 }
 
-.agnes-drawer [class*='animal-panel'] {
-  max-width: 720px !important;
+/* 抽屉面板：Drawer 组件将外部 className（agnes-drawer）直接合并到 panel 元素自身，
+   两者在同一元素上，必须用复合选择器；若写成后代选择器则全文档 0 匹配（存量死亡选择器） */
+[class*='animal-panel'].agnes-drawer {
+  max-width: var(--agnes-drawer-max, 720px) !important;
 }
 
 .agnes-drawer-content {
@@ -516,6 +529,57 @@
     opacity: 1;
     transform: scale(1.15);
     box-shadow: 0 0 0 5px rgba(25, 200, 185, 0);
+  }
+}
+
+
+/* ============================================
+   宽屏针对性优化（主页）：iPad 竖屏起卡片 3 列
+   仅作用于 ≥769px，小屏（≤768px）纵向列表不变
+   ============================================ */
+@media (min-width: 769px) {
+  /* 卡片改 3 列网格 */
+  .agnes-home-cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+  }
+
+  /* 单卡改纵向布局，适配更窄列宽 */
+  .agnes-home-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 18px 16px;
+  }
+
+  /* 箭头固定到卡片右下角（纵向布局下不再占独立行） */
+  .agnes-home-card-arrow {
+    position: absolute;
+    right: 14px;
+    bottom: 12px;
+  }
+
+  /* 触屏按压反馈（hover 迁移后 iPad 触摸仍有响应） */
+  .agnes-home-card:active {
+    transform: scale(0.98);
+  }
+
+  /* Tab 栏放宽紧凑感：更大间距与点击区，字号显式 13px */
+  .agnes-tabs-wrapper [class*='animal-tabList'] {
+    gap: 10px 8px;
+  }
+
+  .agnes-tabs-wrapper [class*='animal-tabItem'] {
+    padding: 8px 18px;
+    font-size: 13px;
+  }
+}
+
+@media (min-width: 1024px) {
+  /* iPad 横屏维持 3 列，间距再放宽一档 */
+  .agnes-home-cards {
+    gap: 16px;
   }
 }
 

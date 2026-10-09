@@ -49,10 +49,12 @@
   transition: all var(--agnes-transition);
 }
 
-.agnes-history-item:hover {
-  border-color: var(--agnes-primary);
-  box-shadow: var(--agnes-shadow-sm);
-  transform: translateX(2px);
+@media (hover: hover) and (pointer: fine) {
+  .agnes-history-item:hover {
+    border-color: var(--agnes-primary);
+    box-shadow: var(--agnes-shadow-sm);
+    transform: translateX(2px);
+  }
 }
 
 .agnes-history-thumb {
@@ -192,10 +194,12 @@
   flex-shrink: 0;
 }
 
-.agnes-history-delete-btn:hover {
-  background: var(--agnes-error-bg);
-  color: var(--agnes-error);
-  transform: scale(1.1);
+@media (hover: hover) and (pointer: fine) {
+  .agnes-history-delete-btn:hover {
+    background: var(--agnes-error-bg);
+    color: var(--agnes-error);
+    transform: scale(1.1);
+  }
 }
 
 .agnes-history-actions {
@@ -218,10 +222,12 @@
   transition: all var(--agnes-transition);
 }
 
-.agnes-history-action-btn:hover {
-  background: var(--agnes-primary-bg);
-  color: var(--agnes-primary);
-  transform: scale(1.1);
+@media (hover: hover) and (pointer: fine) {
+  .agnes-history-action-btn:hover {
+    background: var(--agnes-primary-bg);
+    color: var(--agnes-primary);
+    transform: scale(1.1);
+  }
 }
 
 
@@ -266,6 +272,39 @@
 .agnes-page-jump-input:focus {
   border-color: var(--agnes-primary);
   box-shadow: 0 0 0 3px var(--agnes-primary-bg-soft);
+}
+
+
+/* ===== 触屏反馈（hover 迁移补充） ===== */
+.agnes-history-item:active {
+  transform: scale(0.99);
+}
+
+.agnes-history-delete-btn:active {
+  transform: scale(0.95);
+}
+
+.agnes-history-action-btn:active {
+  transform: scale(0.95);
+}
+
+
+/* ===== 宽屏断点：历史列表两列 + 缩略图放大 ===== */
+/* ≥769px iPad 竖屏：单列 flex 改双列 grid，缩略图 60px → 72px（条目内部布局不变） */
+@media (min-width: 769px) {
+  .agnes-history-list {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .agnes-history-thumb,
+  .agnes-history-video-thumb-wrap,
+  .agnes-history-video-thumb,
+  .agnes-history-thumb-placeholder {
+    width: 72px;
+    height: 72px;
+  }
 }
 
 

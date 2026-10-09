@@ -18,9 +18,11 @@
   transition: border-color var(--agnes-transition), box-shadow var(--agnes-transition);
 }
 
-.agnes-flash-card:hover {
-  border-color: var(--agnes-border-hover);
-  box-shadow: var(--agnes-shadow-base);
+@media (hover: hover) and (pointer: fine) {
+  .agnes-flash-card:hover {
+    border-color: var(--agnes-border-hover);
+    box-shadow: var(--agnes-shadow-base);
+  }
 }
 
 .agnes-flash-card-header {
@@ -86,9 +88,11 @@
   font-family: inherit;
 }
 
-.agnes-segment-item:hover:not(.agnes-segment-item-active) {
-  color: var(--agnes-text);
-  background: var(--agnes-bg-hover);
+@media (hover: hover) and (pointer: fine) {
+  .agnes-segment-item:hover:not(.agnes-segment-item-active) {
+    color: var(--agnes-text);
+    background: var(--agnes-bg-hover);
+  }
 }
 
 
@@ -146,10 +150,12 @@
   transition: all var(--agnes-transition);
 }
 
-.agnes-media-tile:hover {
-  border-color: var(--agnes-primary);
-  transform: translateY(-2px);
-  box-shadow: var(--agnes-shadow-base);
+@media (hover: hover) and (pointer: fine) {
+  .agnes-media-tile:hover {
+    border-color: var(--agnes-primary);
+    transform: translateY(-2px);
+    box-shadow: var(--agnes-shadow-base);
+  }
 }
 
 .agnes-media-tile img {
@@ -177,8 +183,10 @@
   transition: transform var(--agnes-transition-fast);
 }
 
-.agnes-media-tile-remove:hover {
-  transform: scale(1.1);
+@media (hover: hover) and (pointer: fine) {
+  .agnes-media-tile-remove:hover {
+    transform: scale(1.1);
+  }
 }
 
 .agnes-media-tile-empty {
@@ -191,10 +199,12 @@
   cursor: default;
 }
 
-.agnes-media-tile-empty:hover {
-  border-color: var(--agnes-border);
-  transform: none;
-  box-shadow: none;
+@media (hover: hover) and (pointer: fine) {
+  .agnes-media-tile-empty:hover {
+    border-color: var(--agnes-border);
+    transform: none;
+    box-shadow: none;
+  }
 }
 
 .agnes-media-tile-audio {
@@ -296,9 +306,11 @@
   transition: transform var(--agnes-transition), box-shadow var(--agnes-transition);
 }
 
-.agnes-result-image:hover {
-  transform: scale(1.005);
-  box-shadow: var(--agnes-shadow-base);
+@media (hover: hover) and (pointer: fine) {
+  .agnes-result-image:hover {
+    transform: scale(1.005);
+    box-shadow: var(--agnes-shadow-base);
+  }
 }
 
 .agnes-result-grid {
@@ -316,8 +328,10 @@
   transition: transform var(--agnes-transition-bounce);
 }
 
-.agnes-result-grid-item:hover {
-  transform: translateY(-2px) scale(1.02);
+@media (hover: hover) and (pointer: fine) {
+  .agnes-result-grid-item:hover {
+    transform: translateY(-2px) scale(1.02);
+  }
 }
 
 .agnes-result-grid-image {
@@ -393,10 +407,12 @@
   transition: all var(--agnes-transition);
 }
 
-.agnes-result-action-btn:hover {
-  border-color: var(--agnes-primary);
-  transform: translateY(-2px);
-  box-shadow: var(--agnes-shadow-sm);
+@media (hover: hover) and (pointer: fine) {
+  .agnes-result-action-btn:hover {
+    border-color: var(--agnes-primary);
+    transform: translateY(-2px);
+    box-shadow: var(--agnes-shadow-sm);
+  }
 }
 
 .agnes-result-action-btn:active {
@@ -408,9 +424,11 @@
   border-color: rgba(224, 90, 90, 0.2);
 }
 
-.agnes-result-action-danger:hover {
-  border-color: var(--agnes-error);
-  background: rgba(224, 90, 90, 0.15);
+@media (hover: hover) and (pointer: fine) {
+  .agnes-result-action-danger:hover {
+    border-color: var(--agnes-error);
+    background: rgba(224, 90, 90, 0.15);
+  }
 }
 
 .agnes-result-action-icon {
@@ -432,6 +450,55 @@
 
 .agnes-select-actions > * {
   flex: 1;
+}
+
+
+/* ===== 触屏反馈（hover 迁移补充）：:active 按压态，与原 hover 效果风格一致的克制反馈 ===== */
+.agnes-flash-card:active {
+  transform: scale(0.99);
+}
+
+.agnes-segment-item:active:not(.agnes-segment-item-active) {
+  opacity: 0.7;
+}
+
+.agnes-media-tile:active {
+  transform: scale(0.98);
+}
+
+.agnes-media-tile-remove:active {
+  transform: scale(0.95);
+}
+
+.agnes-result-image:active {
+  transform: scale(0.99);
+}
+
+.agnes-result-grid-item:active {
+  transform: scale(0.98);
+}
+
+
+/* ===== 宽屏断点：结果网格多列（gap = --agnes-space-sm = 8px，列宽按实际 gap 计算） ===== */
+/* ≥769px iPad 竖屏：4 列 */
+@media (min-width: 769px) {
+  .agnes-result-grid-item {
+    width: calc(25% - 6px);
+  }
+}
+
+/* ≥1024px iPad 横屏：5 列 */
+@media (min-width: 1024px) {
+  .agnes-result-grid-item {
+    width: calc(20% - 6.4px);
+  }
+}
+
+/* ≥1366px 桌面：6 列 */
+@media (min-width: 1366px) {
+  .agnes-result-grid-item {
+    width: calc(16.6667% - 6.6667px);
+  }
 }
 
 

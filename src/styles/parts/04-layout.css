@@ -1,8 +1,9 @@
 ﻿/* ===== 页面布局 ===== */
 .agnes-page {
   min-height: 100vh;
+  min-height: 100dvh;
   padding-bottom: 80px;
-  max-width: 720px;
+  max-width: var(--agnes-page-max, 720px);
   margin: 0 auto;
   position: relative;
 }

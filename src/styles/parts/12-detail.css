@@ -26,12 +26,14 @@
   user-select: none;
 }
 
-.agnes-detail-close-fab:hover {
-  color: #fff;
-  background: #e11d48;
-  border-color: #e11d48;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(225, 29, 72, 0.25);
+@media (hover: hover) and (pointer: fine) {
+  .agnes-detail-close-fab:hover {
+    color: #fff;
+    background: #e11d48;
+    border-color: #e11d48;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(225, 29, 72, 0.25);
+  }
 }
 
 .agnes-detail-close-fab:active {
@@ -56,8 +58,10 @@
   transition: transform var(--agnes-transition-fast);
 }
 
-.agnes-detail-image:hover {
-  transform: scale(1.01);
+@media (hover: hover) and (pointer: fine) {
+  .agnes-detail-image:hover {
+    transform: scale(1.01);
+  }
 }
 
 .agnes-detail-video {
@@ -85,8 +89,10 @@
   outline-offset: -2px;
 }
 
-.agnes-detail-grid-cell:hover {
-  transform: scale(1.03);
+@media (hover: hover) and (pointer: fine) {
+  .agnes-detail-grid-cell:hover {
+    transform: scale(1.03);
+  }
 }
 
 .agnes-detail-grid-cell-selected {
@@ -122,8 +128,10 @@
   transition: background var(--agnes-transition);
 }
 
-.agnes-detail-grid-selectall:hover {
-  background: rgba(99, 102, 241, 0.08);
+@media (hover: hover) and (pointer: fine) {
+  .agnes-detail-grid-selectall:hover {
+    background: rgba(99, 102, 241, 0.08);
+  }
 }
 
 .agnes-detail-grid-selectall input[type='checkbox'] {
@@ -152,9 +160,11 @@
   transition: background var(--agnes-transition), border-color var(--agnes-transition), transform var(--agnes-transition-fast);
 }
 
-.agnes-detail-grid-cell:hover .agnes-detail-grid-checkbox {
-  transform: scale(1.08);
-  border-color: var(--agnes-primary);
+@media (hover: hover) and (pointer: fine) {
+  .agnes-detail-grid-cell:hover .agnes-detail-grid-checkbox {
+    transform: scale(1.08);
+    border-color: var(--agnes-primary);
+  }
 }
 
 .agnes-detail-grid-checkbox input[type='checkbox'] {
@@ -204,13 +214,21 @@
   z-index: 1;
 }
 
-.agnes-detail-grid-cell:hover .agnes-detail-grid-download,
+/* 原 hover+focus 合并规则拆分：hover 部分迁入 hover 媒体查询，focus 保留全局 */
+@media (hover: hover) and (pointer: fine) {
+  .agnes-detail-grid-cell:hover .agnes-detail-grid-download {
+    opacity: 1;
+  }
+}
+
 .agnes-detail-grid-download:focus {
   opacity: 1;
 }
 
-.agnes-detail-grid-download:hover {
-  background: var(--agnes-primary);
+@media (hover: hover) and (pointer: fine) {
+  .agnes-detail-grid-download:hover {
+    background: var(--agnes-primary);
+  }
 }
 
 .agnes-detail-grid-item {
@@ -222,8 +240,10 @@
   transition: transform var(--agnes-transition-fast);
 }
 
-.agnes-detail-grid-item:hover {
-  transform: scale(1.03);
+@media (hover: hover) and (pointer: fine) {
+  .agnes-detail-grid-item:hover {
+    transform: scale(1.03);
+  }
 }
 
 .agnes-detail-grid-image {
@@ -314,9 +334,11 @@
   transition: transform var(--agnes-transition-fast);
 }
 
-.agnes-detail-ref-image:hover {
-  transform: scale(1.06);
-  border-color: var(--agnes-primary);
+@media (hover: hover) and (pointer: fine) {
+  .agnes-detail-ref-image:hover {
+    transform: scale(1.06);
+    border-color: var(--agnes-primary);
+  }
 }
 
 .agnes-detail-section {
@@ -355,6 +377,61 @@
   gap: var(--agnes-space-sm);
   margin-top: var(--agnes-space-lg);
   flex-wrap: wrap;
+}
+
+
+/* ===== 触屏反馈（hover 迁移补充） ===== */
+.agnes-detail-image:active {
+  transform: scale(0.99);
+}
+
+.agnes-detail-grid-cell:active {
+  transform: scale(0.98);
+}
+
+.agnes-detail-grid-selectall:active {
+  opacity: 0.7;
+}
+
+.agnes-detail-grid-checkbox:active {
+  transform: scale(0.95);
+}
+
+/* 按压卡片时亮起下载按钮，替代被迁移的 hover 显隐（触屏可发现性） */
+.agnes-detail-grid-cell:active .agnes-detail-grid-download {
+  opacity: 1;
+}
+
+.agnes-detail-grid-item:active {
+  transform: scale(0.98);
+}
+
+.agnes-detail-ref-image:active {
+  transform: scale(0.98);
+}
+
+
+/* ===== 宽屏断点：详情弹窗增强 ===== */
+/* ≥769px iPad 竖屏：覆盖组件库内联宽度（HistoryDetail.tsx width="min(680px, 92vw)"）+ 内容区限高放宽 + 多图 4 列 */
+@media (min-width: 769px) {
+  [class*='animal-mask'] > [class*='animal-modal-'] {
+    width: min(900px, 88vw) !important;
+  }
+
+  .agnes-detail-popup-body {
+    max-height: 70vh;
+  }
+
+  .agnes-detail-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+/* ≥1366px 桌面：多图 6 列 */
+@media (min-width: 1366px) {
+  .agnes-detail-grid {
+    grid-template-columns: repeat(6, 1fr);
+  }
 }
 
 

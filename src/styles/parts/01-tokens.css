@@ -81,6 +81,10 @@
   --agnes-font-lg: var(--animal-font-size-lg, 16px);
   --agnes-font-xl: 18px;
   --agnes-font-xxl: 22px;
+
+  /* 布局宽度变量（宽屏断点在 17-responsive.css 中覆写） */
+  --agnes-page-max: 720px;
+  --agnes-drawer-max: 720px;
 }
 
 

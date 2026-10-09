@@ -87,3 +87,12 @@
 }
 
 
+/* ===== 宽屏断点：进度条放宽（width 60% 不变，max-width 上限 300px → 400px） ===== */
+/* ≥769px iPad 竖屏 */
+@media (min-width: 769px) {
+  .agnes-video-progress-bar {
+    max-width: min(400px, 60%);
+  }
+}
+
+

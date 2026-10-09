@@ -114,9 +114,11 @@
   position: relative;
 }
 
-.agnes-tier-btn:hover {
-  color: var(--agnes-text);
-  background: var(--agnes-bg-hover);
+@media (hover: hover) and (pointer: fine) {
+  .agnes-tier-btn:hover {
+    color: var(--agnes-text);
+    background: var(--agnes-bg-hover);
+  }
 }
 
 .agnes-tier-btn-active {
@@ -173,9 +175,11 @@
   user-select: none;
 }
 
-.agnes-ratio-item:hover {
-  border-color: var(--agnes-border-hover);
-  background: var(--agnes-primary-bg-soft);
+@media (hover: hover) and (pointer: fine) {
+  .agnes-ratio-item:hover {
+    border-color: var(--agnes-border-hover);
+    background: var(--agnes-primary-bg-soft);
+  }
 }
 
 .agnes-ratio-item-active {
@@ -200,8 +204,10 @@
   transition: border-color 0.15s ease;
 }
 
-.agnes-ratio-item:hover .agnes-ratio-preview {
-  border-color: var(--agnes-border-hover);
+@media (hover: hover) and (pointer: fine) {
+  .agnes-ratio-item:hover .agnes-ratio-preview {
+    border-color: var(--agnes-border-hover);
+  }
 }
 
 .agnes-ratio-item-active .agnes-ratio-preview {
@@ -310,8 +316,10 @@
   transition: transform var(--agnes-transition-bounce);
 }
 
-.agnes-ref-preview-wrap:hover {
-  transform: scale(1.05);
+@media (hover: hover) and (pointer: fine) {
+  .agnes-ref-preview-wrap:hover {
+    transform: scale(1.05);
+  }
 }
 
 .agnes-ref-preview-image {
@@ -324,8 +332,10 @@
   transition: border-color var(--agnes-transition);
 }
 
-.agnes-ref-preview-wrap:hover .agnes-ref-preview-image {
-  border-color: var(--agnes-primary);
+@media (hover: hover) and (pointer: fine) {
+  .agnes-ref-preview-wrap:hover .agnes-ref-preview-image {
+    border-color: var(--agnes-primary);
+  }
 }
 
 /* 参考音频项（reference 模式） */
@@ -368,9 +378,11 @@
   transition: transform var(--agnes-transition-fast);
 }
 
-.agnes-ref-preview-delete:hover {
-  transform: scale(1.15);
-  background: var(--agnes-error-hover);
+@media (hover: hover) and (pointer: fine) {
+  .agnes-ref-preview-delete:hover {
+    transform: scale(1.15);
+    background: var(--agnes-error-hover);
+  }
 }
 
 
@@ -397,6 +409,33 @@
 
 .agnes-generate-btn-wrapper [class*='animal-btn'] {
   box-shadow: var(--agnes-shadow-primary-sm);
+}
+
+
+/* ===== 触屏反馈（hover 迁移补充） ===== */
+.agnes-tier-btn:active {
+  opacity: 0.75;
+}
+
+.agnes-ratio-item:active {
+  transform: scale(0.98);
+}
+
+.agnes-ref-preview-wrap:active {
+  transform: scale(0.98);
+}
+
+.agnes-ref-preview-delete:active {
+  transform: scale(0.95);
+}
+
+
+/* ===== 宽屏断点：宽高比网格放宽 ===== */
+/* ≥769px iPad 竖屏：单格最小宽 100px → 120px */
+@media (min-width: 769px) {
+  .agnes-ratio-scroll {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  }
 }
 
 

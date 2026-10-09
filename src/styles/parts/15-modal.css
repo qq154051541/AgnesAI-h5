@@ -45,9 +45,11 @@
   backdrop-filter: blur(4px);
 }
 
-.agnes-image-preview-close:hover {
-  background: rgba(255, 255, 255, 0.3);
-  transform: rotate(90deg) scale(1.05);
+@media (hover: hover) and (pointer: fine) {
+  .agnes-image-preview-close:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: rotate(90deg) scale(1.05);
+  }
 }
 
 @keyframes agnes-preview-fade-in {
@@ -76,9 +78,11 @@
   backdrop-filter: blur(4px);
 }
 
-.agnes-image-preview-nav:hover {
-  background: rgba(255, 255, 255, 0.3);
-  transform: translateY(-50%) scale(1.1);
+@media (hover: hover) and (pointer: fine) {
+  .agnes-image-preview-nav:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: translateY(-50%) scale(1.1);
+  }
 }
 
 .agnes-image-preview-nav:active {
@@ -126,10 +130,32 @@
   flex-shrink: 0;
 }
 
-.agnes-modal-close-btn:hover {
-  background: var(--agnes-error-bg);
-  color: var(--agnes-error);
-  transform: rotate(90deg);
+@media (hover: hover) and (pointer: fine) {
+  .agnes-modal-close-btn:hover {
+    background: var(--agnes-error-bg);
+    color: var(--agnes-error);
+    transform: rotate(90deg);
+  }
+}
+
+
+/* ===== 触屏反馈（hover 迁移补充） ===== */
+.agnes-image-preview-close:active {
+  transform: scale(0.95);
+}
+
+.agnes-modal-close-btn:active {
+  transform: scale(0.95);
+}
+
+
+/* ===== 宽屏断点：图片全屏预览放宽 ===== */
+/* ≥769px iPad 竖屏：max-width 上限提升至 1200px（HistoryDetail.tsx 内联的 92vw/88vh 不在 CSS 管控范围） */
+@media (min-width: 769px) {
+  .agnes-image-preview-img {
+    max-width: min(1200px, 92vw);
+    max-height: 88vh;
+  }
 }
 
 
